@@ -33,3 +33,9 @@ See [Example configuration files](https://github.com/DarwinsBuddy/WienerNetzeSma
 
 This integration uses the API of https://www.wienernetze.at/smartmeter
 All rights regarding the API are reserved by [Wiener Netze](https://www.wienernetze.at/impressum)
+
+Special thanks to [platrysma](https://github.com/platysma)
+for providing me a starting point [vienna-smartmeter](https://github.com/platysma/vienna-smartmeter)
+and especially [florianL21](https://github.com/florianL21/)
+for his [fork](https://github.com/florianL21/vienna-smartmeter/network)
+
