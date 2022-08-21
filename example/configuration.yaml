@@ -1,0 +1,5 @@
+# Example configuration.yaml entry
+sensor:
+  - platform: wnsm
+    username: !secret vsm_username
+    password: !secret vsm_password
