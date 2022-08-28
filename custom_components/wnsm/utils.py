@@ -16,9 +16,17 @@ def strint(s: str) -> str | int:
         return int(s)
     return s
 
+def is_valid_access(data: list | dict, accessor: str | int) -> bool:
+    if type(accessor) == int and type(data) == list:
+        return accessor < len(data)
+    elif type(accessor) == str and type(data) == dict:
+        return accessor in data
+    else:
+        return False
+
 def dict_path(path: str, d: dict) -> str:
     try:
-        return reduce(lambda acc, i: acc[i] if acc is not None else None, [strint(s) for s in path.split('.')], d)
+        return reduce(lambda acc, i: acc[i] if is_valid_access(acc, i) else None, [strint(s) for s in path.split('.')], d)
     except KeyError as e:
         logging.warning(f"Could not find key '{e.args[0]}' in response")
     except Exception as e:

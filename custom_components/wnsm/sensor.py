@@ -112,16 +112,16 @@ class SmartmeterSensor(SensorEntity):
     def state(self) -> Optional[str]:
         return self._state
 
-    def get_zaehlpunkt(self, smartmeter: Smartmeter) -> Dict[str, str]:
-        zps = smartmeter.zaehlpunkte()
+    async def get_zaehlpunkt(self, smartmeter: Smartmeter) -> Dict[str, str]:
+        zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
         if zps is None or len(zps) == 0:
             raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
         else:
             zp = [z for z in zps[0]["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt]
             return translate_dict(zp[0], ATTRS_ZAEHLPUNKTE_CALL) if len(zp) > 0 else None
 
-    def get_daily_consumption(self, smartmeter: Smartmeter, date: datetime):
-        response = smartmeter.tages_verbrauch(date, zaehlpunkt=self.zaehlpunkt)
+    async def get_daily_consumption(self, smartmeter: Smartmeter, date: datetime):
+        response = await self.hass.async_add_executor_job(smartmeter.tages_verbrauch, date, self.zaehlpunkt)
         if "Exception" in response:
             raise RuntimeError("Cannot access daily consumption: ", response)
         else:
@@ -154,31 +154,38 @@ class SmartmeterSensor(SensorEntity):
         self._state = sum
         return data
 
+    def is_active(self, zp: dict) -> bool:
+        return (not('active' in zp) or zp['active']) or (not ('smartMeterReady' in zp) or zp['smartMeterReady'])
+
     async def async_update(self):
         try:
             smartmeter = Smartmeter(self.username, self.password)
             await self.hass.async_add_executor_job(smartmeter.login)
-            self._attr_extra_state_attributes = await self.hass.async_add_executor_job(self.get_zaehlpunkt, smartmeter)
+            zp = await self.get_zaehlpunkt(smartmeter)
+            self._attr_extra_state_attributes = zp
+            
             # TODO: find out how to use quarterly data in another sensor
             #       wiener smartmeter does not expose them quarterly, but daily :/
             #self.attrs = self.parse_quarterly_consumption_response(response)
-            
-            welcome = await self.get_welcome(smartmeter)
-            # if zaehlpunkt is conincidentally the one returned by /welcome
-            if welcome['zaehlpunkt'] == self.zaehlpunkt:
-                if welcome['lastValue'] is None or self._state != welcome['lastValue']:
-                    self._state = welcome['lastValue'] / 1000
-            else: # if not, we'll have to guesstimate (because api is shitty pomfritty) for that zaehlpunkt
-                yesterdays_consumption = await self.hass.async_add_executor_job(self.get_daily_consumption, smartmeter, before(today()))
-                if 'values' in yesterdays_consumption and 'statistics' in yesterdays_consumption:
-                    avg = yesterdays_consumption['statistics']['average']
-                    s = sum([y["value"] if y["value"] is not None else avg for y in yesterdays_consumption["values"]])
-                    if s > 0:
-                        self._state = s
-                else:
-                    return
-            self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+            if self.is_active(zp):
+                welcome = await self.get_welcome(smartmeter)
+                # if zaehlpunkt is conincidentally the one returned by /welcome
+                if 'zaehlpunkt' in welcome and welcome['zaehlpunkt'] == self.zaehlpunkt and 'lastValue' in welcome:
+                    if welcome['lastValue'] is None or self._state != welcome['lastValue']:
+                        self._state = welcome['lastValue'] / 1000
+                else: # if not, we'll have to guesstimate (because api is shitty pomfritty) for that zaehlpunkt
+                    yesterdays_consumption = await self.get_daily_consumption(smartmeter, before(today()))
+                    if 'values' in yesterdays_consumption and 'statistics' in yesterdays_consumption:
+                        avg = yesterdays_consumption['statistics']['average']
+                        s = sum([y["value"] if y["value"] is not None else avg for y in yesterdays_consumption["values"]])
+                        if s > 0:
+                            self._state = s
+                    else:
+                        _LOGGER.error("Unable to load consumption")
+                        _LOGGER.error(f"Please file an issue with this error and (anonymized) payload in github {welcome} {yesterdays_consumption}")
+                        return
             self._available = True
+            self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except RuntimeError:
             self._available = False
             _LOGGER.exception("Error retrieving data from smart meter api.")

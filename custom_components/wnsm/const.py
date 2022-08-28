@@ -29,7 +29,10 @@ ATTRS_ZAEHLPUNKTE_CALL = [
     ("verbrauchsstelle.ort", "city"),
     ("verbrauchsstelle.laengengrad", "longitude"),
     ("verbrauchsstelle.breitengrad", "latitude"),
-    ("anlage.typ", "type")
+    ("anlage.typ", "type"),
+    ("isDefault", "default"),
+    ("isActive", "active"),
+    ("isSmartMeterMarketReady", "smartMeterReady"),
 ]
 
 ATTRS_WELCOME_CALL = [
