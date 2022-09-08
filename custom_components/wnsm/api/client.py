@@ -32,30 +32,37 @@ class Smartmeter:
 
     def login(self):
         login_url = const.AUTH_URL + "auth?" + parse.urlencode(const.LOGIN_ARGS)
-        result = self.session.get(login_url)
+        try:
+            result = self.session.get(login_url)
+        except Exception as e:
+            raise SmartmeterConnectionError(f"Could not load login page. Error: {e}")
         if result.status_code != 200:
             raise SmartmeterConnectionError(f"Could not load login page. Error: {result.content}")
         tree = html.fromstring(result.content)
         action = tree.xpath("(//form/@action)")[0]
-
-        result = self.session.post(
-            action,
-            data={
-                "username": self.username,
-                "password": self.password,
-            },
-            allow_redirects=False,
-        )
+        try:
+            result = self.session.post(
+                action,
+                data={
+                    "username": self.username,
+                    "password": self.password,
+                },
+                allow_redirects=False,
+            )
+        except Exception as e:
+            raise SmartmeterConnectionError(f"Could not load login page. Error: {e}")
 
         if "Location" not in result.headers:
             raise SmartmeterLoginError("Login failed. Check username/password.")
 
         code = result.headers["Location"].split("&code=", 1)[1]
-
-        result = self.session.post(
-            const.AUTH_URL + "token",
-            data=const.build_access_token_args(code=code),
-        )
+        try:
+            result = self.session.post(
+                const.AUTH_URL + "token",
+                data=const.build_access_token_args(code=code),
+            )
+        except Exception as e:
+            raise SmartmeterConnectionError(f"Could not obtain access token: {e}")
 
         if result.status_code != 200:
             raise SmartmeterConnectionError(f"Could not obtain access token: {result.content}")
@@ -67,11 +74,17 @@ class Smartmeter:
         headers = {
             "Authorization": f"Bearer {token}"
         }
-        result = self.session.get(const.PAGE_URL, headers=headers)
+        try:
+            result = self.session.get(const.PAGE_URL, headers=headers)
+        except Exception as e:
+            raise SmartmeterConnectionError(f"Could not obtain API key {e}")
         tree = html.fromstring(result.content)
         scripts = tree.xpath("(//script/@src)")
         for script in scripts:
-            response = self.session.get(const.PAGE_URL + script)
+            try:
+                response = self.session.get(const.PAGE_URL + script)
+            except Exception as e:
+                raise SmartmeterConnectionError(f"Could not obtain API key {e}")
             if const.MAIN_SCRIPT_REGEX.match(script):
                 for match in const.API_GATEWAY_TOKEN_REGEX.findall(response.text):
                     return match
