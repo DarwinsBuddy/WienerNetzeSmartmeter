@@ -1,5 +1,6 @@
 # Example configuration.yaml entry
 sensor:
-  - platform: wnsm
-    username: !secret vsm_username
-    password: !secret vsm_password
+  - platform:  wnsm
+    username:  !secret vsm_username
+    password:  !secret vsm_password
+    device_id: !secret vsm_zaehlpunktnummer
