@@ -118,7 +118,10 @@ class SmartmeterSensor(SensorEntity):
             raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
         else:
             zp = [z for z in zps[0]["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt]
-            return translate_dict(zp[0], ATTRS_ZAEHLPUNKTE_CALL) if len(zp) > 0 else None
+            if len(zp) == 0:
+                raise RuntimeError(f"Zaehlpunkt {self.zaehlpunkt} not found")
+            else:
+                return translate_dict(zp[0], ATTRS_ZAEHLPUNKTE_CALL) if len(zp) > 0 else None
 
     async def get_daily_consumption(self, smartmeter: Smartmeter, date: datetime):
         response = await self.hass.async_add_executor_job(smartmeter.tages_verbrauch, date, self.zaehlpunkt)
