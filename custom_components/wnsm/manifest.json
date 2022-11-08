@@ -1,5 +1,7 @@
 {
-  "codeowners": ["@DarwinsBuddy"],
+  "codeowners": [
+    "@DarwinsBuddy"
+  ],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter",
@@ -7,6 +9,8 @@
   "domain": "wnsm",
   "iot_class": "calculated",
   "name": "WienerNetzeSmartmeter",
-  "requirements": [],
+  "requirements": [
+    "lxml"
+  ],
   "version": "1.0.0"
 }
