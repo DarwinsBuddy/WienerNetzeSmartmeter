@@ -211,7 +211,7 @@ class SmartmeterSensor(SensorEntity):
         statistics = []
         # TODO: Not sure if the datetime.datetime.now() is always in UTC...
         # Otherwise we have to make sure that the time we get is UTC...
-        while not has_none and start < datetime.now():
+        while not has_none and start < datetime.now().replace(tzinfo=timezone.utc):
             _LOGGER.debug(f"Use sum={sum_}, start={start}")
 
             # Select one day of consumption
