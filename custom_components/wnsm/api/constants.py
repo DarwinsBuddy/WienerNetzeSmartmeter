@@ -36,7 +36,10 @@ def build_verbrauchs_args(**kwargs):
         "period": "DAY",
         "accumulate": False,
         "offset": 0,
-        "dayViewResolution": "QUARTER-HOUR",
+        # Possible values:
+        # HOUR
+        # QUARTER-HOUR
+        "dayViewResolution": "HOUR",  # home-assistant can not store 15min anyways
     }
     args.update(**kwargs)
     return args
