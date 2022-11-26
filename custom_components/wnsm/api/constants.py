@@ -33,6 +33,7 @@ def build_access_token_args(**kwargs):
 
 def build_verbrauchs_args(**kwargs):
     args = {
+        # Allows to select one day of data
         "period": "DAY",
         "accumulate": False,
         "offset": 0,

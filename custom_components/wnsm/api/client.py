@@ -1,6 +1,6 @@
 """Contains the Smartmeter API Client."""
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib import parse
 
 import requests
@@ -186,10 +186,12 @@ class Smartmeter:
                 'm/messdaten/zaehlpunkt/ZAEHLPUNKT/verbrauch'
         """
         if date_to is None:
-            date_to = datetime.now()
+            date_to = date_from + timedelta(hours=24)  # You can not get more than that anyways it seems...
         if zaehlpunkt is None:
             zaehlpunkt = self._get_first_zaehlpunkt()
         endpoint = "messdaten/zaehlpunkt/{}/verbrauch".format(zaehlpunkt)
+        # FIXME: If period=DAY is set in the args, you will get a maximum of 24h, irrespective of
+        # the end-date you specify
         query = const.build_verbrauchs_args(
             dateFrom=self._dt_string(date_from), dateTo=self._dt_string(date_to)
         )
