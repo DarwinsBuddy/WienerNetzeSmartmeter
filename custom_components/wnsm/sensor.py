@@ -177,12 +177,11 @@ class SmartmeterSensor(SensorEntity):
 
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, sum_: Decimal):
         """Import hourly consumption data into the statistics module, using start date and sum"""
-        # TODO: better would be to get this on the outside right...
-        # Have to be sure that full minutes are used. otherwise, the API returns a different
-        # interval
-        start = start.replace(minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
         if start.tzinfo is None:
             raise ValueError("start datetime must be timezone-aware!")
+        # Have to be sure that full minutes are used. otherwise, the API returns a different
+        # interval
+        start = start.replace(minute=0, second=0, microsecond=0)
 
         has_none = False
         statistics = []
@@ -196,8 +195,7 @@ class SmartmeterSensor(SensorEntity):
         )
         _LOGGER.debug(metadata)
 
-        # FIXME: Is the current date always in UTC? Probably not...
-        now = datetime.now().replace(minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
         _LOGGER.debug(f"Selecting data up to {now}")
         # FIXME: this loop is prone to endless loops, if the API returns something funny...
         # Thus, we add a counter here as well. But there are probably better methods to prevent that
@@ -297,7 +295,7 @@ class SmartmeterSensor(SensorEntity):
 
                 # Start from scratch
                 _sum = Decimal(0)
-                start = today() - timedelta(hours=168)  # For testing, use 1 week of data
+                start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=168)  # For testing, use 1 week of data
             elif len(last_inserted_stat) == 1 and len(last_inserted_stat[entity_id]) == 1:
                 # Previous data found in the statistics table
                 _sum = Decimal(last_inserted_stat[entity_id][0]["sum"])
@@ -305,6 +303,7 @@ class SmartmeterSensor(SensorEntity):
 
                 # FIXME: must we add 1h to the last reading or not? I guess we have to?
                 start += timedelta(hours=1)
+                _LOGGER.debug(f"Got statistic data: sum={_sum}, start={start} -> {start.tzinfo}")
             else:
                 _LOGGER.error("unexpected result of previous stats")
                 return
