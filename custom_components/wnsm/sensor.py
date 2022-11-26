@@ -141,6 +141,13 @@ class SmartmeterSensor(SensorEntity):
         else:
             return response
 
+    async def get_consumption(self, smartmeter: Smartmeter, start_date: datetime):
+        """Return the consumption starting from a date"""
+        response = await self.hass.async_add_executor_job(smartmeter.verbrauch, start_date, None, self.zaehlpunkt)
+        if "Exception" in response:
+            raise RuntimeError("Cannot access daily consumption: ", response)
+        return response
+
     async def get_welcome(self, smartmeter: Smartmeter) -> Dict[str, str]:
         response = await self.hass.async_add_executor_job(smartmeter.welcome)
         if "Exception" in response:
@@ -171,11 +178,14 @@ class SmartmeterSensor(SensorEntity):
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, sum_: Decimal):
         """Import hourly consumption data into the statistics module, using start date and sum"""
         # TODO: better would be to get this on the outside right...
-        start = start.replace(tzinfo=timezone.utc)
+        # Have to be sure that full minutes are used. otherwise, the API returns a different
+        # interval
+        start = start.replace(minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
         if start.tzinfo is None:
             raise ValueError("start datetime must be timezone-aware!")
-        has_none = False
 
+        has_none = False
+        statistics = []
         metadata = StatisticMetaData(
             source="recorder",
             statistic_id=f'sensor.{self.unique_id.lower()}',
@@ -186,15 +196,21 @@ class SmartmeterSensor(SensorEntity):
         )
         _LOGGER.debug(metadata)
 
-        statistics = []
-        # TODO: Not sure if the datetime.datetime.now() is always in UTC...
-        # Otherwise we have to make sure that the time we get is UTC...
-        while not has_none and start < datetime.now().replace(tzinfo=timezone.utc):
-            _LOGGER.debug(f"Use sum={sum_}, start={start}")
-
-            # Select one day of consumption
-            verbrauch = await self.get_daily_consumption(smartmeter, start)
+        # FIXME: Is the current date always in UTC? Probably not...
+        now = datetime.now().replace(minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+        _LOGGER.debug(f"Selecting data up to {now}")
+        # FIXME: this loop is prone to endless loops, if the API returns something funny...
+        # Thus, we add a counter here as well. But there are probably better methods to prevent that
+        iterations = 10
+        while iterations > 0 and not has_none and start < now:
+            _LOGGER.debug(f"Select 24h of Data, using sum={sum_:.3f}, start={start}")
+            iterations -= 1
+            verbrauch = await self.get_consumption(smartmeter, start)
             _LOGGER.debug(verbrauch)
+            if 'values' not in verbrauch:
+                _LOGGER.error("No values in API response!")
+                continue
+
             # TODO: What happens on summer-/wintertime change in the statistics?
             for v in verbrauch['values']:
                 # Timestamp has to be aware of timezone
@@ -211,10 +227,12 @@ class SmartmeterSensor(SensorEntity):
                     # If not, we could break as soon as we hit the first None value.
                     has_none = True
                     continue
+                elif has_none:
+                    _LOGGER.warning("Value is suddenly not None anymore!")
                 sum_ += Decimal(v['value'] / 1000.0)  # Convert to kWh, and accumulate
-
                 statistics.append(StatisticData(start=ts, sum=sum_))
-                # Update to select the next batch
+
+                # Set new start date for next batch
                 start = ts + timedelta(hours=1)
 
         _LOGGER.debug(statistics)
@@ -248,6 +266,9 @@ class SmartmeterSensor(SensorEntity):
 
             if len(last_inserted_stat) == 0 or len(last_inserted_stat[entity_id]) == 0:
                 # No previous data
+
+                # FIXME: This seems not to work and after some time you get a negative consumption
+                """
                 # Let's fetch some initial data we can use...
                 welcome = await self.get_welcome(smartmeter)
                 _LOGGER.debug(welcome)
@@ -272,9 +293,11 @@ class SmartmeterSensor(SensorEntity):
                     # TODO: what would be a sensible date here? usually, the first data is min. of
                     # 24h old...
                     start = before(before())
-                # The sum has to be zero, otherwise we will have a huge spike in the data
-                # TODO: or not?
+                """
+
+                # Start from scratch
                 _sum = Decimal(0)
+                start = today() - timedelta(hours=168)  # For testing, use 1 week of data
             elif len(last_inserted_stat) == 1 and len(last_inserted_stat[entity_id]) == 1:
                 # Previous data found in the statistics table
                 _sum = Decimal(last_inserted_stat[entity_id][0]["sum"])
@@ -290,6 +313,7 @@ class SmartmeterSensor(SensorEntity):
             await self._import_statistics(smartmeter, start, _sum)
 
             self._available = True
+            self._updatets = start.strftime("%d.%m.%Y %H:%M:%S")
         except RuntimeError:
             self._available = False
             _LOGGER.exception("Error retrieving data from smart meter api.")
