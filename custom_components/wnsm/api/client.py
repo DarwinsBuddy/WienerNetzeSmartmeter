@@ -112,7 +112,7 @@ class Smartmeter:
         if query:
             url += ("?" if "?" not in endpoint else "&") + parse.urlencode(query)
 
-        logger.debug("REQUEST: {}", url)
+        logger.debug("REQUEST: %s", url)
 
         headers = {
             "Authorization": f"Bearer {self._access_token}",
@@ -120,7 +120,7 @@ class Smartmeter:
         }
 
         if data:
-            logger.debug("DATA: {}", data)
+            logger.debug("DATA: %s", data)
             headers["Content-Type"] = "application/json"
 
         response = self.session.request(
