@@ -1,6 +1,7 @@
 """WienerNetze Smartmeter sensor platform"""
 import logging
-from datetime import timedelta, datetime
+from decimal import Decimal
+from datetime import timedelta, datetime, timezone
 from typing import Any, Callable, Dict, Optional
 
 import voluptuous as vol
@@ -14,6 +15,15 @@ from homeassistant.const import (
     DEVICE_CLASS_ENERGY,
     ENERGY_KILO_WATT_HOUR,
 )
+from homeassistant.components.recorder import get_instance
+from homeassistant.components.recorder.models import (
+    StatisticData,
+    StatisticMetaData,
+)
+from homeassistant.components.recorder.statistics import (
+    get_last_statistics,
+    async_import_statistics,
+)
 from homeassistant.core import DOMAIN
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.typing import (
@@ -21,6 +31,7 @@ from homeassistant.helpers.typing import (
     DiscoveryInfoType,
     HomeAssistantType,
 )
+from homeassistant.util import dt as dt_util
 
 from custom_components.wnsm.api import Smartmeter
 from custom_components.wnsm.const import ATTRS_WELCOME_CALL, ATTRS_ZAEHLPUNKTE_CALL, CONF_ZAEHLPUNKTE
@@ -157,6 +168,57 @@ class SmartmeterSensor(SensorEntity):
         self._state = sum
         return data
 
+    async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, sum_: Decimal):
+        """Import hourly consumption data into the statistics module, using start date and sum"""
+        has_none = False
+
+        metadata = StatisticMetaData(
+            source="recorder",
+            statistic_id=f'sensor.{self.unique_id.lower()}',
+            name=self.name,
+            unit_of_measurement=self._attr_unit_of_measurement,
+            has_mean=False,
+            has_sum=True,
+        )
+        _LOGGER.debug(metadata)
+
+        statistics = []
+        # TODO: Not sure if the datetime.datetime.now() is always in UTC...
+        # Otherwise we have to make sure that the time we get is UTC...
+        while not has_none and start < datetime.now():
+            _LOGGER.debug(f"Use sum={sum_}, start={start}")
+
+            # Select one day of consumption
+            verbrauch = await self.get_daily_consumption(smartmeter, start)
+            _LOGGER.debug(verbrauch)
+            # TODO: What happens on summer-/wintertime change in the statistics?
+            for v in verbrauch['values']:
+                ts = datetime.fromisoformat(v['timestamp'][:-1])
+                if ts.minute != 0:
+                    _LOGGER.error("Minute of timestamp is non-zero, this must not happen!")
+                    return
+                if v['value'] is None:
+                    # Measurement not yet in the database...
+                    # TODO: is it possible that after a None are more values?
+                    # If not, we could break as soon as we hit the first None value.
+                    has_none = True
+                    continue
+                sum_ += Decimal(v['value'] / 1000.0)  # Convert to kWh, and accumulate
+
+                statistics.append(
+                    StatisticData(
+                        start=ts.replace(tzinfo=timezone.utc),  # Timestamp has to be aware
+                        sum=sum_,
+                    )
+                )
+                # Update to select the next batch
+                start = ts + timedelta(hours=1)
+
+        _LOGGER.debug(statistics)
+
+        # Import the statistics data
+        async_import_statistics(self.hass, metadata, statistics)
+
     def is_active(self, zp: dict) -> bool:
         return (not('active' in zp) or zp['active']) or (not ('smartMeterReady' in zp) or zp['smartMeterReady'])
 
@@ -166,29 +228,65 @@ class SmartmeterSensor(SensorEntity):
             await self.hass.async_add_executor_job(smartmeter.login)
             zp = await self.get_zaehlpunkt(smartmeter)
             self._attr_extra_state_attributes = zp
-            
-            # TODO: find out how to use quarterly data in another sensor
-            #       wiener smartmeter does not expose them quarterly, but daily :/
-            #self.attrs = self.parse_quarterly_consumption_response(response)
-            if self.is_active(zp):
+
+            if not self.is_active(zp):
+                _LOGGER.warning("Smartmeter not active...")
+                return
+
+            # TODO: why does self.entity_id returns None?
+            entity_id = f'sensor.{self.unique_id.lower()}'
+
+            # Get last sum and last date from statistics
+            # From
+            # https://github.com/DarkC35/ha_linznetz/blob/904f361e760103f900ad93522a0215d348fc83bb/custom_components/linznetz/sensor.py
+            # Select one entry from the statistics, convert the units
+            last_inserted_stat = await get_instance(self.hass).async_add_executor_job(get_last_statistics, self.hass, 1, entity_id, True)
+            _LOGGER.debug(f"Last inserted stat: {last_inserted_stat}")
+
+            if len(last_inserted_stat) == 0 or len(last_inserted_stat[entity_id]) == 0:
+                # No previous data
+                # Let's fetch some initial data we can use...
                 welcome = await self.get_welcome(smartmeter)
-                # if zaehlpunkt is conincidentally the one returned by /welcome
-                if 'zaehlpunkt' in welcome and welcome['zaehlpunkt'] == self.zaehlpunkt and 'lastValue' in welcome:
-                    if welcome['lastValue'] is None or self._state != welcome['lastValue']:
-                        self._state = welcome['lastValue'] / 1000
-                else: # if not, we'll have to guesstimate (because api is shitty pomfritty) for that zaehlpunkt
-                    yesterdays_consumption = await self.get_daily_consumption(smartmeter, before(today()))
-                    if 'values' in yesterdays_consumption and 'statistics' in yesterdays_consumption:
-                        avg = yesterdays_consumption['statistics']['average']
-                        s = sum([y["value"] if y["value"] is not None else avg for y in yesterdays_consumption["values"]])
-                        if s > 0:
-                            self._state = s
-                    else:
-                        _LOGGER.error("Unable to load consumption")
-                        _LOGGER.error(f"Please file an issue with this error and (anonymized) payload in github {welcome} {yesterdays_consumption}")
-                        return
+                _LOGGER.debug(welcome)
+                if welcome.get('zaehlpunkt') == self.zaehlpunkt and welcome.get('lastValue') is not None:
+                    _LOGGER.debug("Found zählpunkt and it has a last reading")
+                    # If this is the case, we can get the last available zählerstand as a baseline and
+                    # then query the statistics after that
+                    state = Decimal(welcome['lastValue'] / 1000.0)
+                    start = datetime.fromisoformat(welcome['lastReading'][:-1])
+                    # To get better stats, we subtract the consumption from yesterday and the day
+                    # before that, so we can collect the hourly stats for the last two days:
+                    state -= Decimal(welcome['consumptionYesterday'] / 1000.0)
+                    state -= Decimal(welcome['consumptionDayBeforeYesterday'] / 1000.0)
+                    start -= timedelta(hours=48)
+
+                    # Set the value on the sensor itself and not in the statistics!
+                    self._state = state
+                    self._updatets = start.strftime("%d.%m.%Y %H:%M:%S")
+                else:
+                    # Start from scratch
+                    _LOGGER.debug("Not previous data found... starting from scratch")
+                    # TODO: what would be a sensible date here? usually, the first data is min. of
+                    # 24h old...
+                    start = before(before())
+                # The sum has to be zero, otherwise we will have a huge spike in the data
+                # TODO: or not?
+                _sum = Decimal(0)
+            elif len(last_inserted_stat) == 1 and len(last_inserted_stat[entity_id]) == 1:
+                # Previous data found in the statistics table
+                _sum = Decimal(last_inserted_stat[entity_id][0]["sum"])
+                start = dt_util.parse_datetime(last_inserted_stat[entity_id][0]["start"])
+
+                # FIXME: must we add 1h to the last reading or not? I guess we have to?
+                start += timedelta(hours=1)
+            else:
+                _LOGGER.error("unexpected result of previous stats")
+                return
+
+            # Collect hourly data
+            await self._import_statistics(smartmeter, start, _sum)
+
             self._available = True
-            self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except RuntimeError:
             self._available = False
             _LOGGER.exception("Error retrieving data from smart meter api.")
