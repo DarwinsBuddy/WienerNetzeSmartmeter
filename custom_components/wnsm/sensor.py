@@ -170,6 +170,10 @@ class SmartmeterSensor(SensorEntity):
 
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, sum_: Decimal):
         """Import hourly consumption data into the statistics module, using start date and sum"""
+        # TODO: better would be to get this on the outside right...
+        start = start.replace(tzinfo=timezone.utc)
+        if start.tzinfo is None:
+            raise ValueError("start datetime must be timezone-aware!")
         has_none = False
 
         metadata = StatisticMetaData(
@@ -185,7 +189,7 @@ class SmartmeterSensor(SensorEntity):
         statistics = []
         # TODO: Not sure if the datetime.datetime.now() is always in UTC...
         # Otherwise we have to make sure that the time we get is UTC...
-        while not has_none and start.replace(tzinfo=timezone.utc) < datetime.now().replace(tzinfo=timezone.utc):
+        while not has_none and start < datetime.now().replace(tzinfo=timezone.utc):
             _LOGGER.debug(f"Use sum={sum_}, start={start}")
 
             # Select one day of consumption
@@ -193,7 +197,11 @@ class SmartmeterSensor(SensorEntity):
             _LOGGER.debug(verbrauch)
             # TODO: What happens on summer-/wintertime change in the statistics?
             for v in verbrauch['values']:
-                ts = datetime.fromisoformat(v['timestamp'][:-1])
+                # Timestamp has to be aware of timezone
+                ts = datetime.fromisoformat(v['timestamp'][:-1]).replace(tzinfo=timezone.utc)
+                if ts < start:
+                    _LOGGER.debug(f"Timestamp from API ({ts}) is less than start time ({start}), ignoring value!")
+                    continue
                 if ts.minute != 0:
                     _LOGGER.error("Minute of timestamp is non-zero, this must not happen!")
                     return
@@ -205,12 +213,7 @@ class SmartmeterSensor(SensorEntity):
                     continue
                 sum_ += Decimal(v['value'] / 1000.0)  # Convert to kWh, and accumulate
 
-                statistics.append(
-                    StatisticData(
-                        start=ts.replace(tzinfo=timezone.utc),  # Timestamp has to be aware
-                        sum=sum_,
-                    )
-                )
+                statistics.append(StatisticData(start=ts, sum=sum_))
                 # Update to select the next batch
                 start = ts + timedelta(hours=1)
 
