@@ -199,7 +199,7 @@ class SmartmeterSensor(SensorEntity):
         _LOGGER.debug(f"Selecting data up to {now}")
         # FIXME: this loop is prone to endless loops, if the API returns something funny...
         # Thus, we add a counter here as well. But there are probably better methods to prevent that
-        iterations = 10
+        iterations = 50
         while iterations > 0 and not has_none and start < now:
             _LOGGER.debug(f"Select 24h of Data, using sum={sum_:.3f}, start={start}")
             iterations -= 1
