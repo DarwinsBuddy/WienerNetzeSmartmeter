@@ -231,6 +231,13 @@ class SmartmeterSensor(SensorEntity):
             iterations -= 1
             verbrauch = await self.get_consumption(smartmeter, start)
             _LOGGER.debug(verbrauch)
+
+            # Check if this batch of data is valid and contains hourly statistics:
+            if not verbrauch.get('quarter-hour-opt-in'):
+                _LOGGER.warning(s"Data starting at {start} does not contain granular data! Opt-in was not set back then.")
+                start += timedelta(hours=24)  # Select the next day...
+                continue
+
             if 'values' not in verbrauch:
                 _LOGGER.error("No values in API response!")
                 continue
