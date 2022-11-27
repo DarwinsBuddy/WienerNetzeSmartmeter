@@ -234,7 +234,7 @@ class SmartmeterSensor(SensorEntity):
 
             # Check if this batch of data is valid and contains hourly statistics:
             if not verbrauch.get('quarter-hour-opt-in'):
-                _LOGGER.warning(s"Data starting at {start} does not contain granular data! Opt-in was not set back then.")
+                _LOGGER.warning(f"Data starting at {start} does not contain granular data! Opt-in was not set back then.")
                 start += timedelta(hours=24)  # Select the next day...
                 continue
 
