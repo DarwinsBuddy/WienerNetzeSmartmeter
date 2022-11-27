@@ -323,7 +323,7 @@ class SmartmeterSensor(SensorEntity):
 
                 # Start from scratch
                 _sum = Decimal(0)
-                start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=168)  # For testing, use 1 week of data
+                start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=672)  # For testing, use 4 weeks of data
             elif len(last_inserted_stat) == 1 and len(last_inserted_stat[entity_id]) == 1:
                 # Previous data found in the statistics table
                 _sum = Decimal(last_inserted_stat[entity_id][0]["sum"])
