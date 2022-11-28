@@ -239,8 +239,8 @@ class SmartmeterSensor(SensorEntity):
                 continue
 
             if 'values' not in verbrauch:
-                _LOGGER.error("No values in API response!")
-                continue
+                _LOGGER.error("No values in API response! This likely indicates an API error.")
+                return
 
             # TODO: What happens on summer-/wintertime change in the statistics?
             for v in verbrauch['values']:
@@ -259,6 +259,14 @@ class SmartmeterSensor(SensorEntity):
                     has_none = True
                     continue
                 elif has_none:
+                    # TODO: I think this can happen: if for example there were no readings for one
+                    # day and then it started again. So far, I have not seen that in the API but it
+                    # would mean in some cases you loose one day here - but the full daily
+                    # consumption could probably be collected via verbrauchRaw.
+                    # In that case, the field isEstimated will be True.
+                    #
+                    # The biggest issue is how we can decide if there is no value yet,
+                    # or if these values are actually missing...
                     _LOGGER.warning("Value is suddenly not None anymore!")
                 sum_ += Decimal(v['value'] / 1000.0)  # Convert to kWh, and accumulate
                 statistics.append(StatisticData(start=ts, sum=sum_))
