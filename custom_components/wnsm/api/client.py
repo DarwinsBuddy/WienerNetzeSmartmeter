@@ -148,6 +148,9 @@ class Smartmeter:
     ):
         """Returns energy usage.
 
+        This can be used to query the daily consumption for a long period of time,
+        for example several months or a week.
+
         Args:
             date_from (datetime): Start date for energy usage request
             date_to (datetime, optional): End date for energy usage request.
@@ -171,52 +174,46 @@ class Smartmeter:
         }
         return self._call_api(endpoint, query=query)
 
-    def verbrauch(self, date_from: datetime, date_to: datetime = None, zaehlpunkt=None):
-        """Returns energy usage.
+    def verbrauch(self, date_from: datetime, zaehlpunkt = None, resolution: const.Resolution = const.Resolution.HOUR):
+        """Returns energy usage for 24h after date_to.
 
         Args:
             date_from (datetime.datetime): Starting date for energy usage request
-            date_to (datetime.datetime, optional): Ending date for energy usage request.
-                Defaults to datetime.datetime.now().
             zaehlpunkt (str, optional): Id for desired smartmeter.
                 If None check for first meter in user profile.
+            resolution (const.Resolution, optinal): Specify either 1h or 15min resolution
 
         Returns:
             dict: JSON response of api call to
                 'm/messdaten/zaehlpunkt/ZAEHLPUNKT/verbrauch'
         """
-        if date_to is None:
-            date_to = date_from + timedelta(hours=24)  # You can not get more than that anyways it seems...
         if zaehlpunkt is None:
             zaehlpunkt = self._get_first_zaehlpunkt()
         endpoint = "messdaten/zaehlpunkt/{}/verbrauch".format(zaehlpunkt)
-        # FIXME: If period=DAY is set in the args, you will get a maximum of 24h, irrespective of
-        # the end-date you specify
         query = const.build_verbrauchs_args(
-            dateFrom=self._dt_string(date_from), dateTo=self._dt_string(date_to)
+            dateFrom = self._dt_string(date_from),
+            dayViewResolution = resolution.value,
         )
         return self._call_api(endpoint, query=query)
 
-    def tages_verbrauch(self, day: datetime, zaehlpunkt=None):
-        """Returns energy usage.
+    def tages_verbrauch(self, day: datetime, zaehlpunkt = None, resolution: const.Resolution = const.Resolution.QUARTER_HOUR):
+        """Returns energy usage for the current day.
+
 
         Args:
             day (datetime.datetime): Day date for the request
             zaehlpunkt (str, optional): Id for desired smartmeter.
                 If None check for first meter in user profile.
+            resolution (const.Resolution, optinal): Specify either 1h or 15min resolution
 
         Returns:
             dict: JSON response of api call to
                 'messdaten/zaehlpunkt/ZAEHLPUNKT/verbrauch'
         """
-
-        if zaehlpunkt is None:
-            zaehlpunkt = self._get_first_zaehlpunkt()
-        endpoint = "messdaten/zaehlpunkt/{}/verbrauch".format(zaehlpunkt)
-        query = const.build_verbrauchs_args(
-            dateFrom=self._dt_string(day.replace(hour=0, minute=0, second=0))
-        )
-        return self._call_api(endpoint, query=query)
+        # FIXME: Actually, using 00:00:00.000 does not query the beginning of the day!
+        # The problem is, that the time has to specified in UTC and during standard time,
+        # UTC day starts at 23:00:00 and during summer time even on 22:00:00!
+        return self.verbrauch(day.replace(hour=0, minute=0, second=0, microsecond=0), zaehlpunkt, resolution)
 
     def profil(self):
         """Returns profil of logged in user.
