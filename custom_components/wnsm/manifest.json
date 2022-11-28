@@ -9,8 +9,6 @@
   "domain": "wnsm",
   "iot_class": "calculated",
   "name": "WienerNetzeSmartmeter",
-  "requirements": [
-    "lxml"
-  ],
+  "requirements": [],
   "version": "1.0.0"
 }
