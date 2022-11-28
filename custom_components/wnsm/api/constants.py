@@ -1,4 +1,5 @@
 import re
+import enum
 
 MAIN_SCRIPT_REGEX = re.compile("^main\S+\.js$")
 API_GATEWAY_TOKEN_REGEX = re.compile("b2capiKey\:\"([A-Za-z0-9-_]+)\"")
@@ -20,6 +21,13 @@ LOGIN_ARGS = {
     "nonce": "",
 }
 
+
+class Resolution(enum.Enum):
+    """Possible resolution for consumption data of one day"""
+    HOUR = "HOUR"  #: gets consumption data per hour
+    QUARTER_HOUR = "QUARTER-HOUR"  #: gets consumption data per 15min
+
+
 def build_access_token_args(**kwargs):
     args = {
         "grant_type": "authorization_code",
@@ -29,16 +37,13 @@ def build_access_token_args(**kwargs):
     args.update(**kwargs)
     return args
 
+
 def build_verbrauchs_args(**kwargs):
     args = {
-        # Allows to select one day of data
         "period": "DAY",
-        "accumulate": False,
-        "offset": 0,
-        # Possible values:
-        # HOUR
-        # QUARTER-HOUR
-        "dayViewResolution": "HOUR",  # home-assistant can not store 15min anyways
+        "accumulate": False,  # can be changed to True to get a cum-sum
+        "offset": 0,  # additional offset to start cum-sum with
+        "dayViewResolution": "HOUR",
     }
     args.update(**kwargs)
     return args
