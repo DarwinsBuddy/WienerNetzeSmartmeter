@@ -141,6 +141,9 @@ class SmartmeterSensor(SensorEntity):
 
     async def get_zaehlpunkt(self, smartmeter: Smartmeter) -> Dict[str, str]:
         zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
+        if "Exception" in zps:
+            raise RuntimeError("Cannot access zählpunkte: ", zps)
+
         if zps is None or len(zps) == 0:
             raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
         else:
@@ -270,6 +273,8 @@ class SmartmeterSensor(SensorEntity):
                     _LOGGER.warning("Value is suddenly not None anymore!")
                 usage = Decimal(v['value'] / 1000.0)  # Convert to kWh
                 sum_ += usage  # and accumulate
+                # It would be possible to grab the 15min data and calculate min,max,mean here as
+                # well - this would give a bit nicer statistics
                 statistics.append(StatisticData(start=ts, sum=sum_, state=usage))
 
                 # Set new start date for next batch
