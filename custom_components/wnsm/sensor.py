@@ -221,6 +221,11 @@ class SmartmeterSensor(SensorEntity):
                 _LOGGER.warning(f"Data starting at {start} does not contain granular data! Opt-in was not set back then.")
                 continue
 
+            # Can actually check, if the whole batch can be skipped.
+            if verbrauch.get('consumptionMinimum') == 0 and verbrauch.get('consumptionMaximum') == 0:
+                _LOGGER.debug("Batch of data does not contain any consumption, skipping")
+                continue
+
             for v in verbrauch['values']:
                 # Timestamp has to be aware of timezone, parse_datetime does that.
                 ts = dt_util.parse_datetime(v['timestamp'])
