@@ -1,6 +1,8 @@
+[![Open in Dev Containers](https://img.shields.io/static/v1?label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/DarwinsBuddy/WienerNetzeSmartmeter)
+
 # Wiener Netze Smartmeter Integration for Home Assistant
 
-## About 
+## About
 
 This repo contains a custom component for [Home Assistant](https://www.home-assistant.io) for exposing a sensor
 providing information about a registered [WienerNetze Smartmeter](https://www.wienernetze.at/smartmeter).
