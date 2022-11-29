@@ -242,8 +242,9 @@ class SmartmeterSensor(SensorEntity):
                     # The biggest issue is how we can decide if there is no value yet,
                     # or if these values are actually missing...
                     _LOGGER.warning("Value is suddenly not None anymore!")
-                sum_ += Decimal(v['value'] / 1000.0)  # Convert to kWh, and accumulate
-                statistics.append(StatisticData(start=ts, sum=sum_))
+                usage = Decimal(v['value'] / 1000.0)  # Convert to kWh
+                sum_ += usage  # and accumulate
+                statistics.append(StatisticData(start=ts, sum=sum_, state=usage))
 
                 # Set new start date for next batch
                 start = ts + timedelta(hours=1)
