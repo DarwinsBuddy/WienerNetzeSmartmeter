@@ -41,6 +41,7 @@ from custom_components.wnsm.api import Smartmeter
 from custom_components.wnsm.const import (
     ATTRS_WELCOME_CALL,
     ATTRS_ZAEHLPUNKTE_CALL,
+    ATTRS_VERBRAUCH_CALL,
     CONF_ZAEHLPUNKTE,
 )
 from custom_components.wnsm.utils import before, today, translate_dict
@@ -226,59 +227,54 @@ class SmartmeterSensor(SensorEntity):
 
         now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
         _LOGGER.debug(f"Selecting data up to {now}")
-        # FIXME: this loop is prone to endless loops, if the API returns something funny...
-        # Thus, we add a counter here as well. But there are probably better methods to prevent that
-        iterations = 50
-        while iterations > 0 and not has_none and start < now:
+        while start < now:
             _LOGGER.debug(f"Select 24h of Data, using sum={sum_:.3f}, start={start}")
-            iterations -= 1
             verbrauch = await self.get_consumption(smartmeter, start)
             _LOGGER.debug(verbrauch)
-
-            # Check if this batch of data is valid and contains hourly statistics:
-            if not verbrauch.get('optIn'):
-                _LOGGER.warning(f"Data starting at {start} does not contain granular data! Opt-in was not set back then.")
-                start += timedelta(hours=24)  # Select the next day...
-                continue
+            last_ts = start
+            start += timedelta(hours=24)  # Next batch. Setting this here should avoid endless loops
 
             if 'values' not in verbrauch:
                 _LOGGER.error("No values in API response! This likely indicates an API error.")
                 return
 
-            # TODO: What happens on summer-/wintertime change in the statistics?
+            # Check if this batch of data is valid and contains hourly statistics:
+            if not verbrauch.get('optIn'):
+                _LOGGER.warning(f"Data starting at {start} does not contain granular data! Opt-in was not set back then.")
+                continue
+
             for v in verbrauch['values']:
-                # Timestamp has to be aware of timezone
-                ts = datetime.fromisoformat(v['timestamp'][:-1]).replace(tzinfo=timezone.utc)
-                if ts < start:
-                    _LOGGER.debug(f"Timestamp from API ({ts}) is less than start time ({start}), ignoring value!")
-                    continue
+                # Timestamp has to be aware of timezone, parse_datetime does that.
+                ts = dt_util.parse_datetime(v['timestamp'])
                 if ts.minute != 0:
+                    # This usually happens if the start date minutes are != 0
+                    # However, we set them to 0 in this function, thus if this happens, the API has
+                    # a problem...
                     _LOGGER.error("Minute of timestamp is non-zero, this must not happen!")
                     return
-                if v['value'] is None:
-                    # Measurement not yet in the database...
-                    # TODO: is it possible that after a None are more values?
-                    # If not, we could break as soon as we hit the first None value.
-                    has_none = True
+                if ts < last_ts:
+                    # TODO: What happens on summer-/wintertime change in the statistics?
+                    # This should prevent any issues with ambigous values though...
+                    _LOGGER.warning(f"Timestamp from API ({ts}) is less than previously collected timestamp ({last_ts}), ignoring value!")
                     continue
-                elif has_none:
-                    # TODO: I think this can happen: if for example there were no readings for one
-                    # day and then it started again. So far, I have not seen that in the API but it
-                    # would mean in some cases you loose one day here - but the full daily
-                    # consumption could probably be collected via verbrauchRaw.
-                    # In that case, the field isEstimated will be True.
-                    #
-                    # The biggest issue is how we can decide if there is no value yet,
-                    # or if these values are actually missing...
-                    _LOGGER.warning("Value is suddenly not None anymore!")
-                usage = Decimal(v['value'] / 1000.0)  # Convert to kWh
-                sum_ += usage  # and accumulate
+                last_ts = ts
+                if v['value'] is None:
+                    # Usually this means that the measurement is not yet in the WSTW database.
+                    # But could also be an error? Dunno...
+                    # For now we ignore these values, possibly that means we loose hours if these
+                    # values come back later.
+                    # However, it is not trivial (or even impossible?) to insert statistic values
+                    # in between existing values, thus we can not do much.
+                    continue
+                usage = Decimal(v['value'] / 1000.0)  # Convert to kWh ...
+                sum_ += usage  # ... and accumulate
+                if v['isEstimated']:
+                    # Can we do anything special here?
+                    _LOGGER.debug("Estimated Value found for {ts}: {usage}")
+
                 # It would be possible to grab the 15min data and calculate min,max,mean here as
                 # well - this would give a bit nicer statistics
                 statistics.append(StatisticData(start=ts, sum=sum_, state=usage))
-
-                # Set new start date for next batch
-                start = ts + timedelta(hours=1)
 
         _LOGGER.debug(statistics)
 
@@ -308,6 +304,7 @@ class SmartmeterSensor(SensorEntity):
             # From
             # https://github.com/DarkC35/ha_linznetz/blob/904f361e760103f900ad93522a0215d348fc83bb/custom_components/linznetz/sensor.py
             # Select one entry from the statistics, convert the units
+            # It is crucial to use get_instance here!
             last_inserted_stat = await get_instance(self.hass).async_add_executor_job(get_last_statistics, self.hass, 1, entity_id, True)
             _LOGGER.debug(f"Last inserted stat: {last_inserted_stat}")
 
