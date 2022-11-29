@@ -175,7 +175,7 @@ class SmartmeterSensor(SensorEntity):
         response = await self.hass.async_add_executor_job(smartmeter.verbrauch, start_date, self.zaehlpunkt)
         if "Exception" in response:
             raise RuntimeError("Cannot access daily consumption: ", response)
-        return response
+        return translate_dict(response, ATTRS_VERBRAUCH_CALL)
 
     async def get_welcome(self, smartmeter: Smartmeter) -> Dict[str, str]:
         response = await self.hass.async_add_executor_job(smartmeter.welcome)
@@ -236,7 +236,7 @@ class SmartmeterSensor(SensorEntity):
             _LOGGER.debug(verbrauch)
 
             # Check if this batch of data is valid and contains hourly statistics:
-            if not verbrauch.get('quarter-hour-opt-in'):
+            if not verbrauch.get('optIn'):
                 _LOGGER.warning(f"Data starting at {start} does not contain granular data! Opt-in was not set back then.")
                 start += timedelta(hours=24)  # Select the next day...
                 continue
