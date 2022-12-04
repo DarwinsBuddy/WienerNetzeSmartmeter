@@ -177,8 +177,6 @@ class SmartmeterSensor(SensorEntity):
 
     async def get_consumption(self, smartmeter: Smartmeter, start_date: datetime):
         """Return the consumption starting from a date"""
-        if start_date.tzinfo is None:
-            raise ValueError("start datetime must be timezone-aware!")
         response = await self.hass.async_add_executor_job(smartmeter.verbrauch, start_date, self.zaehlpunkt)
         if "Exception" in response:
             raise RuntimeError("Cannot access daily consumption: ", response)
@@ -213,6 +211,10 @@ class SmartmeterSensor(SensorEntity):
 
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, sum_: Decimal):
         """Import hourly consumption data into the statistics module, using start date and sum"""
+        # Have to be sure that the start datetime is aware of timezone, because we need to compare
+        # it to other timezone aware datetimes in this function
+        if start.tzinfo is None:
+            raise ValueError("start datetime must be timezone-aware!")
         # Have to be sure that full minutes are used. otherwise, the API returns a different
         # interval
         start = start.replace(minute=0, second=0, microsecond=0)
