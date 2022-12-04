@@ -159,6 +159,8 @@ class SmartmeterSensor(SensorEntity):
 
     async def get_consumption(self, smartmeter: Smartmeter, start_date: datetime):
         """Return the consumption starting from a date"""
+        if start_date.tzinfo is None:
+            raise ValueError("start datetime must be timezone-aware!")
         response = await self.hass.async_add_executor_job(smartmeter.verbrauch, start_date, self.zaehlpunkt)
         if "Exception" in response:
             raise RuntimeError("Cannot access daily consumption: ", response)
@@ -193,13 +195,10 @@ class SmartmeterSensor(SensorEntity):
 
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, sum_: Decimal):
         """Import hourly consumption data into the statistics module, using start date and sum"""
-        if start.tzinfo is None:
-            raise ValueError("start datetime must be timezone-aware!")
         # Have to be sure that full minutes are used. otherwise, the API returns a different
         # interval
         start = start.replace(minute=0, second=0, microsecond=0)
 
-        has_none = False
         statistics = []
         metadata = StatisticMetaData(
             source="recorder",
@@ -295,37 +294,7 @@ class SmartmeterSensor(SensorEntity):
             _LOGGER.debug(f"Last inserted stat: {last_inserted_stat}")
 
             if len(last_inserted_stat) == 0 or len(last_inserted_stat[self._id]) == 0:
-                # No previous data
-
-                # FIXME: This seems not to work and after some time you get a negative consumption
-                """
-                # Let's fetch some initial data we can use...
-                welcome = await self.get_welcome(smartmeter)
-                _LOGGER.debug(welcome)
-                if welcome.get('zaehlpunkt') == self.zaehlpunkt and welcome.get('lastValue') is not None:
-                    _LOGGER.debug("Found zählpunkt and it has a last reading")
-                    # If this is the case, we can get the last available zählerstand as a baseline and
-                    # then query the statistics after that
-                    state = Decimal(welcome['lastValue'] / 1000.0)
-                    start = datetime.fromisoformat(welcome['lastReading'][:-1])
-                    # To get better stats, we subtract the consumption from yesterday and the day
-                    # before that, so we can collect the hourly stats for the last two days:
-                    state -= Decimal(welcome['consumptionYesterday'] / 1000.0)
-                    state -= Decimal(welcome['consumptionDayBeforeYesterday'] / 1000.0)
-                    start -= timedelta(hours=48)
-
-                    # Set the value on the sensor itself and not in the statistics!
-                    self._state = state
-                    self._updatets = start.strftime("%d.%m.%Y %H:%M:%S")
-                else:
-                    # Start from scratch
-                    _LOGGER.debug("Not previous data found... starting from scratch")
-                    # TODO: what would be a sensible date here? usually, the first data is min. of
-                    # 24h old...
-                    start = before(before())
-                """
-
-                # Start from scratch
+                # No previous data - start from scratch
                 _sum = Decimal(0)
                 # Select as start date two days before the current day.
                 # Could be increased to load a lot of historical data, but we do not want to
@@ -334,11 +303,8 @@ class SmartmeterSensor(SensorEntity):
             elif len(last_inserted_stat) == 1 and len(last_inserted_stat[self._id]) == 1:
                 # Previous data found in the statistics table
                 _sum = Decimal(last_inserted_stat[self._id][0]["sum"])
-                start = dt_util.parse_datetime(last_inserted_stat[self._id][0]["start"])
-
-                # FIXME: must we add 1h to the last reading or not? I guess we have to?
-                start += timedelta(hours=1)
-                _LOGGER.debug(f"Got statistic data: sum={_sum}, start={start} -> {start.tzinfo}")
+                # The next start is the previous end
+                start = dt_util.parse_datetime(last_inserted_stat[self._id][0]["end"])
             else:
                 _LOGGER.error("unexpected result of previous stats")
                 return
