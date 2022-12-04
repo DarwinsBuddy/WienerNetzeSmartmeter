@@ -3,8 +3,8 @@ import datetime as dt
 import logging
 
 
-def today() -> dt.datetime:
-    return dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+def today(tz: None | dt.timezone = None) -> dt.datetime:
+    return dt.datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def before(d=None, days=1) -> dt.datetime:
