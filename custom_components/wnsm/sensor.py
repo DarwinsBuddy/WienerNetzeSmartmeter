@@ -7,7 +7,12 @@ from typing import Any, Callable, Dict, Optional
 import voluptuous as vol
 from homeassistant import core, config_entries
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    PLATFORM_SCHEMA,
+    ENTITY_ID_FORMAT,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.const import (
     CONF_USERNAME,
     CONF_PASSWORD,
@@ -32,6 +37,7 @@ from homeassistant.helpers.typing import (
     HomeAssistantType,
 )
 from homeassistant.util import dt as dt_util
+from homeassistant.util import slugify
 
 from custom_components.wnsm.api import Smartmeter
 from custom_components.wnsm.const import (
@@ -101,6 +107,8 @@ class SmartmeterSensor(SensorEntity):
         self._name: str | None = zaehlpunkt
         self._state: int | None = None
         self._available: bool = True
+
+        self._id = ENTITY_ID_FORMAT.format(slugify(self._name).lower())
 
     @property
     def icon(self) -> str:
@@ -195,7 +203,7 @@ class SmartmeterSensor(SensorEntity):
         statistics = []
         metadata = StatisticMetaData(
             source="recorder",
-            statistic_id=f'sensor.{self.unique_id.lower()}',
+            statistic_id=self._id,
             name=self.name,
             unit_of_measurement=self._attr_unit_of_measurement,
             has_mean=False,
@@ -278,18 +286,15 @@ class SmartmeterSensor(SensorEntity):
                 _LOGGER.warning("Smartmeter not active...")
                 return
 
-            # TODO: why does self.entity_id returns None?
-            entity_id = f'sensor.{self.unique_id.lower()}'
-
             # Get last sum and last date from statistics
             # From
             # https://github.com/DarkC35/ha_linznetz/blob/904f361e760103f900ad93522a0215d348fc83bb/custom_components/linznetz/sensor.py
             # Select one entry from the statistics, convert the units
             # It is crucial to use get_instance here!
-            last_inserted_stat = await get_instance(self.hass).async_add_executor_job(get_last_statistics, self.hass, 1, entity_id, True)
+            last_inserted_stat = await get_instance(self.hass).async_add_executor_job(get_last_statistics, self.hass, 1, self._id, True)
             _LOGGER.debug(f"Last inserted stat: {last_inserted_stat}")
 
-            if len(last_inserted_stat) == 0 or len(last_inserted_stat[entity_id]) == 0:
+            if len(last_inserted_stat) == 0 or len(last_inserted_stat[self._id]) == 0:
                 # No previous data
 
                 # FIXME: This seems not to work and after some time you get a negative consumption
@@ -323,10 +328,10 @@ class SmartmeterSensor(SensorEntity):
                 # Start from scratch
                 _sum = Decimal(0)
                 start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=672)  # For testing, use 4 weeks of data
-            elif len(last_inserted_stat) == 1 and len(last_inserted_stat[entity_id]) == 1:
+            elif len(last_inserted_stat) == 1 and len(last_inserted_stat[self._id]) == 1:
                 # Previous data found in the statistics table
-                _sum = Decimal(last_inserted_stat[entity_id][0]["sum"])
-                start = dt_util.parse_datetime(last_inserted_stat[entity_id][0]["start"])
+                _sum = Decimal(last_inserted_stat[self._id][0]["sum"])
+                start = dt_util.parse_datetime(last_inserted_stat[self._id][0]["start"])
 
                 # FIXME: must we add 1h to the last reading or not? I guess we have to?
                 start += timedelta(hours=1)
