@@ -306,7 +306,12 @@ class SmartmeterSensor(SensorEntity):
                 # Previous data found in the statistics table
                 _sum = Decimal(last_inserted_stat[self._id][0]["sum"])
                 # The next start is the previous end
-                start = dt_util.parse_datetime(last_inserted_stat[self._id][0]["end"])
+                end_date = last_inserted_stat[self._id][0]["end"]
+                if isinstance(end_date, datetime):
+                    # Apparently from 2022.12 on, we get a datetime and not a str...
+                    start = end_date
+                else:
+                    start = dt_util.parse_datetime(end_date)
             else:
                 _LOGGER.error("unexpected result of previous stats")
                 return
