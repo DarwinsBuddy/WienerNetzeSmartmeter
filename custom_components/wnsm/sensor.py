@@ -312,7 +312,7 @@ class SmartmeterSensor(SensorEntity):
             # https://github.com/DarkC35/ha_linznetz/blob/904f361e760103f900ad93522a0215d348fc83bb/custom_components/linznetz/sensor.py
             # Select one entry from the statistics, convert the units
             # It is crucial to use get_instance here!
-            last_inserted_stat = await get_instance(self.hass).async_add_executor_job(get_last_statistics, self.hass, 1, self._id, True)
+            last_inserted_stat = await get_instance(self.hass).async_add_executor_job(get_last_statistics, self.hass, 1, self._id, True, {"sum", "state"})
             _LOGGER.debug(f"Last inserted stat: {last_inserted_stat}")
 
             if len(last_inserted_stat) == 0 or len(last_inserted_stat[self._id]) == 0:
