@@ -222,11 +222,13 @@ class SmartmeterSensor(SensorEntity):
             start += timedelta(hours=24)  # Next batch. Setting this here should avoid endless loops
 
             if 'values' not in verbrauch:
-                _LOGGER.error("No values in API response! This likely indicates an API error.")
+                _LOGGER.error(f"No values in API response! This likely indicates an API error. Original response: {verbrauch}")
                 return
 
             # Check if this batch of data is valid and contains hourly statistics:
             if not verbrauch.get('optIn'):
+                # TODO: actually, we could insert zero-usage data here, to increase the start time
+                # for the next run. Otherwise, the same data is queried over and over.
                 _LOGGER.warning(f"Data starting at {start} does not contain granular data! Opt-in was not set back then.")
                 continue
 
@@ -284,15 +286,22 @@ class SmartmeterSensor(SensorEntity):
             self._attr_extra_state_attributes = zp
 
             if not self.is_active(zp):
-                _LOGGER.warning("Smartmeter not active...")
+                _LOGGER.error(f"Smartmeter {zp} is not active!")
                 return
 
-            # Get last sum and last date from statistics
-            # From
-            # https://github.com/DarkC35/ha_linznetz/blob/904f361e760103f900ad93522a0215d348fc83bb/custom_components/linznetz/sensor.py
-            # Select one entry from the statistics, convert the units
+            # Query the statistics database for the last value
             # It is crucial to use get_instance here!
-            last_inserted_stat = await get_instance(self.hass).async_add_executor_job(get_last_statistics, self.hass, 1, self._id, True, {"sum", "state"})
+            last_inserted_stat = await get_instance(
+                self.hass
+            ).async_add_executor_job(
+                get_last_statistics,
+                self.hass,
+                1,  # Get at most one entry
+                self._id,  # of this sensor
+                True,  # convert the units
+                # XXX: since HA core 2022.12 need to specify this:
+                {"sum", "state"},  # the fields we want to query (state might be used in the future)
+            )
             _LOGGER.debug(f"Last inserted stat: {last_inserted_stat}")
 
             if len(last_inserted_stat) == 0 or len(last_inserted_stat[self._id]) == 0:
@@ -306,14 +315,10 @@ class SmartmeterSensor(SensorEntity):
                 # Previous data found in the statistics table
                 _sum = Decimal(last_inserted_stat[self._id][0]["sum"])
                 # The next start is the previous end
-                end_date = last_inserted_stat[self._id][0]["end"]
-                if isinstance(end_date, datetime):
-                    # Apparently from 2022.12 on, we get a datetime and not a str...
-                    start = end_date
-                else:
-                    start = dt_util.parse_datetime(end_date)
+                # XXX: since HA core 2022.12, we get a datetime and not a str...
+                start = last_inserted_stat[self._id][0]["end"]
             else:
-                _LOGGER.error("unexpected result of previous stats")
+                _LOGGER.error(f"unexpected result of get_last_statistics: {last_inserted_stat}")
                 return
 
             # Collect hourly data
