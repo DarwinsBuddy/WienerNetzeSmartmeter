@@ -101,6 +101,7 @@ class Smartmeter:
         data=None,
         query=None,
         return_response=False,
+        timeout=60.0,
     ):
         if base_url is None:
             base_url = const.API_URL
@@ -120,7 +121,7 @@ class Smartmeter:
             logger.debug("DATA: {}", data)
             headers["Content-Type"] = "application/json"
 
-        response = self.session.request(method, url, headers=headers, json=data)
+        response = self.session.request(method, url, headers=headers, json=data, timeout=timeout)
 
         if return_response:
             return response
