@@ -345,7 +345,7 @@ class SmartmeterSensor(SensorEntity):
             await self._import_statistics(smartmeter, start, _sum)
 
             self._available = True
-            self._updatets = start.strftime("%d.%m.%Y %H:%M:%S")
+            self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except RuntimeError:
             self._available = False
             _LOGGER.exception("Error retrieving data from smart meter api.")
