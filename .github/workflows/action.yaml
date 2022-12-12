@@ -8,6 +8,7 @@ on:
 
 jobs:
   hacs:
+    if: github.repository_owner == 'DarwinsBuddy'
     name: HACS Action
     runs-on: "ubuntu-latest"
     steps:
