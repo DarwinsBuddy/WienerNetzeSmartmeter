@@ -201,7 +201,6 @@ class Smartmeter:
     def tages_verbrauch(self, day: datetime, zaehlpunkt = None, resolution: const.Resolution = const.Resolution.QUARTER_HOUR):
         """Returns energy usage for the current day.
 
-
         Args:
             day (datetime.datetime): Day date for the request
             zaehlpunkt (str, optional): Id for desired smartmeter.

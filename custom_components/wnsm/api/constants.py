@@ -37,6 +37,7 @@ def build_access_token_args(**kwargs):
     args.update(**kwargs)
     return args
 
+
 def build_verbrauchs_args(**kwargs):
     args = {
         "period": "DAY",
