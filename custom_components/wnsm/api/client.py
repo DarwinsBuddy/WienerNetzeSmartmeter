@@ -37,7 +37,9 @@ class Smartmeter:
         except Exception as e:
             raise SmartmeterConnectionError(f"Could not load login page. Error: {e}")
         if result.status_code != 200:
-            raise SmartmeterConnectionError(f"Could not load login page. Error: {result.content}")
+            raise SmartmeterConnectionError(
+                f"Could not load login page. Error: {result.content}"
+            )
         tree = html.fromstring(result.content)
         action = tree.xpath("(//form/@action)")[0]
         try:
@@ -65,15 +67,15 @@ class Smartmeter:
             raise SmartmeterConnectionError(f"Could not obtain access token: {e}")
 
         if result.status_code != 200:
-            raise SmartmeterConnectionError(f"Could not obtain access token: {result.content}")
+            raise SmartmeterConnectionError(
+                f"Could not obtain access token: {result.content}"
+            )
 
         self._access_token = result.json()["access_token"]
         self._api_gateway_token = self._get_api_key(self._access_token)
 
     def _get_api_key(self, token):
-        headers = {
-            "Authorization": f"Bearer {token}"
-        }
+        headers = {"Authorization": f"Bearer {token}"}
         try:
             result = self.session.get(const.PAGE_URL, headers=headers)
         except Exception as e:
@@ -114,14 +116,16 @@ class Smartmeter:
 
         headers = {
             "Authorization": f"Bearer {self._access_token}",
-            "X-Gateway-APIKey": self._api_gateway_token
+            "X-Gateway-APIKey": self._api_gateway_token,
         }
 
         if data:
             logger.debug("DATA: {}", data)
             headers["Content-Type"] = "application/json"
 
-        response = self.session.request(method, url, headers=headers, json=data, timeout=timeout)
+        response = self.session.request(
+            method, url, headers=headers, json=data, timeout=timeout
+        )
 
         if return_response:
             return response
@@ -139,7 +143,9 @@ class Smartmeter:
         """Returns response from 'welcome' endpoint."""
         return self._call_api("zaehlpunkt/default/welcome")
 
-    def verbrauch_raw(self, date_from: datetime, date_to: datetime = None, zaehlpunkt = None):
+    def verbrauch_raw(
+        self, date_from: datetime, date_to: datetime = None, zaehlpunkt=None
+    ):
         """Returns energy usage.
 
         Args:
@@ -165,7 +171,7 @@ class Smartmeter:
         }
         return self._call_api(endpoint, query=query)
 
-    def verbrauch(self, date_from: datetime, date_to: datetime = None, zaehlpunkt = None):
+    def verbrauch(self, date_from: datetime, date_to: datetime = None, zaehlpunkt=None):
         """Returns energy usage.
 
         Args:
@@ -185,12 +191,11 @@ class Smartmeter:
             zaehlpunkt = self._get_first_zaehlpunkt()
         endpoint = "messdaten/zaehlpunkt/{}/verbrauch".format(zaehlpunkt)
         query = const.build_verbrauchs_args(
-            dateFrom = self._dt_string(date_from),
-            dateTo = self._dt_string(date_to)
+            dateFrom=self._dt_string(date_from), dateTo=self._dt_string(date_to)
         )
         return self._call_api(endpoint, query=query)
 
-    def tages_verbrauch(self, day: datetime, zaehlpunkt = None):
+    def tages_verbrauch(self, day: datetime, zaehlpunkt=None):
         """Returns energy usage.
 
         Args:
@@ -207,7 +212,7 @@ class Smartmeter:
             zaehlpunkt = self._get_first_zaehlpunkt()
         endpoint = "messdaten/zaehlpunkt/{}/verbrauch".format(zaehlpunkt)
         query = const.build_verbrauchs_args(
-            dateFrom = self._dt_string(day.replace(hour=0, minute=0, second=0))
+            dateFrom=self._dt_string(day.replace(hour=0, minute=0, second=0))
         )
         return self._call_api(endpoint, query=query)
 
@@ -219,7 +224,9 @@ class Smartmeter:
         """
         return self._call_api("user/profile", const.API_URL_ALT)
 
-    def ereignisse(self, date_from: datetime, date_to: datetime = None, zaehlpunkt = None):
+    def ereignisse(
+        self, date_from: datetime, date_to: datetime = None, zaehlpunkt=None
+    ):
         """Returns events between date_from and date_to of a specific smart meter.
 
         Args:
