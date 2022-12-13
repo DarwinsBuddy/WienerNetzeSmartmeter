@@ -15,7 +15,7 @@ ATTRS_ZAEHLPUNKT_CALL = [
     ("verbrauchsstelle.ort", "city"),
     ("verbrauchsstelle.laengengrad", "longitude"),
     ("verbrauchsstelle.breitengrad", "latitude"),
-    ("anlage.typ", "type")
+    ("anlage.typ", "type"),
 ]
 
 ATTRS_ZAEHLPUNKTE_CALL = [
@@ -44,5 +44,5 @@ ATTRS_WELCOME_CALL = [
     ("zaehlpunkt.meterReadings.0.value", "lastValue"),
     ("zaehlpunkt.meterReadings.0.date", "lastReading"),
     ("zaehlpunkt.consumptionYesterday.value", "consumptionYesterday"),
-    ("zaehlpunkt.consumptionDayBeforeYesterday.value", "consumptionDayBeforeYesterday")
+    ("zaehlpunkt.consumptionDayBeforeYesterday.value", "consumptionDayBeforeYesterday"),
 ]

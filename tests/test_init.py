@@ -1,5 +1,5 @@
 """Test component setup."""
-from homeassistant.setup import async_setup_component
+from homeassistant.tests.setup import async_setup_component
 
 from custom_components.wnsm.const import DOMAIN
 
