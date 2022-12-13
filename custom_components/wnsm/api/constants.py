@@ -2,7 +2,7 @@ import re
 import enum
 
 MAIN_SCRIPT_REGEX = re.compile("^main\S+\.js$")
-API_GATEWAY_TOKEN_REGEX = re.compile("b2capiKey\:\"([A-Za-z0-9-_]+)\"")
+API_GATEWAY_TOKEN_REGEX = re.compile('b2capiKey\:"([A-Za-z0-9-_]+)"')
 
 PAGE_URL = "https://smartmeter-web.wienernetze.at/"
 API_URL_ALT = "https://service.wienernetze.at/sm/api/"
@@ -36,7 +36,6 @@ def build_access_token_args(**kwargs):
     }
     args.update(**kwargs)
     return args
-
 
 def build_verbrauchs_args(**kwargs):
     args = {

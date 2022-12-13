@@ -62,19 +62,18 @@ class AsyncSmartmeter:
 
     async def _get_api_key(self, access_token):
         async with self._session.request(
-            "GET",
-            const.PAGE_URL,
-            data = { "Authorization": f"Bearer {access_token}" }
+            "GET", const.PAGE_URL, data={"Authorization": f"Bearer {access_token}"}
         ) as result:
             tree = html.fromstring(await result.text())
             scripts = tree.xpath("(//script/@src)")
             for script in scripts:
                 async with self._session.request(
-                    "GET",
-                    const.PAGE_URL + script
+                    "GET", const.PAGE_URL + script
                 ) as response:
                     if const.MAIN_SCRIPT_REGEX.match(script):
-                        for match in const.API_GATEWAY_TOKEN_REGEX.findall(await response.text()):
+                        for match in const.API_GATEWAY_TOKEN_REGEX.findall(
+                            await response.text()
+                        ):
                             return match
         return None
 
@@ -83,7 +82,7 @@ class AsyncSmartmeter:
         async with self._session.request(
             "POST",
             const.AUTH_URL + "token",
-            data = const.build_access_token_args(code = await self._get_auth_code()),
+            data=const.build_access_token_args(code=await self._get_auth_code()),
         ) as response:
             if response.status != 200:
                 raise SmartmeterLoginError(
@@ -142,8 +141,7 @@ class AsyncSmartmeter:
             zaehlpunkt = await self._get_first_zaehlpunkt()
         endpoint = f"messdaten/zaehlpunkt/{zaehlpunkt}/verbrauch"
         query = const.build_verbrauchs_args(
-            dateFrom = self._dt_string(date_from),
-            dateTo = self._dt_string(date_to)
+            dateFrom=self._dt_string(date_from), dateTo=self._dt_string(date_to)
         )
         return await self._request(endpoint, query=query)
 
@@ -157,7 +155,7 @@ class AsyncSmartmeter:
             zaehlpunkt = await self._get_first_zaehlpunkt()
         endpoint = f"messdaten/zaehlpunkt/{zaehlpunkt}/verbrauch"
         query = const.build_verbrauchs_args(
-            dateFrom = self._dt_string(day.replace(hour=0, minute=0, second=0))
+            dateFrom=self._dt_string(day.replace(hour=0, minute=0, second=0))
         )
         return await self._request(endpoint, query=query)
 
@@ -192,7 +190,7 @@ class AsyncSmartmeter:
 
         logger.debug(f"REQUEST: {url}")
 
-        headers = {"Authorization": f"Bearer {self._access_token}" }
+        headers = {"Authorization": f"Bearer {self._access_token}"}
         if self._api_gateway_token is not None:
             headers.update({"X-Gateway-APIKey": self._api_gateway_token})
 

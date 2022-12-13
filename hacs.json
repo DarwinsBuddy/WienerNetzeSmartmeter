@@ -1,5 +1,7 @@
 {
   "name": "wnsm",
   "render_readme": true,
+  "zip_release": true,
+  "filename": "WienerNetzeSmartmeter.zip",
   "country": "AT"
 }

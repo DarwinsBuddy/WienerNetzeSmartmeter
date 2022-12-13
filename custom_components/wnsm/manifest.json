@@ -1,8 +1,10 @@
 {
-  "codeowners": ["@DarwinsBuddy"],
+  "codeowners": [
+    "@DarwinsBuddy"
+  ],
   "config_flow": true,
   "dependencies": [
-      "recorder"
+    "recorder"
   ],
   "documentation": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter",
   "issue_tracker": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter/issues",
@@ -10,8 +12,8 @@
   "iot_class": "calculated",
   "name": "WienerNetzeSmartmeter",
   "requirements": [
-      "lxml",
-      "requests"
+    "lxml",
+   "requests"
   ],
   "version": "1.0.0"
 }

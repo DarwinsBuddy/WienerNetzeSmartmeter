@@ -56,9 +56,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_USERNAME): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
-        vol.Required(CONF_DEVICE_ID): cv.string
+        vol.Required(CONF_DEVICE_ID): cv.string,
     }
 )
+
 
 async def async_setup_entry(
     hass: core.HomeAssistant,
@@ -67,7 +68,12 @@ async def async_setup_entry(
 ):
     """Setup sensors from a config entry created in the integrations UI."""
     config = hass.data[DOMAIN][config_entry.entry_id]
-    sensors = [SmartmeterSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"]) for zp in config[CONF_ZAEHLPUNKTE]]
+    sensors = [
+        SmartmeterSensor(
+            config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"]
+        )
+        for zp in config[CONF_ZAEHLPUNKTE]
+    ]
     async_add_entities(sensors, update_before_add=True)
 
 
@@ -78,7 +84,9 @@ async def async_setup_platform(
     discovery_info: Optional[DiscoveryInfoType] = None,
 ) -> None:
     """Set up the sensor platform by adding it into configuration.yaml"""
-    sensor = SmartmeterSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID])
+    sensor = SmartmeterSensor(
+        config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID]
+    )
     async_add_entities([sensor], update_before_add=True)
 
 
@@ -117,8 +125,8 @@ class SmartmeterSensor(SensorEntity):
     @property
     def name(self) -> str:
         """Return the name of the entity."""
-        if 'label' in self._attr_extra_state_attributes:
-            return self._attr_extra_state_attributes['label']
+        if "label" in self._attr_extra_state_attributes:
+            return self._attr_extra_state_attributes["label"]
         else:
             return self._name
 
@@ -144,14 +152,24 @@ class SmartmeterSensor(SensorEntity):
         if zps is None or len(zps) == 0:
             raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
         else:
-            zp = [z for z in zps[0]["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt]
+            zp = [
+                z
+                for z in zps[0]["zaehlpunkte"]
+                if z["zaehlpunktnummer"] == self.zaehlpunkt
+            ]
             if len(zp) == 0:
                 raise RuntimeError(f"Zaehlpunkt {self.zaehlpunkt} not found")
             else:
-                return translate_dict(zp[0], ATTRS_ZAEHLPUNKTE_CALL) if len(zp) > 0 else None
+                return (
+                    translate_dict(zp[0], ATTRS_ZAEHLPUNKTE_CALL)
+                    if len(zp) > 0
+                    else None
+                )
 
     async def get_daily_consumption(self, smartmeter: Smartmeter, date: datetime):
-        response = await self.hass.async_add_executor_job(smartmeter.tages_verbrauch, date, self.zaehlpunkt)
+        response = await self.hass.async_add_executor_job(
+            smartmeter.tages_verbrauch, date, self.zaehlpunkt
+        )
         if "Exception" in response:
             raise RuntimeError("Cannot access daily consumption: ", response)
         else:
@@ -173,20 +191,20 @@ class SmartmeterSensor(SensorEntity):
 
     def parse_quarterly_consumption_response(self, response):
         data = []
-        if 'values' not in response:
+        if "values" not in response:
             return None
-        values = response['values']
+        values = response["values"]
 
         sum = 0
         for v in values:
             ts = v["timestamp"]
             quarter_hourly_data = {}
-            quarter_hourly_data['utc'] = ts
+            quarter_hourly_data["utc"] = ts
             usage = v["value"]
             if usage is not None:
                 sum += usage
 
-            quarter_hourly_data['usage'] = usage
+            quarter_hourly_data["usage"] = usage
             data.append(quarter_hourly_data)
         self._state = sum
         return data
@@ -276,7 +294,9 @@ class SmartmeterSensor(SensorEntity):
         async_import_statistics(self.hass, metadata, statistics)
 
     def is_active(self, zp: dict) -> bool:
-        return (not('active' in zp) or zp['active']) or (not ('smartMeterReady' in zp) or zp['smartMeterReady'])
+        return (not ("active" in zp) or zp["active"]) or (
+            not ("smartMeterReady" in zp) or zp["smartMeterReady"]
+        )
 
     async def async_update(self):
         try:
