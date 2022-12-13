@@ -34,7 +34,7 @@ After successful configuration you can add sensors to your favourite dashboard, 
 <img src="./doc/wnsm6.png" alt="Observe that all your smartmeters got imported" width="500"/>
 
 ### Manual
-See [Example configuration files](https://github.com/DarwinsBuddy/WienerNetzeSmartmeter/example/configuration.yaml)
+See [Example configuration files](https://github.com/DarwinsBuddy/WienerNetzeSmartmeter/blob/main/example/configuration.yaml)
 ## Copyright
 
 This integration uses the API of https://www.wienernetze.at/smartmeter
