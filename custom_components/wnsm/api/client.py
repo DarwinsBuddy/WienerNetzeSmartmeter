@@ -52,6 +52,8 @@ class Smartmeter:
         except Exception as e:
             raise SmartmeterConnectionError(f"Could not load login page. Error: {e}")
 
+        logger.debug(f"LOGIN HEADERS: {result.headers}")
+
         if "Location" not in result.headers:
             raise SmartmeterLoginError("Login failed. Check username/password.")
 
