@@ -3,7 +3,9 @@
         "@DarwinsBuddy"
     ],
     "config_flow": true,
-    "dependencies": [],
+    "dependencies": [
+      "recorder"
+    ],
     "documentation": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter",
     "domain": "wnsm",
     "iot_class": "calculated",
