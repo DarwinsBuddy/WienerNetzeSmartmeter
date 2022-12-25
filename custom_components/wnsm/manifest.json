@@ -1,7 +1,9 @@
 {
   "codeowners": ["@DarwinsBuddy"],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": [
+      "recorder"
+  ],
   "documentation": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter",
   "issue_tracker": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter/issues",
   "domain": "wnsm",
