@@ -56,8 +56,18 @@ class Smartmeter:
 
         if "Location" not in result.headers:
             raise SmartmeterLoginError("Login failed. Check username/password.")
+        location = result.headers["Location"]
 
-        code = result.headers["Location"].split("&code=", 1)[1]
+        parsedUrl = parse.urlparse(location)
+        params = parse.parse_qs(parsedUrl.query)
+        
+        fragmentDict = dict([x.split("=") for x in parsedUrl.fragment.split("&") if len(x.split("=")) == 2])
+        if 'code' in fragmentDict:
+            code = fragmentDict['code'] 
+        elif "code" in params and len(params["code"]) > 0:
+            code = params["code"][0]
+        else:
+            raise SmartmeterLoginError("Login failed. Could not extract 'code' from 'Location'")
         try:
             result = self.session.post(
                 const.AUTH_URL + "token",
