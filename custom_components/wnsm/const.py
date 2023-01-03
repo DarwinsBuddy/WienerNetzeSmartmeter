@@ -46,3 +46,11 @@ ATTRS_WELCOME_CALL = [
     ("zaehlpunkt.consumptionYesterday.value", "consumptionYesterday"),
     ("zaehlpunkt.consumptionDayBeforeYesterday.value", "consumptionDayBeforeYesterday"),
 ]
+
+ATTRS_VERBRAUCH_CALL = [
+    ("quarter-hour-opt-in", "optIn"),
+    ("statistics.average", "consumptionAverage"),
+    ("statistics.minimum", "consumptionMinimum"),
+    ("statistics.maximum", "consumptionMaximum"),
+    ("values", "values"),
+]
