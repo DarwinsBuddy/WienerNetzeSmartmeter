@@ -1,7 +1,10 @@
+'''
+    api constants
+'''
 import re
 
-MAIN_SCRIPT_REGEX = re.compile("^main\S+\.js$")
-API_GATEWAY_TOKEN_REGEX = re.compile('b2capiKey\:"([A-Za-z0-9-_]+)"')
+MAIN_SCRIPT_REGEX = re.compile(r"^main\S+\.js$")
+API_GATEWAY_TOKEN_REGEX = re.compile(r'b2capiKey\:"([A-Za-z0-9-_]+)"')
 
 PAGE_URL = "https://smartmeter-web.wienernetze.at/"
 API_URL_ALT = "https://service.wienernetze.at/sm/api/"
@@ -22,6 +25,9 @@ LOGIN_ARGS = {
 
 
 def build_access_token_args(**kwargs):
+    '''
+    build access token and add kwargs
+    '''
     args = {
         "grant_type": "authorization_code",
         "client_id": "wn-smartmeter",
@@ -32,6 +38,9 @@ def build_access_token_args(**kwargs):
 
 
 def build_verbrauchs_args(**kwargs):
+    '''
+    build arguments for verbrauchs call and add kwargs
+    '''
     args = {
         "period": "DAY",
         "accumulate": False,
