@@ -182,13 +182,10 @@ class AsyncSmartmeter:
         """Send requests to the Smartmeter API."""
         if base_url is None:
             base_url = const.API_URL
-        url = "{0}{1}".format(base_url, endpoint)
-
+        url = f"{base_url}{endpoint}"
         if query:
             separator = "?" if "?" not in endpoint else "&"
             url += separator + parse.urlencode(query)
-
-        logger.debug(f"REQUEST: {url}")
 
         headers = {"Authorization": f"Bearer {self._access_token}"}
         if self._api_gateway_token is not None:
@@ -199,17 +196,16 @@ class AsyncSmartmeter:
                 response = await self._session.request(
                     method, url, headers=headers, json=data
                 )
-                logger.debug(f"REQUEST: {response}")
                 if response.status == 401:
                     await self.refresh_token()
                     return await self._request(endpoint, base_url, method, data, query)
                 return await response.json()
 
         except asyncio.TimeoutError as exception:
-            logger.error(f"Timeout error fetching information from {url} - {exception}")
+            logger.error("Timeout error fetching information from %s - %s", url, exception)
         except (KeyError, TypeError) as exception:
-            logger.error(f"Error parsing information from {url} - {exception}")
+            logger.error("Error parsing information from %s - %s", url, exception)
         except (aiohttp.ClientError, socket.gaierror) as exception:
-            logger.error(f"Error fetching information from {url} - {exception}")
-        except Exception as exception:
-            logger.error(f"Something really wrong happened! - {exception}")
+            logger.error("Error fetching information from %s - %s", url, exception)
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.error("Something really wrong happened! - %s", exception)

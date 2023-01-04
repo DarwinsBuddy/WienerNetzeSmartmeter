@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class Smartmeter:
     """Smartmeter client."""
 
-    def __init__(self, username, password, login=True):
+    def __init__(self, username, password):
         """Access the Smartmeter API.
 
         Args:
@@ -31,11 +31,14 @@ class Smartmeter:
         self._api_gateway_token = None
 
     def login(self):
+        '''
+            login with credentials specified in ctor
+        '''
         login_url = const.AUTH_URL + "auth?" + parse.urlencode(const.LOGIN_ARGS)
         try:
             result = self.session.get(login_url)
-        except Exception as e:
-            raise SmartmeterConnectionError(f"Could not load login page. Error: {e}")
+        except Exception as exception:
+            raise SmartmeterConnectionError("Could not load login page") from exception
         if result.status_code != 200:
             raise SmartmeterConnectionError(
                 f"Could not load login page. Error: {result.content}"
@@ -51,8 +54,8 @@ class Smartmeter:
                 },
                 allow_redirects=False,
             )
-        except Exception as e:
-            raise SmartmeterConnectionError(f"Could not load login page. Error: {e}")
+        except Exception as exception:
+            raise SmartmeterConnectionError("Could not load login page.") from exception
 
         if "Location" not in result.headers:
             raise SmartmeterLoginError("Login failed. Check username/password.")
@@ -63,8 +66,8 @@ class Smartmeter:
                 const.AUTH_URL + "token",
                 data=const.build_access_token_args(code=code),
             )
-        except Exception as e:
-            raise SmartmeterConnectionError(f"Could not obtain access token: {e}")
+        except Exception as exception:
+            raise SmartmeterConnectionError("Could not obtain access token") from exception
 
         if result.status_code != 200:
             raise SmartmeterConnectionError(
@@ -78,15 +81,15 @@ class Smartmeter:
         headers = {"Authorization": f"Bearer {token}"}
         try:
             result = self.session.get(const.PAGE_URL, headers=headers)
-        except Exception as e:
-            raise SmartmeterConnectionError(f"Could not obtain API key {e}")
+        except Exception as exception:
+            raise SmartmeterConnectionError("Could not obtain API key") from exception
         tree = html.fromstring(result.content)
         scripts = tree.xpath("(//script/@src)")
         for script in scripts:
             try:
                 response = self.session.get(const.PAGE_URL + script)
-            except Exception as e:
-                raise SmartmeterConnectionError(f"Could not obtain API key {e}")
+            except Exception as exception:
+                raise SmartmeterConnectionError("Could not obtain API key") from exception
             if const.MAIN_SCRIPT_REGEX.match(script):
                 for match in const.API_GATEWAY_TOKEN_REGEX.findall(response.text):
                     return match
@@ -112,15 +115,12 @@ class Smartmeter:
         if query:
             url += ("?" if "?" not in endpoint else "&") + parse.urlencode(query)
 
-        logger.debug("REQUEST: {}", url)
-
         headers = {
             "Authorization": f"Bearer {self._access_token}",
             "X-Gateway-APIKey": self._api_gateway_token,
         }
 
         if data:
-            logger.debug("DATA: {}", data)
             headers["Content-Type"] = "application/json"
 
         response = self.session.request(
@@ -163,7 +163,7 @@ class Smartmeter:
             date_to = datetime.now()
         if zaehlpunkt is None:
             zaehlpunkt = self._get_first_zaehlpunkt()
-        endpoint = "messdaten/zaehlpunkt/{}/verbrauchRaw".format(zaehlpunkt)
+        endpoint = f"messdaten/zaehlpunkt/{zaehlpunkt}/verbrauchRaw"
         query = {
             "dateFrom": self._dt_string(date_from),
             "dateTo": self._dt_string(date_to),
@@ -189,7 +189,7 @@ class Smartmeter:
             date_to = datetime.now()
         if zaehlpunkt is None:
             zaehlpunkt = self._get_first_zaehlpunkt()
-        endpoint = "messdaten/zaehlpunkt/{}/verbrauch".format(zaehlpunkt)
+        endpoint = f"messdaten/zaehlpunkt/{zaehlpunkt}/verbrauch"
         query = const.build_verbrauchs_args(
             dateFrom=self._dt_string(date_from), dateTo=self._dt_string(date_to)
         )
@@ -210,7 +210,7 @@ class Smartmeter:
 
         if zaehlpunkt is None:
             zaehlpunkt = self._get_first_zaehlpunkt()
-        endpoint = "messdaten/zaehlpunkt/{}/verbrauch".format(zaehlpunkt)
+        endpoint = f"messdaten/zaehlpunkt/{zaehlpunkt}/verbrauch"
         query = const.build_verbrauchs_args(
             dateFrom=self._dt_string(day.replace(hour=0, minute=0, second=0))
         )
@@ -282,4 +282,4 @@ class Smartmeter:
 
     def delete_ereignis(self, ereignis_id):
         """Deletes ereignis."""
-        return self._call_api("user/ereignis/{}".format(ereignis_id), method="DELETE")
+        return self._call_api(f"user/ereignis/{ereignis_id}", method="DELETE")
