@@ -8,6 +8,7 @@ from homeassistant import core, config_entries
 
 from homeassistant.components.sensor import (
     PLATFORM_SCHEMA,
+    SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
@@ -15,7 +16,6 @@ from homeassistant.const import (
     CONF_USERNAME,
     CONF_PASSWORD,
     CONF_DEVICE_ID,
-    DEVICE_CLASS_ENERGY,
     ENERGY_KILO_WATT_HOUR,
 )
 from homeassistant.core import DOMAIN
@@ -92,7 +92,7 @@ class SmartmeterSensor(SensorEntity):
         self._attr_extra_state_attributes = {}
         self._attr_name = zaehlpunkt
         self._attr_icon = "mdi:flash"
-        self._attr_device_class = DEVICE_CLASS_ENERGY
+        self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_native_unit_of_measurement = ENERGY_KILO_WATT_HOUR
         self._attr_unit_of_measurement = ENERGY_KILO_WATT_HOUR
