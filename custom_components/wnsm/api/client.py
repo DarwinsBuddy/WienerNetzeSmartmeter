@@ -31,9 +31,9 @@ class Smartmeter:
         self._api_gateway_token = None
 
     def login(self):
-        '''
-            login with credentials specified in ctor
-        '''
+        """
+        login with credentials specified in ctor
+        """
         login_url = const.AUTH_URL + "auth?" + parse.urlencode(const.LOGIN_ARGS)
         try:
             result = self.session.get(login_url)
@@ -67,7 +67,9 @@ class Smartmeter:
                 data=const.build_access_token_args(code=code),
             )
         except Exception as exception:
-            raise SmartmeterConnectionError("Could not obtain access token") from exception
+            raise SmartmeterConnectionError(
+                "Could not obtain access token"
+            ) from exception
 
         if result.status_code != 200:
             raise SmartmeterConnectionError(
@@ -89,7 +91,9 @@ class Smartmeter:
             try:
                 response = self.session.get(const.PAGE_URL + script)
             except Exception as exception:
-                raise SmartmeterConnectionError("Could not obtain API key") from exception
+                raise SmartmeterConnectionError(
+                    "Could not obtain API key"
+                ) from exception
             if const.MAIN_SCRIPT_REGEX.match(script):
                 for match in const.API_GATEWAY_TOKEN_REGEX.findall(response.text):
                     return match
@@ -110,7 +114,7 @@ class Smartmeter:
     ):
         if base_url is None:
             base_url = const.API_URL
-        url = "{0}{1}".format(base_url, endpoint)
+        url = f"{base_url}{endpoint}"
 
         if query:
             url += ("?" if "?" not in endpoint else "&") + parse.urlencode(query)
