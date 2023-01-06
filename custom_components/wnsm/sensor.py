@@ -67,10 +67,12 @@ async def async_setup_entry(
 
 
 async def async_setup_platform(
-    hass: HomeAssistantType, # pylint: disable=unused-argument
+    hass: HomeAssistantType,  # pylint: disable=unused-argument
     config: ConfigType,
     async_add_entities: collections.abc.Callable,
-    discovery_info: Optional[DiscoveryInfoType] = None,  # pylint: disable=unused-argument
+    discovery_info: Optional[
+        DiscoveryInfoType
+    ] = None,  # pylint: disable=unused-argument
 ) -> None:
     """Set up the sensor platform by adding it into configuration.yaml"""
     sensor = SmartmeterSensor(
@@ -108,9 +110,9 @@ class SmartmeterSensor(SensorEntity):
 
     @property
     def icon(self) -> str:
-        '''
+        """
         Return icon
-        '''
+        """
         return self._attr_icon
 
     @property
@@ -131,22 +133,20 @@ class SmartmeterSensor(SensorEntity):
         return self._available
 
     @property
-    def state(self) -> Optional[str]: # pylint: disable=overridden-final-method
+    def state(self) -> Optional[str]:  # pylint: disable=overridden-final-method
         return self._state
 
     async def get_zaehlpunkt(self, smartmeter: Smartmeter) -> dict[str, str]:
-        '''
+        """
         asynchronously get and parse /zaehlpunkt response
         Returns response already sanitzied of the specified zahlpunkt in ctor
-        '''
+        """
         zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
         if zps is None or len(zps) == 0:
             raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
 
         zaehlpunkt = [
-            z
-            for z in zps[0]["zaehlpunkte"]
-            if z["zaehlpunktnummer"] == self.zaehlpunkt
+            z for z in zps[0]["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt
         ]
         if len(zaehlpunkt) == 0:
             raise RuntimeError(f"Zaehlpunkt {self.zaehlpunkt} not found")
@@ -158,10 +158,10 @@ class SmartmeterSensor(SensorEntity):
             )
 
     async def get_daily_consumption(self, smartmeter: Smartmeter, date: datetime):
-        '''
+        """
         asynchronously get adn parse /tages_verbrauch response
         Returns response already sanitzied of the specified zahlpunkt in ctor
-        '''
+        """
         response = await self.hass.async_add_executor_job(
             smartmeter.tages_verbrauch, date, self.zaehlpunkt
         )
@@ -171,10 +171,10 @@ class SmartmeterSensor(SensorEntity):
             return response
 
     async def get_welcome(self, smartmeter: Smartmeter) -> dict[str, str]:
-        '''
+        """
         asynchronously get adn parse /welcome response
         Returns response already sanitzied of the specified zahlpunkt in ctor
-        '''
+        """
         response = await self.hass.async_add_executor_job(smartmeter.welcome)
         if "Exception" in response:
             raise RuntimeError("Cannot access welcome: ", response)
@@ -182,9 +182,9 @@ class SmartmeterSensor(SensorEntity):
             return translate_dict(response, ATTRS_WELCOME_CALL)
 
     def parse_quarterly_consumption_response(self, response):
-        '''
+        """
         Parse and aggregate quarter-hourly consumption
-        '''
+        """
         data = []
         if "values" not in response:
             return None
@@ -205,17 +205,20 @@ class SmartmeterSensor(SensorEntity):
         return data
 
     def is_active(self, zaehlpunkt_response: dict) -> bool:
-        '''
+        """
         returns active status of smartmeter, according to zaehlpunkt response
-        '''
-        return (not ("active" in zaehlpunkt_response) or zaehlpunkt_response["active"]) or (
-            not ("smartMeterReady" in zaehlpunkt_response) or zaehlpunkt_response["smartMeterReady"]
+        """
+        return (
+            not ("active" in zaehlpunkt_response) or zaehlpunkt_response["active"]
+        ) or (
+            not ("smartMeterReady" in zaehlpunkt_response)
+            or zaehlpunkt_response["smartMeterReady"]
         )
 
     async def async_update(self):
-        '''
+        """
         update sensor
-        '''
+        """
         try:
             smartmeter = Smartmeter(self.username, self.password)
             await self.hass.async_add_executor_job(smartmeter.login)
@@ -262,7 +265,8 @@ class SmartmeterSensor(SensorEntity):
                         _LOGGER.error(
                             "Please file an issue with this error and \
                             (anonymized) payload in github %s %s",
-                            welcome, yesterdays_consumption
+                            welcome,
+                            yesterdays_consumption,
                         )
                         return
             self._available = True

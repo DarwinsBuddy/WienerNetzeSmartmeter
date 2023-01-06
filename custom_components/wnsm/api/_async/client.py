@@ -97,8 +97,8 @@ class AsyncSmartmeter:
         """Return a valid access token."""
         pass
 
-    def _dt_string(self, dt):
-        return dt.strftime(const.API_DATE_FORMAT)[:-3] + "Z"
+    def _dt_string(self, date_time: datetime):
+        return date_time.strftime(const.API_DATE_FORMAT)[:-3] + "Z"
 
     async def _get_first_zaehlpunkt(self):
         """Get first zaehlpunkt."""
@@ -202,7 +202,9 @@ class AsyncSmartmeter:
                 return await response.json()
 
         except asyncio.TimeoutError as exception:
-            logger.error("Timeout error fetching information from %s - %s", url, exception)
+            logger.error(
+                "Timeout error fetching information from %s - %s", url, exception
+            )
         except (KeyError, TypeError) as exception:
             logger.error("Error parsing information from %s - %s", url, exception)
         except (aiohttp.ClientError, socket.gaierror) as exception:
