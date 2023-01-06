@@ -17,6 +17,16 @@ In the container you will have a dedicated Home Assistant core instance running 
 
 [extension-link]: https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers
 
+### Setup
+
+Please use following tools/extensions to contribute (feedback and suggestions very much welcome :) ):
+
+`requirements.dev.txt`
+* [black formatter](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter)
+    * [black](https://github.com/psf/black)
+* [pylint extension](https://marketplace.visualstudio.com/items?itemName=ms-python.pylint)
+    * [pylint](https://github.com/PyCQA/pylint)
+
 ### Getting started
 
 1. Install prerequisites

@@ -1,3 +1,6 @@
+'''
+    component constants
+'''
 DOMAIN = "wnsm"
 
 CONF_ZAEHLPUNKTE = "zaehlpunkte"
