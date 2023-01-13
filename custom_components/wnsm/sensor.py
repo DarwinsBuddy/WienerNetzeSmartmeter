@@ -147,67 +147,42 @@ class SmartmeterSensor(SensorEntity):
     async def get_zaehlpunkt(self, smartmeter: Smartmeter) -> Dict[str, str]:
         zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
         if "Exception" in zps:
-            raise RuntimeError("Cannot access zählpunkte: ", zps)
+            raise RuntimeError(f"Cannot access zählpunkte: {zps}")
 
         if zps is None or len(zps) == 0:
             raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
-        else:
-            zp = [
-                z
-                for z in zps[0]["zaehlpunkte"]
-                if z["zaehlpunktnummer"] == self.zaehlpunkt
-            ]
-            if len(zp) == 0:
-                raise RuntimeError(f"Zaehlpunkt {self.zaehlpunkt} not found")
-            else:
-                return (
-                    translate_dict(zp[0], ATTRS_ZAEHLPUNKTE_CALL)
-                    if len(zp) > 0
-                    else None
-                )
 
-    async def get_daily_consumption(self, smartmeter: Smartmeter, date: datetime):
-        response = await self.hass.async_add_executor_job(
-            smartmeter.tages_verbrauch, date, self.zaehlpunkt
+        zp = [
+            z
+            for z in zps[0]["zaehlpunkte"]
+            if z["zaehlpunktnummer"] == self.zaehlpunkt
+        ]
+        if len(zp) == 0:
+            raise RuntimeError(f"Zaehlpunkt {self.zaehlpunkt} not found")
+
+        return (
+            translate_dict(zp[0], ATTRS_ZAEHLPUNKTE_CALL)
+            if len(zp) > 0
+            else None
         )
-        if "Exception" in response:
-            raise RuntimeError("Cannot access daily consumption: ", response)
-        else:
-            return response
 
     async def get_consumption(self, smartmeter: Smartmeter, start_date: datetime):
-        """Return the consumption starting from a date"""
-        response = await self.hass.async_add_executor_job(smartmeter.verbrauch, start_date, self.zaehlpunkt)
+        """Return 24h of hourly consumption starting from a date"""
+        response = await self.hass.async_add_executor_job(
+            smartmeter.verbrauch, start_date, self.zaehlpunkt
+            )
         if "Exception" in response:
-            raise RuntimeError("Cannot access daily consumption: ", response)
+            raise RuntimeError(f"Cannot access daily consumption: {response}")
+
         return translate_dict(response, ATTRS_VERBRAUCH_CALL)
 
     async def get_welcome(self, smartmeter: Smartmeter) -> Dict[str, str]:
+        """Retrieve the "welcome" message from the API, which includes basic information"""
         response = await self.hass.async_add_executor_job(smartmeter.welcome)
         if "Exception" in response:
-            raise RuntimeError("Cannot access welcome: ", response)
-        else:
-            return translate_dict(response, ATTRS_WELCOME_CALL)
+            raise RuntimeError(f"Cannot access welcome: {response}")
 
-    def parse_quarterly_consumption_response(self, response):
-        data = []
-        if "values" not in response:
-            return None
-        values = response["values"]
-
-        sum = 0
-        for v in values:
-            ts = v["timestamp"]
-            quarter_hourly_data = {}
-            quarter_hourly_data["utc"] = ts
-            usage = v["value"]
-            if usage is not None:
-                sum += usage
-
-            quarter_hourly_data["usage"] = usage
-            data.append(quarter_hourly_data)
-        self._state = sum
-        return data
+        return translate_dict(response, ATTRS_WELCOME_CALL)
 
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, sum_: Decimal):
         """Import hourly consumption data into the statistics module, using start date and sum"""
@@ -284,8 +259,6 @@ class SmartmeterSensor(SensorEntity):
                     # Can we do anything special here?
                     _LOGGER.debug("Estimated Value found for {ts}: {usage}")
 
-                # It would be possible to grab the 15min data and calculate min,max,mean here as
-                # well - this would give a bit nicer statistics
                 statistics.append(StatisticData(start=ts, sum=sum_, state=usage))
 
         _LOGGER.debug(statistics)
