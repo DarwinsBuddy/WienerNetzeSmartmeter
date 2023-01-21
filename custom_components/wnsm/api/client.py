@@ -28,6 +28,7 @@ class Smartmeter:
         self.password = password
         self.session = requests.Session()
         self._access_token = None
+        self._refresh_token = None
         self._api_gateway_token = None
 
     def login(self):
@@ -61,12 +62,12 @@ class Smartmeter:
             raise SmartmeterLoginError("Login failed. Check username/password.")
         location = result.headers["Location"]
 
-        parsedUrl = parse.urlparse(location)
-        params = parse.parse_qs(parsedUrl.query)
+        parsed_url = parse.urlparse(location)
+        params = parse.parse_qs(parsed_url.query)
         
-        fragmentDict = dict([x.split("=") for x in parsedUrl.fragment.split("&") if len(x.split("=")) == 2])
-        if 'code' in fragmentDict:
-            code = fragmentDict['code'] 
+        fragment_dict = dict([x.split("=") for x in parsed_url.fragment.split("&") if len(x.split("=")) == 2])
+        if 'code' in fragment_dict:
+            code = fragment_dict['code']
         elif "code" in params and len(params["code"]) > 0:
             code = params["code"][0]
         else:
@@ -87,6 +88,7 @@ class Smartmeter:
             )
 
         self._access_token = result.json()["access_token"]
+        self._refresh_token = result.json()["refresh_token"] # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
         self._api_gateway_token = self._get_api_key(self._access_token)
 
     def _get_api_key(self, token):
@@ -102,12 +104,13 @@ class Smartmeter:
                 response = self.session.get(const.PAGE_URL + script)
             except Exception as exception:
                 raise SmartmeterConnectionError(
-                    "Could not obtain API key"
+                    "Could not obtain API Key from scripts"
                 ) from exception
-            if const.MAIN_SCRIPT_REGEX.match(script):
-                for match in const.API_GATEWAY_TOKEN_REGEX.findall(response.text):
-                    return match
-        return None
+            for match in const.API_GATEWAY_TOKEN_REGEX.findall(response.text):
+                return match
+        raise SmartmeterConnectionError(
+            "Could not obtain API key - no match"
+        )
 
     def _dt_string(self, datetime_string):
         return datetime_string.strftime(const.API_DATE_FORMAT)[:-3] + "Z"
