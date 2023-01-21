@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class Smartmeter:
     """Smartmeter client."""
 
-    def __init__(self, username, password, login=True):
+    def __init__(self, username, password):
         """Access the Smartmeter API.
 
         Args:
@@ -28,14 +28,18 @@ class Smartmeter:
         self.password = password
         self.session = requests.Session()
         self._access_token = None
+        self._refresh_token = None
         self._api_gateway_token = None
 
     def login(self):
+        """
+        login with credentials specified in ctor
+        """
         login_url = const.AUTH_URL + "auth?" + parse.urlencode(const.LOGIN_ARGS)
         try:
             result = self.session.get(login_url)
-        except Exception as e:
-            raise SmartmeterConnectionError(f"Could not load login page. Error: {e}")
+        except Exception as exception:
+            raise SmartmeterConnectionError("Could not load login page") from exception
         if result.status_code != 200:
             raise SmartmeterConnectionError(
                 f"Could not load login page. Error: {result.content}"
@@ -51,22 +55,34 @@ class Smartmeter:
                 },
                 allow_redirects=False,
             )
-        except Exception as e:
-            raise SmartmeterConnectionError(f"Could not load login page. Error: {e}")
+        except Exception as exception:
+            raise SmartmeterConnectionError("Could not load login page.") from exception
 
         logger.debug(f"LOGIN HEADERS: {result.headers}")
 
         if "Location" not in result.headers:
             raise SmartmeterLoginError("Login failed. Check username/password.")
+        location = result.headers["Location"]
 
-        code = result.headers["Location"].split("&code=", 1)[1]
+        parsed_url = parse.urlparse(location)
+        params = parse.parse_qs(parsed_url.query)
+
+        fragment_dict = dict([x.split("=") for x in parsed_url.fragment.split("&") if len(x.split("=")) == 2])
+        if 'code' in fragment_dict:
+            code = fragment_dict['code']
+        elif "code" in params and len(params["code"]) > 0:
+            code = params["code"][0]
+        else:
+            raise SmartmeterLoginError("Login failed. Could not extract 'code' from 'Location'")
         try:
             result = self.session.post(
                 const.AUTH_URL + "token",
                 data=const.build_access_token_args(code=code),
             )
-        except Exception as e:
-            raise SmartmeterConnectionError(f"Could not obtain access token: {e}")
+        except Exception as exception:
+            raise SmartmeterConnectionError(
+                "Could not obtain access token"
+            ) from exception
 
         if result.status_code != 200:
             raise SmartmeterConnectionError(
@@ -74,25 +90,29 @@ class Smartmeter:
             )
 
         self._access_token = result.json()["access_token"]
+        self._refresh_token = result.json()["refresh_token"] # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
         self._api_gateway_token = self._get_api_key(self._access_token)
 
     def _get_api_key(self, token):
         headers = {"Authorization": f"Bearer {token}"}
         try:
             result = self.session.get(const.PAGE_URL, headers=headers)
-        except Exception as e:
-            raise SmartmeterConnectionError(f"Could not obtain API key {e}")
+        except Exception as exception:
+            raise SmartmeterConnectionError("Could not obtain API key") from exception
         tree = html.fromstring(result.content)
         scripts = tree.xpath("(//script/@src)")
         for script in scripts:
             try:
                 response = self.session.get(const.PAGE_URL + script)
-            except Exception as e:
-                raise SmartmeterConnectionError(f"Could not obtain API key {e}")
-            if const.MAIN_SCRIPT_REGEX.match(script):
-                for match in const.API_GATEWAY_TOKEN_REGEX.findall(response.text):
-                    return match
-        return None
+            except Exception as exception:
+                raise SmartmeterConnectionError(
+                    "Could not obtain API Key from scripts"
+                ) from exception
+            for match in const.API_GATEWAY_TOKEN_REGEX.findall(response.text):
+                return match
+        raise SmartmeterConnectionError(
+            "Could not obtain API key - no match"
+        )
 
     def _dt_string(self, datetime_string):
         return datetime_string.strftime(const.API_DATE_FORMAT)[:-3] + "Z"
@@ -109,7 +129,7 @@ class Smartmeter:
     ):
         if base_url is None:
             base_url = const.API_URL
-        url = "{0}{1}".format(base_url, endpoint)
+        url = f"{base_url}{endpoint}"
 
         if query:
             url += ("?" if "?" not in endpoint else "&") + parse.urlencode(query)
@@ -168,7 +188,7 @@ class Smartmeter:
             date_to = datetime.now()
         if zaehlpunkt is None:
             zaehlpunkt = self._get_first_zaehlpunkt()
-        endpoint = "messdaten/zaehlpunkt/{}/verbrauchRaw".format(zaehlpunkt)
+        endpoint = f"messdaten/zaehlpunkt/{zaehlpunkt}/verbrauchRaw"
         query = {
             "dateFrom": self._dt_string(date_from),
             "dateTo": self._dt_string(date_to),
@@ -191,7 +211,7 @@ class Smartmeter:
         """
         if zaehlpunkt is None:
             zaehlpunkt = self._get_first_zaehlpunkt()
-        endpoint = "messdaten/zaehlpunkt/{}/verbrauch".format(zaehlpunkt)
+        endpoint = f"messdaten/zaehlpunkt/{zaehlpunkt}/verbrauch"
         query = const.build_verbrauchs_args(
             dateFrom = self._dt_string(date_from),
             dayViewResolution = resolution.value,
@@ -283,4 +303,4 @@ class Smartmeter:
 
     def delete_ereignis(self, ereignis_id):
         """Deletes ereignis."""
-        return self._call_api("user/ereignis/{}".format(ereignis_id), method="DELETE")
+        return self._call_api(f"user/ereignis/{ereignis_id}", method="DELETE")

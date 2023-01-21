@@ -4,16 +4,16 @@
     ],
     "config_flow": true,
     "dependencies": [
-      "recorder"
-  ],
-  "documentation": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter",
-  "issue_tracker": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter/issues",
-  "domain": "wnsm",
-  "iot_class": "calculated",
-  "name": "WienerNetzeSmartmeter",
-  "requirements": [
-      "lxml",
-      "requests"
-  ],
-  "version": "1.0.0"
+        "recorder"
+    ],
+    "documentation": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter",
+    "domain": "wnsm",
+    "iot_class": "calculated",
+    "issue_tracker": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter/issues",
+    "name": "WienerNetzeSmartmeter",
+    "requirements": [
+        "lxml",
+        "requests"
+    ],
+    "version": "1.0.1"
 }

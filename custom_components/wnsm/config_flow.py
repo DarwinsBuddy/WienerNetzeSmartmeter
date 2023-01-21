@@ -1,6 +1,8 @@
-from copy import deepcopy
+'''
+Setting up config flow for homeassistant
+'''
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
@@ -21,7 +23,7 @@ AUTH_SCHEMA = vol.Schema(
 class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Wiener Netze Smartmeter config flow"""
 
-    data: Optional[Dict[str, Any]]
+    data: Optional[dict[str, Any]]
 
     async def validate_auth(self, username: str, password: str) -> list[dict]:
         """
@@ -33,17 +35,17 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
         zps = await self.hass.async_add_executor_job(api.zaehlpunkte)
         return zps[0]["zaehlpunkte"] if zps is not None else []
 
-    async def async_step_user(self, user_input: Optional[Dict[str, Any]] = None):
+    async def async_step_user(self, user_input: Optional[dict[str, Any]] = None):
         """Invoked when a user initiates a flow via the user interface."""
-        errors: Dict[str, str] = {}
+        errors: dict[str, str] = {}
         if user_input is not None:
             try:
                 zps = await self.validate_auth(
                     user_input[CONF_USERNAME], user_input[CONF_PASSWORD]
                 )
-            except Exception as e:
+            except Exception as exception: # pylint: disable=broad-except
                 _LOGGER.error("Error validating Wiener Netze auth")
-                _LOGGER.exception(e)
+                _LOGGER.exception(exception)
                 errors["base"] = "auth"
             if not errors:
                 # Input is valid, set data

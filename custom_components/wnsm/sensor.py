@@ -1,4 +1,7 @@
-"""WienerNetze Smartmeter sensor platform"""
+"""
+WienerNetze Smartmeter sensor platform
+"""
+import collections
 import logging
 from decimal import Decimal
 from datetime import timedelta, datetime, timezone
@@ -39,14 +42,14 @@ from homeassistant.helpers.typing import (
 from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
-from custom_components.wnsm.api import Smartmeter
-from custom_components.wnsm.const import (
+from .api import Smartmeter
+from .const import (
     ATTRS_WELCOME_CALL,
     ATTRS_ZAEHLPUNKTE_CALL,
     ATTRS_VERBRAUCH_CALL,
     CONF_ZAEHLPUNKTE,
 )
-from custom_components.wnsm.utils import before, today, translate_dict
+from .utils import before, today, translate_dict
 
 _LOGGER = logging.getLogger(__name__)
 # Time between updating data from Wiener Netze
@@ -78,10 +81,12 @@ async def async_setup_entry(
 
 
 async def async_setup_platform(
-    hass: HomeAssistantType,
+    hass: HomeAssistantType,  # pylint: disable=unused-argument
     config: ConfigType,
-    async_add_entities: Callable,
-    discovery_info: Optional[DiscoveryInfoType] = None,
+    async_add_entities: collections.abc.Callable,
+    discovery_info: Optional[
+        DiscoveryInfoType
+    ] = None,  # pylint: disable=unused-argument
 ) -> None:
     """Set up the sensor platform by adding it into configuration.yaml"""
     sensor = SmartmeterSensor(
@@ -96,7 +101,7 @@ class SmartmeterSensor(SensorEntity):
     for measuring total increasing energy consumption for a specific zaehlpunkt
     """
 
-    def __init__(self, username: str, password: str, zaehlpunkt: str):
+    def __init__(self, username: str, password: str, zaehlpunkt: str) -> None:
         super().__init__()
         self.username = username
         self.password = password
@@ -111,15 +116,19 @@ class SmartmeterSensor(SensorEntity):
         self._attr_native_unit_of_measurement = ENERGY_KILO_WATT_HOUR
         self._attr_unit_of_measurement = ENERGY_KILO_WATT_HOUR
 
-        self.attrs: Dict[str, Any] = {}
-        self._name: str | None = zaehlpunkt
-        self._state: int | None = None
+        self.attrs: dict[str, Any] = {}
+        self._name: str = zaehlpunkt
+        self._state: int = None
         self._available: bool = True
+        self._updatets: str = None
 
         self._id = ENTITY_ID_FORMAT.format(slugify(self._name).lower())
 
     @property
     def icon(self) -> str:
+        """
+        Return icon
+        """
         return self._attr_icon
 
     @property
@@ -127,8 +136,7 @@ class SmartmeterSensor(SensorEntity):
         """Return the name of the entity."""
         if "label" in self._attr_extra_state_attributes:
             return self._attr_extra_state_attributes["label"]
-        else:
-            return self._name
+        return self._name
 
     @property
     def unique_id(self) -> str:
@@ -141,10 +149,14 @@ class SmartmeterSensor(SensorEntity):
         return self._available
 
     @property
-    def state(self) -> Optional[str]:
+    def state(self) -> Optional[str]:  # pylint: disable=overridden-final-method
         return self._state
 
-    async def get_zaehlpunkt(self, smartmeter: Smartmeter) -> Dict[str, str]:
+    async def get_zaehlpunkt(self, smartmeter: Smartmeter) -> dict[str, str]:
+        """
+        asynchronously get and parse /zaehlpunkt response
+        Returns response already sanitzied of the specified zahlpunkt in ctor
+        """
         zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
         if "Exception" in zps:
             raise RuntimeError(f"Cannot access zählpunkte: {zps}")
@@ -176,8 +188,11 @@ class SmartmeterSensor(SensorEntity):
 
         return translate_dict(response, ATTRS_VERBRAUCH_CALL)
 
-    async def get_welcome(self, smartmeter: Smartmeter) -> Dict[str, str]:
-        """Retrieve the "welcome" message from the API, which includes basic information"""
+    async def get_welcome(self, smartmeter: Smartmeter) -> dict[str, str]:
+        """
+        asynchronously get adn parse /welcome response
+        Returns response already sanitzied of the specified zahlpunkt in ctor
+        """
         response = await self.hass.async_add_executor_job(smartmeter.welcome)
         if "Exception" in response:
             raise RuntimeError(f"Cannot access welcome: {response}")
@@ -266,17 +281,26 @@ class SmartmeterSensor(SensorEntity):
         # Import the statistics data
         async_import_statistics(self.hass, metadata, statistics)
 
-    def is_active(self, zp: dict) -> bool:
-        return (not ("active" in zp) or zp["active"]) or (
-            not ("smartMeterReady" in zp) or zp["smartMeterReady"]
+    def is_active(self, zaehlpunkt_response: dict) -> bool:
+        """
+        returns active status of smartmeter, according to zaehlpunkt response
+        """
+        return (
+            not ("active" in zaehlpunkt_response) or zaehlpunkt_response["active"]
+        ) or (
+            not ("smartMeterReady" in zaehlpunkt_response)
+            or zaehlpunkt_response["smartMeterReady"]
         )
 
     async def async_update(self):
+        """
+        update sensor
+        """
         try:
             smartmeter = Smartmeter(self.username, self.password)
             await self.hass.async_add_executor_job(smartmeter.login)
-            zp = await self.get_zaehlpunkt(smartmeter)
-            self._attr_extra_state_attributes = zp
+            zaehlpunkt = await self.get_zaehlpunkt(smartmeter)
+            self._attr_extra_state_attributes = zaehlpunkt
 
             if not self.is_active(zp):
                 _LOGGER.error(f"Smartmeter {zp} is not active!")
@@ -321,4 +345,4 @@ class SmartmeterSensor(SensorEntity):
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except RuntimeError:
             self._available = False
-            _LOGGER.exception("Error retrieving data from smart meter api.")
+            _LOGGER.exception("Error retrieving data from smart meter api")
