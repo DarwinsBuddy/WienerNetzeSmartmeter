@@ -302,8 +302,8 @@ class SmartmeterSensor(SensorEntity):
             zaehlpunkt = await self.get_zaehlpunkt(smartmeter)
             self._attr_extra_state_attributes = zaehlpunkt
 
-            if not self.is_active(zp):
-                _LOGGER.error(f"Smartmeter {zp} is not active!")
+            if not self.is_active(zaehlpunkt):
+                _LOGGER.error(f"Smartmeter {zaehlpunkt} is not active!")
                 return
 
             # Query the statistics database for the last value
