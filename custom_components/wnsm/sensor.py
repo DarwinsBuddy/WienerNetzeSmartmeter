@@ -144,7 +144,6 @@ class SmartmeterSensor(SensorEntity):
         zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
         if zps is None or len(zps) == 0:
             raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
-
         zaehlpunkt = [
             z for z in zps[0]["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt
         ]

@@ -4,7 +4,7 @@
 import re
 
 MAIN_SCRIPT_REGEX = re.compile(r"^main\S+\.js$")
-API_GATEWAY_TOKEN_REGEX = re.compile(r'b2capiKey\:"([A-Za-z0-9-_]+)"')
+API_GATEWAY_TOKEN_REGEX = re.compile(r'b2cApiKey\:\s*\"([A-Za-z0-9\-_]+)\"', re.IGNORECASE)
 
 PAGE_URL = "https://smartmeter-web.wienernetze.at/"
 API_URL_ALT = "https://service.wienernetze.at/sm/api/"
