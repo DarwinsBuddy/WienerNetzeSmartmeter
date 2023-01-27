@@ -330,8 +330,9 @@ class SmartmeterSensor(SensorEntity):
             # Extra check to not strain the API too much:
             # If the last insert date is less than 24h away, simply exit here, 
             # because we will not get any data from the API
-            if (start - today(timezone.utc)) <= timedelta(hours=24):
-                _LOGGER.debug("Not querying the API, because last update is not older than 24 hours")
+            delta_t = start.replace(microsecond=0) - today(timezone.utc).replace(microsecond=0)
+            if delta_t <= timedelta(hours=24):
+                _LOGGER.debug(f"Not querying the API, because last update is not older than 24 hours. Earliest update in {delta_t}")
                 return
 
         else:
