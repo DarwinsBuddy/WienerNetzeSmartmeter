@@ -296,6 +296,48 @@ class SmartmeterSensor(SensorEntity):
         """
         update sensor
         """
+        self._available = True
+
+        # Query the statistics database for the last value
+        # It is crucial to use get_instance here!
+        last_inserted_stat = await get_instance(
+            self.hass
+        ).async_add_executor_job(
+            get_last_statistics,
+            self.hass,
+            1,  # Get at most one entry
+            self._id,  # of this sensor
+            True,  # convert the units
+            # XXX: since HA core 2022.12 need to specify this:
+            {"sum", "state"},  # the fields we want to query (state might be used in the future)
+        )
+        _LOGGER.debug(f"Last inserted stat: {last_inserted_stat}")
+
+        if len(last_inserted_stat) == 0 or len(last_inserted_stat[self._id]) == 0:
+            # No previous data - start from scratch
+            _sum = Decimal(0)
+            # Select as start date two days before the current day.
+            # Could be increased to load a lot of historical data, but we do not want to
+            # strain the API...
+            start = today(timezone.utc) - timedelta(hours=48)
+        elif len(last_inserted_stat) == 1 and len(last_inserted_stat[self._id]) == 1:
+            # Previous data found in the statistics table
+            _sum = Decimal(last_inserted_stat[self._id][0]["sum"])
+            # The next start is the previous end
+            # XXX: since HA core 2022.12, we get a datetime and not a str...
+            start = last_inserted_stat[self._id][0]["end"]
+
+            # Extra check to not strain the API too much:
+            # If the last insert date is less than 24h away, simply exit here, 
+            # because we will not get any data from the API
+            if (start - today(timezone.utc)) <= timedelta(hours=24):
+                _LOGGER.debug("Not querying the API, because last update is not older than 24 hours")
+                return
+
+        else:
+            _LOGGER.error(f"unexpected result of get_last_statistics: {last_inserted_stat}")
+            return
+
         try:
             smartmeter = Smartmeter(self.username, self.password)
             await self.hass.async_add_executor_job(smartmeter.login)
@@ -303,45 +345,13 @@ class SmartmeterSensor(SensorEntity):
             self._attr_extra_state_attributes = zaehlpunkt
 
             if not self.is_active(zaehlpunkt):
+                self._available = False
                 _LOGGER.error(f"Smartmeter {zaehlpunkt} is not active!")
-                return
-
-            # Query the statistics database for the last value
-            # It is crucial to use get_instance here!
-            last_inserted_stat = await get_instance(
-                self.hass
-            ).async_add_executor_job(
-                get_last_statistics,
-                self.hass,
-                1,  # Get at most one entry
-                self._id,  # of this sensor
-                True,  # convert the units
-                # XXX: since HA core 2022.12 need to specify this:
-                {"sum", "state"},  # the fields we want to query (state might be used in the future)
-            )
-            _LOGGER.debug(f"Last inserted stat: {last_inserted_stat}")
-
-            if len(last_inserted_stat) == 0 or len(last_inserted_stat[self._id]) == 0:
-                # No previous data - start from scratch
-                _sum = Decimal(0)
-                # Select as start date two days before the current day.
-                # Could be increased to load a lot of historical data, but we do not want to
-                # strain the API...
-                start = today(timezone.utc) - timedelta(hours=48)
-            elif len(last_inserted_stat) == 1 and len(last_inserted_stat[self._id]) == 1:
-                # Previous data found in the statistics table
-                _sum = Decimal(last_inserted_stat[self._id][0]["sum"])
-                # The next start is the previous end
-                # XXX: since HA core 2022.12, we get a datetime and not a str...
-                start = last_inserted_stat[self._id][0]["end"]
-            else:
-                _LOGGER.error(f"unexpected result of get_last_statistics: {last_inserted_stat}")
                 return
 
             # Collect hourly data
             await self._import_statistics(smartmeter, start, _sum)
 
-            self._available = True
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except RuntimeError:
             self._available = False
