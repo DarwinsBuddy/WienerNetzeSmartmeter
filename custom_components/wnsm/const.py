@@ -38,14 +38,29 @@ ATTRS_ZAEHLPUNKTE_CALL = [
     ("isSmartMeterMarketReady", "smartMeterReady"),
 ]
 
-ATTRS_WELCOME_CALL = [
+ATTRS_CONSUMPTIONS_CALL = [
+    ("consumptionYesterday.value", "consumptionYesterdayValue"),
+    ("consumptionYesterday.validated", "consumptionYesterdayValidated"),
+    ("consumptionYesterday.date", "consumptionYesterdayTimestamp"),
+    ("consumptionDayBeforeYesterday.value", "consumptionDayBeforeYesterdayValue"),
+    ("consumptionDayBeforeYesterday.validated", "consumptionDayBeforeYesterdayValidated"),
+    ("consumptionDayBeforeYesterday.date", "consumptionDayBeforeYesterdayTimestamp"),
+]
+
+ATTRS_BASEINFORMATION_CALL = [
+    ("hasSmartMeter", "hasSmartMeter"),
+    ("isDataDeleted", "isDataDeleted"),
+    ("dataDeletionTimestampUTC", "dataDeletionAt"),
     ("zaehlpunkt.zaehlpunktName", "name"),
     ("zaehlpunkt.zaehlpunktnummer", "zaehlpunkt"),
     ("zaehlpunkt.zaehlpunktAnlagentyp", "type"),
     ("zaehlpunkt.adresse", "address"),
     ("zaehlpunkt.postleitzahl", "zip"),
-    ("zaehlpunkt.meterReadings.0.value", "lastValue"),
-    ("zaehlpunkt.meterReadings.0.date", "lastReading"),
-    ("zaehlpunkt.consumptionYesterday.value", "consumptionYesterday"),
-    ("zaehlpunkt.consumptionDayBeforeYesterday.value", "consumptionDayBeforeYesterday"),
+]
+
+ATTRS_METERREADINGS_CALL = [
+    ("meterReadings.0.value", "lastValue"),
+    ("meterReadings.0.date", "lastReading"),
+    ("meterReadings.0.validated", "lastValidated"),
+    ("meterReadings.0.type", "lastType")
 ]

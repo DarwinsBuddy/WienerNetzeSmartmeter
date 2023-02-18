@@ -13,13 +13,13 @@ from homeassistant.components.sensor import (
     PLATFORM_SCHEMA,
     SensorDeviceClass,
     SensorEntity,
-    SensorStateClass,
+    SensorStateClass
 )
 from homeassistant.const import (
     CONF_USERNAME,
     CONF_PASSWORD,
     CONF_DEVICE_ID,
-    ENERGY_KILO_WATT_HOUR,
+    UnitOfEnergy
 )
 from homeassistant.core import DOMAIN
 import homeassistant.helpers.config_validation as cv
@@ -31,7 +31,9 @@ from homeassistant.helpers.typing import (
 
 from .api import Smartmeter
 from .const import (
-    ATTRS_WELCOME_CALL,
+    ATTRS_BASEINFORMATION_CALL,
+    ATTRS_CONSUMPTIONS_CALL,
+    ATTRS_METERREADINGS_CALL,
     ATTRS_ZAEHLPUNKTE_CALL,
     CONF_ZAEHLPUNKTE,
 )
@@ -99,8 +101,8 @@ class SmartmeterSensor(SensorEntity):
         self._attr_icon = "mdi:flash"
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
-        self._attr_native_unit_of_measurement = ENERGY_KILO_WATT_HOUR
-        self._attr_unit_of_measurement = ENERGY_KILO_WATT_HOUR
+        self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+        self._attr_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
 
         self.attrs: dict[str, Any] = {}
         self._name: str = zaehlpunkt
@@ -158,7 +160,7 @@ class SmartmeterSensor(SensorEntity):
 
     async def get_daily_consumption(self, smartmeter: Smartmeter, date: datetime):
         """
-        asynchronously get adn parse /tages_verbrauch response
+        asynchronously get and parse /tages_verbrauch response
         Returns response already sanitzied of the specified zahlpunkt in ctor
         """
         response = await self.hass.async_add_executor_job(
@@ -166,19 +168,37 @@ class SmartmeterSensor(SensorEntity):
         )
         if "Exception" in response:
             raise RuntimeError("Cannot access daily consumption: ", response)
-        else:
-            return response
+        return response
 
-    async def get_welcome(self, smartmeter: Smartmeter) -> dict[str, str]:
+    async def get_base_information(self, smartmeter: Smartmeter) -> dict[str, str]:
         """
-        asynchronously get adn parse /welcome response
+        asynchronously get and parse /baseInformation response
         Returns response already sanitzied of the specified zahlpunkt in ctor
         """
-        response = await self.hass.async_add_executor_job(smartmeter.welcome)
+        response = await self.hass.async_add_executor_job(smartmeter.base_information)
         if "Exception" in response:
-            raise RuntimeError("Cannot access welcome: ", response)
-        else:
-            return translate_dict(response, ATTRS_WELCOME_CALL)
+            raise RuntimeError("Cannot access /baseInformation: ", response)
+        return translate_dict(response, ATTRS_BASEINFORMATION_CALL)
+
+    async def get_consumptions(self, smartmeter: Smartmeter) -> dict[str, str]:
+        """
+        asynchronously get and parse /consumptions response
+        Returns response already sanitzied of the specified zahlpunkt in ctor
+        """
+        response = await self.hass.async_add_executor_job(smartmeter.consumptions)
+        if "Exception" in response:
+            raise RuntimeError("Cannot access /consumptions: ", response)
+        return translate_dict(response, ATTRS_CONSUMPTIONS_CALL)
+   
+    async def get_meter_readings(self, smartmeter: Smartmeter) -> dict[str, str]:
+        """
+        asynchronously get and parse /meterReadings response
+        Returns response already sanitzied of the specified zahlpunkt in ctor
+        """
+        response = await self.hass.async_add_executor_job(smartmeter.meter_readings)
+        if "Exception" in response:
+            raise RuntimeError("Cannot access /meterReadings: ", response)
+        return translate_dict(response, ATTRS_METERREADINGS_CALL)
 
     def parse_quarterly_consumption_response(self, response):
         """
@@ -228,18 +248,20 @@ class SmartmeterSensor(SensorEntity):
             #       wiener smartmeter does not expose them quarterly, but daily :/
             # self.attrs = self.parse_quarterly_consumption_response(response)
             if self.is_active(zaehlpunkt):
-                welcome = await self.get_welcome(smartmeter)
+                consumptions = await self.get_consumptions(smartmeter)
+                base_information = await self.get_base_information(smartmeter)
+                meter_readings = await self.get_meter_readings(smartmeter)
                 # if zaehlpunkt is conincidentally the one returned by /welcome
                 if (
-                    "zaehlpunkt" in welcome
-                    and welcome["zaehlpunkt"] == self.zaehlpunkt
-                    and "lastValue" in welcome
+                    "zaehlpunkt" in base_information
+                    and base_information["zaehlpunkt"] == self.zaehlpunkt
+                    and "lastValue" in meter_readings
                 ):
                     if (
-                        welcome["lastValue"] is None
-                        or self._state != welcome["lastValue"]
+                        meter_readings["lastValue"] is None
+                        or self._state != meter_readings["lastValue"]
                     ):
-                        self._state = welcome["lastValue"] / 1000
+                        self._state = meter_readings["lastValue"] / 1000
                 else:
                     # if not, we'll have to guesstimate (because api is shitty pomfritty)
                     # for that zaehlpunkt
@@ -263,8 +285,10 @@ class SmartmeterSensor(SensorEntity):
                         _LOGGER.error("Unable to load consumption")
                         _LOGGER.error(
                             "Please file an issue with this error and \
-                            (anonymized) payload in github %s %s",
-                            welcome,
+                            (anonymized) payload in github %s %s %s %s",
+                            base_information,
+                            consumptions,
+                            meter_readings,
                             yesterdays_consumption,
                         )
                         return
