@@ -3,25 +3,25 @@ Utility functions and convenience methods to avoid boilerplate
 """
 from __future__ import annotations
 from functools import reduce
-import datetime as dt
+from datetime import datetime, timedelta
 import logging
 from types import UnionType
 
 
-def today() -> dt.datetime:
+def today() -> datetime:
     """
     today's timestamp (start of day)
     """
-    return dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def before(datetime=None, days=1) -> dt.datetime:
+def before(timestamp=None, days=1) -> datetime:
     """
     subtract {days} days from given datetime (default: 1)
     """
-    if datetime is None:
-        datetime = today()
-    return datetime - datetime.timedelta(days=days)
+    if timestamp is None:
+        timestamp = today()
+    return timestamp - timedelta(days=days)
 
 
 def strint(string: str) -> UnionType[str, int]:
