@@ -106,7 +106,7 @@ class SmartmeterSensor(SensorEntity):
 
         self.attrs: dict[str, Any] = {}
         self._name: str = zaehlpunkt
-        self._state: int = None
+        self._state: int | str | None = None
         self._available: bool = True
         self._updatets: str = None
 
@@ -183,17 +183,17 @@ class SmartmeterSensor(SensorEntity):
     async def get_consumptions(self, smartmeter: Smartmeter) -> dict[str, str]:
         """
         asynchronously get and parse /consumptions response
-        Returns response already sanitzied of the specified zahlpunkt in ctor
+        Returns response already sanitized of the specified zaehlpunkt in ctor
         """
         response = await self.hass.async_add_executor_job(smartmeter.consumptions)
         if "Exception" in response:
             raise RuntimeError("Cannot access /consumptions: ", response)
         return translate_dict(response, ATTRS_CONSUMPTIONS_CALL)
    
-    async def get_meter_readings(self, smartmeter: Smartmeter) -> dict[str, str]:
+    async def get_meter_readings(self, smartmeter: Smartmeter) -> dict[str, any]:
         """
         asynchronously get and parse /meterReadings response
-        Returns response already sanitzied of the specified zahlpunkt in ctor
+        Returns response already sanitized of the specified zaehlpunkt in ctor
         """
         response = await self.hass.async_add_executor_job(smartmeter.meter_readings)
         if "Exception" in response:
@@ -212,8 +212,7 @@ class SmartmeterSensor(SensorEntity):
         sum_consumption = 0
         for value in values:
             timestamp = value["timestamp"]
-            quarter_hourly_data = {}
-            quarter_hourly_data["utc"] = timestamp
+            quarter_hourly_data = {"utc": timestamp}
             usage = value["value"]
             if usage is not None:
                 sum_consumption += usage
@@ -223,7 +222,8 @@ class SmartmeterSensor(SensorEntity):
         self._state = sum_consumption
         return data
 
-    def is_active(self, zaehlpunkt_response: dict) -> bool:
+    @staticmethod
+    def is_active(zaehlpunkt_response: dict) -> bool:
         """
         returns active status of smartmeter, according to zaehlpunkt response
         """
@@ -251,7 +251,7 @@ class SmartmeterSensor(SensorEntity):
                 consumptions = await self.get_consumptions(smartmeter)
                 base_information = await self.get_base_information(smartmeter)
                 meter_readings = await self.get_meter_readings(smartmeter)
-                # if zaehlpunkt is conincidentally the one returned by /welcome
+                # if zaehlpunkt is coincidentally the one returned by /welcome
                 if (
                     "zaehlpunkt" in base_information
                     and base_information["zaehlpunkt"] == self.zaehlpunkt
@@ -263,7 +263,7 @@ class SmartmeterSensor(SensorEntity):
                     ):
                         self._state = meter_readings["lastValue"] / 1000
                 else:
-                    # if not, we'll have to guesstimate (because api is shitty pomfritty)
+                    # if not, we'll have to guesstimate (because api is shitty-pom-fritty)
                     # for that zaehlpunkt
                     yesterdays_consumption = await self.get_daily_consumption(
                         smartmeter, before(today())
