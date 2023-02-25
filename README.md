@@ -1,5 +1,7 @@
 # Wiener Netze Smartmeter Integration for Home Assistant
 
+[![codecov](https://codecov.io/gh/DarwinsBuddy/WienerNetzeSmartmeter/branch/main/graph/badge.svg?token=ACYNOG1WFW)](https://codecov.io/gh/DarwinsBuddy/WienerNetzeSmartmeter)
+
 ## About 
 
 This repo contains a custom component for [Home Assistant](https://www.home-assistant.io) for exposing a sensor

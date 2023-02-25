@@ -56,7 +56,7 @@ class Smartmeter:
                 allow_redirects=False,
             )
         except Exception as exception:
-            raise SmartmeterConnectionError("Could not load login page.") from exception
+            raise SmartmeterConnectionError("Could not login with credentials") from exception
 
         if "Location" not in result.headers:
             raise SmartmeterLoginError("Login failed. Check username/password.")
