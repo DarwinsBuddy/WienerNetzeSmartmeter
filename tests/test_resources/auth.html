@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="de" xmlns="http://www.w3.org/1999/xhtml" class="">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- handle the viewport -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <title> Anmeldung bei logwien
+    </title>
+    <link rel="icon" href="/auth/resources/8lpg9/login/logwien/img/favicon.png"/>
+    <link href="/auth/resources/8lpg9/login/logwien/main.css?v=1676421735515" rel="stylesheet"/>
+
+    <!-- Matomo -->
+    <script type="text/javascript">
+		var baseHostName= window.location.hostname;
+		var baseurl = window.location.protocol + '//' + baseHostName;
+		var _paq = window._paq = window._paq || [];
+		var siteId= "2";
+		if (baseHostName.startsWith('int') || baseHostName.startsWith('stg')) {
+			siteId= "1";
+		}
+		else if (baseHostName.startsWith('test')) {
+			siteId= "3";
+		}
+
+		/* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+		_paq.push(['trackPageView']);
+		_paq.push(['enableLinkTracking']);
+		(function() {
+			var u= baseurl + "/analytics/";
+			_paq.push(['setTrackerUrl', u+'matomo.php']);
+			_paq.push(['setSiteId', siteId]);
+			var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+			g.type='text/javascript'; g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+		})();
+
+    </script>
+    <!-- End Matomo Code -->
+
+    <style>
+    .lw-is-disabled {
+      pointer-events: all !important;
+    }
+    .form-submitted{
+       opacity: .5;
+       pointer-events: none;
+     }
+    .lw-hide{
+      width: 0!important;
+      height: 0!important;
+    }
+
+    </style>
+</head>
+
+<body class="">
+
+<div class="l-page" id="top">
+    <a href="#skip-link-target" class="o-primary-link c-skip-link">Zum Formular</a>
+    <main role="main">
+        <form x-data="loginState"
+              x-init="initialEmail = '',
+                  isInitialPwdSet = 'false',
+                  errorMsgEmailEmpty = '<span>Bitte geben Sie eine E-Mail-Adresse ein.</span>',
+                  errorMsgEmailNotFound = '<span>E-Mail-Adresse nicht registriert</span>',
+                  errorMsgPasswordEmpty = '<span>Bitte geben Sie ein Passwort ein.</span>', 
+                  errorMsgPasswordGlobal = '',
+                  showRecaptcha = false, 
+                  recaptcha.siteKey = '', formActionUrl ='https://log.wien/auth/realms/logwien/login-actions/authenticate?session_code=SESSION_CODE_PLACEHOLDER&amp;execution=5939ddcc-efd4-407c-b01c-df8977d522b5&amp;client_id=wn-smartmeter&amp;tab_id=6tDgFA2FxbU',
+                  $nextTick(() => { initLoginPage()})"
+              @submit="handleFormSubmit($event)"
+              id="kc-login-form" class="c-form c-form--centered c-form--essential c-form--essential-login"
+              action="https://log.wien/auth/realms/logwien/login-actions/authenticate?session_code=SESSION_CODE_PLACEHOLDER&amp;execution=5939ddcc-efd4-407c-b01c-df8977d522b5&amp;client_id=wn-smartmeter&amp;tab_id=6tDgFA2FxbU"
+              method="post">
+            <c-overlay id="about-overlay" class="c-overlay c-overlay--default is-initialized" role="dialog"
+                       aria-modal="true" aria-hidden="true">
+                <div class="c-overlay__content">
+                    <div class="l-container">
+                        <div class="c-overlay__header">
+                            <div class="c-search-overlay__logo-container">
+                                <img src="/auth/resources/8lpg9/login/logwien/img/logos/logwien.svg"
+                                     alt="Logo der Wiener Stadtwerke" class="c-search-overlay__logo c-logo-link__img">
+                            </div>
+                            <button class="btn c-overlay__close-button c-overlay__close-button--primary js-overlay__close"
+                                    aria-label="Info schließen" type="button">
+                                <svg class="c-search-overlay__icon">
+                                    <use xlink:href="#cross2"></use>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="l-row">
+                            <div class="l-col l-col-sm-12 l-col-md-8 l-offset-md-2 c-overlay__text">
+                                <h1 class="o-heading-1"></h1>
+                                <h1 class="o-heading-1"></h1>
+                                <h1 class="o-heading-1"></h1>
+                                <h3>Was ist logwien?</h3>
+                                <p class="o-paragraph">logwien ist der digitale Schlüssel zu den Online-Services der
+                                    Wiener Stadtwerke-Gruppe.</p>
+                                <p class="o-paragraph">Ein digitales Dach für Wien - Mit logwien bekommen die
+                                    Unternehmen der Wiener Stadtwerke-Gruppe ein gemeinsames Dach. Ihr Vorteil: alle
+                                    Services zu Öffis, Energie, Bestattungen und Friedhöfen mit nur einem Login nutzen.
+                                    Und das Angebot an Unternehmen wird bald erweitert.</p>
+                                <p class="o-paragraph">Einfach, digital und genial - Mit wenigen Klicks können Sie Ihre
+                                    Kundenkonten bei den Unternehmen der Wiener Stadtwerke-Gruppe mit logwien
+                                    verknüpfen. In Zukunft lassen sich Daten und Services noch bequemer und schneller
+                                    auf einen Blick sehen, ändern und nutzen! logwien ist der Schlüssel dazu.</p>
+                                <p class="o-paragraph">Mehr Infos finden Sie auf <a class="o-text-link"
+                                                                                    href="https://log.wien/">log.wien</a>
+                                </p>
+                                <div class="c-overlay__footer">
+                                    <button class="btn btn-primary js-overlay__close" type="button">Schließen</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </c-overlay>
+            <header class="c-form__header">
+                <div class="c-form__header-top">
+                    <a href="https://log.wien/"
+                       class="c-logo-link"> <img
+                            src="/auth/resources/8lpg9/login/logwien/img/logos/logwien.svg"
+                            alt="Logo von logwien" class="c-logo-link__img">
+                    </a>
+
+                    <c-dropdown class="c-dropdown c-dropdown--language c-dropdown--language-absolute">
+                        <button type="button" class="btn btn-secondary c-dropdown--language__button">
+                            <svg class="btn__icon" aria-hidden="true">
+                                <use xlink:href="#earth"/>
+                            </svg>
+                            <span class="btn__text"
+                                  aria-label="Sprachauswahl. Gewählte Sprache: DE">DE</span>
+                        </button>
+                        <ul class="c-dropdown__menu">
+                            <li class="c-dropdown__item">
+                                <a href="/auth/realms/logwien/login-actions/authenticate?client_id=wn-smartmeter&amp;tab_id=6tDgFA2FxbU&amp;execution=5939ddcc-efd4-407c-b01c-df8977d522b5&amp;kc_locale=en"
+                                   class="c-dropdown__link" lang="en"
+                                   aria-label="EN">EN</a>
+                            </li>
+                        </ul>
+                    </c-dropdown>
+                </div>
+
+                <div class="c-form__heading">
+                    <img
+                            src="/auth/resources/8lpg9/login/logwien/img/logos/kus/logo-wiener-netze.svg"
+                            alt=""
+                            aria-hidden="true"
+                            class="c-form__heading-logo"/>
+                    <p class="c-form__heading-text">Mit logwien bei Wiener Netze anmelden</p>
+                    <c-overlay-trigger target-id="about-overlay" class="c-form__heading-text">
+                        <a href class="o-text-link" aria-haspopup="true">Was ist logwien?</a>
+                    </c-overlay-trigger>
+                </div>
+            </header>
+
+            <template x-if="recaptcha.srcUrl && recaptcha.siteKey">
+                <script id='grecaptcha-script' x-bind:src='recaptcha.srcUrl' type='text/javascript'></script>
+            </template>
+
+            <fieldset class="c-form__fieldset" id="skip-link-target">
+                <legend class="u-sr-only">Anmelde-Formular</legend>
+
+                <section x-show="showAccountNotFoundMessage" id="accountNotFoundElement" class="c-form__message"
+                         style="display: none">
+                    <div class="c-message c-message--warning" aria-live="assertive" aria-atomic="true">
+                        <h2 class="c-message__title o-heading-2--highlight">
+                      <span id="accountNotFoundErrorHeadline"
+                            class="c-message__title-text">E-Mail-Adresse nicht registriert</span>
+                            <svg class="c-message__icon" role="img" aria-hidden="true">
+                                <use xlink:href="#notification-circle"/>
+                            </svg>
+                        </h2>
+                        <p class="c-message__text">
+                            <span id="accountNotFoundErrorText">Neu bei logwien?</span>
+                            <a href="/auth/realms/logwien/login-actions/registration?client_id=wn-smartmeter&amp;tab_id=6tDgFA2FxbU&email="
+                               class="o-text-link"
+                               id="accountNotFoundErrorLink">Konto erstellen</a>
+                        </p>
+                    </div>
+                </section>
+
+                <section class="c-form__section">
+                    <div class="l-row l-justify-content-between l-align-items-center">
+                        <h1 class="l-col l-col-xs-5 o-heading-2">Anmeldung</h1>
+                        <p x-show="currentStep === LoginSteps.email || currentStep === LoginSteps.fallback"
+                           id="stepEmail_register"
+                           class="l-col l-col-xs-7 u-text-right"><span
+                                class="u-hide-xs">Neu bei logwien? </span><a
+                                href="/auth/realms/logwien/login-actions/registration?client_id=wn-smartmeter&amp;tab_id=6tDgFA2FxbU"
+                                class="o-text-link">Konto erstellen</a>
+                        </p>
+                        <p x-show="currentStep === LoginSteps.password" id="stepPw_resetPw" style="display: none"
+                           class="l-col l-col-xs-7 u-text-right"><a
+                                href="/auth/realms/logwien/login-actions/reset-credentials?client_id=wn-smartmeter&amp;tab_id=6tDgFA2FxbU"
+                                class="o-text-link">Passwort vergessen?</a>
+                        </p>
+                    </div>
+
+                    <c-textfield x-show="currentStep === LoginSteps.email || currentStep === LoginSteps.fallback"
+                                 id="stepEmail_emailInput"
+                                 :class="{ 'mdc-textfield--invalid': hasError(LoginSteps.email)}"
+                                 class="mdc-textfield mdc-textfield--box">
+                        <input x-model="email" x-ref="email" type="email" id="username" class="mdc-textfield__input"
+                               name="username"
+                               value="" required autocomplete="username"
+                               aria-describedby="helptext-email" @focusout="validateInput()"/>
+                        <label class="mdc-textfield__label"
+                               for="username">E-Mail-Adresse</label>
+                    </c-textfield>
+                    <p id="helptext-email" class="mdc-textfield-helptext mdc-textfield-helptext--validation-msg"
+                       x-html="errorEmail">
+                    </p>
+
+                    <div x-show="currentStep === LoginSteps.password" id="stepPw_emailDisplay" class="l-row"
+                         style="display: none">
+                        <div class="l-col u-text-center">
+                            <button @click="resetPageAndErrorMessages()" class="btn btn-text-icon btn-secondary "
+                                    type="button"
+                                    x-bind:aria-label="'Verwendete E-Mail-Adresse: ' + email + '. Zum Auswählen einer anderen E-Mail-Adresse bitte klicken.'"
+                                    style="margin-bottom: 1.25rem; margin-top: 1.875rem;">
+                                <svg class="btn-text-icon__icon" role="img" aria-hidden="true">
+                                    <use xlink:href="#pencil"></use>
+                                </svg>
+                                <span x-text="email" id="emailDisplay" class="btn__text"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <c-textfield id="stepPw_pwInput" class="mdc-textfield mdc-textfield--box"
+                                 :class="[(currentStep !== LoginSteps.password && currentStep !== LoginSteps.fallback) ? 'lw-hide' : '', hasError(LoginSteps.password) ? 'mdc-textfield--invalid' : '']"
+                                 :inert="currentStep !== LoginSteps.password && currentStep !== LoginSteps.fallback">
+                        <input x-model="pwdField" type="password" x-ref="pwdField" id="password" name="password"
+                               class="mdc-textfield__input"
+                               autocomplete="current-password" required aria-describedby="helptext-password"
+                               @focusout="validateInput()">
+                        <label class="mdc-textfield__label" for="password">Passwort</label>
+                    </c-textfield>
+                    <p id="helptext-password" class="mdc-textfield-helptext mdc-textfield-helptext--validation-msg"
+                       x-html="errorPassword">
+                    </p>
+
+                    <a x-show="currentStep === LoginSteps.fallback" id="stepFallback_resetPw"
+                       href="/auth/realms/logwien/login-actions/reset-credentials?client_id=wn-smartmeter&amp;tab_id=6tDgFA2FxbU"
+                       class="o-text-link">Passwort vergessen?</a>
+
+                    <div x-show="currentStep === LoginSteps.password" id="stepPw_rememberMe" style="display: none">
+                        <c-checkbox class="mdc-checkbox ">
+                            <input id="rememberMe" name="rememberMe" type="checkbox"
+                                   class="mdc-checkbox__native-control">
+                            <div class="mdc-checkbox__background mdc-checkbox__background" role="img"
+                                 aria-hidden="true">
+                                <svg class="mdc-checkbox__checkmark">
+                                    <use xlink:href="#check"/>
+                                </svg>
+                                <svg class="mdc-checkbox__mixedmark">
+                                    <use xlink:href="#minus"/>
+                                </svg>
+                            </div>
+                            <label class="mdc-checkbox__label" for="rememberMe"
+                                   id="checkbox-label">Angemeldet bleiben</label>
+                        </c-checkbox>
+                    </div>
+
+                    <div x-show="showRecaptcha && recaptcha.siteKey" id="recaptcha">
+                        <div style="text-align: center">
+                            <div id="recaptcha-wrapper" class="mdc-textfield--box mdc-textfield--upgraded"
+                                 :class="{'mdc-textfield--invalid': showRecaptchaError}">
+                                <div class="g-recaptcha" :data-sitekey='recaptcha.siteKey'
+                                     style="display: inline-block;"></div>
+                            </div>
+                            <p class="mdc-textfield-helptext mdc-textfield-helptext--validation-msg">
+                                Bitte füllen Sie das Recaptcha aus.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+                <section class="c-form__actions">
+                    <div>
+                        <button x-show="currentStep === LoginSteps.email" @click="submitEmail()"
+                                id="stepEmail_loginContinueButton"
+                                style="display: none" type="button"
+                                class="btn btn-primary c-form--essential__btn c-form__submit-btn">Weiter
+                        </button>
+                        <button
+                                x-show="currentStep === LoginSteps.password || currentStep === LoginSteps.fallback"
+                                id="stepPw_submitButton"
+                                class="btn btn-primary c-form--essential__btn c-form__submit-btn"
+                                :class="{'is-disabled form-submitted': submitting}" :disabled="submitting">
+                            Weiter
+                        </button>
+                    </div>
+                    <div x-show="currentStep === LoginSteps.email" id="stepEmail_socialProviders"
+                         class="c-form__sm-buttons">
+                        <div class="c-text-hr"><span class="c-text-hr__text">oder optional</span>
+                        </div>
+                        <c-overlay id="social-overlaygoogle" style="text-align: left"
+                                   class="c-overlay c-overlay--default">
+                            <div class="c-overlay__content">
+                                <div class="l-container">
+                                    <div class="c-overlay__header">
+                                        <img src="" alt="" class="c-search-overlay__logo c-logo-link__img">
+                                        <button class="btn c-overlay__close-button c-overlay__close-button--primary js-overlay__close"
+                                                aria-label="Info schliessen" type="button">
+                                            <svg class="c-search-overlay__icon">
+                                                <use xlink:href="#cross2"></use>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="l-row">
+                                        <div class="l-col l-col-sm-12 l-col-md-8 l-offset-md-2 c-overlay__text">
+                                            <h1 class="o-heading-1">Möchten Sie fortfahren?</h1>
+                                            <p class="o-paragraph">Wenn Sie fortfahren, stimmen Sie der mit den Services
+                                                verbundenen Übertragung personenbezogener Daten an diesen Anbieter bzw.
+                                                in die USA zu. Dort ist kein den EU-Standards entsprechendes
+                                                Datenschutzniveau gewährleistet. Sie können Ihre Einwilligung jederzeit
+                                                widerrufen. Bitte beachten Sie die Datenschutzhinweise von <a
+                                                        href="https://policies.google.com/technologies/cookies?hl=de"
+                                                        class="o-text-link">Google</a>, <a
+                                                        href="https://www.apple.com/de/legal/privacy/data/de/sign-in-with-apple/"
+                                                        class="o-text-link">Apple</a> und <a
+                                                        href="https://www.facebook.com/legal/terms/businesstools/"
+                                                        class="o-text-link">Facebook</a> sowie von <a
+                                                        href="https://log.wien/legal" class="o-text-link">logwien</a>.
+                                            </p>
+                                            <c-foldable-content id="foldable-content-1-social-overlaygoogle"
+                                                                class="c-foldable-content l-content-section">
+                                                <p class="o-paragraph">Die Nutzung der Social Logins erfolgt auf der
+                                                    Rechtsgrundlage Ihrer Einwilligung (Art 6 Abs 1 lit a DSGVO). Google
+                                                    und Apple agieren dabei als datenschutzrechtlich getrennter
+                                                    Verantwortlicher, während es bei der Nutzung von Facebook-Login zu
+                                                    einer gemeinsamen Verantwortlichenstellung mit Facebook kommt.
+                                                    Details zu den mit der Nutzung dieser Login Services verbundenen
+                                                    Datenflüssen sowie den von Google, Apple und Facebook eingesetzten
+                                                    Cookies finden Sie unter den Datenschutzhinweisen von <a
+                                                            href="https://policies.google.com/technologies/cookies?hl=de"
+                                                            class="o-text-link ">Google</a>, <a
+                                                            href="https://www.apple.com/de/legal/privacy/data/de/sign-in-with-apple/"
+                                                            class="o-text-link ">Apple</a> und <a
+                                                            href="https://www.facebook.com/legal/terms/businesstools/"
+                                                            class="o-text-link ">Facebook</a> sowie in den <a
+                                                            href="https://log.wien/legal" class="o-text-link">logwien-Datenschutzhinweisen</a>
+                                                    (AGB & Datenschutz).</p>
+                                                <p class="o-paragraph">Sofern in Zusammenhang mit der Nutzung des Social
+                                                    Logins vom jeweiligen Anbieter oder von diesem eingesetzter
+                                                    Drittanbieter, die ihren Sitz in den USA haben („US-Anbieter“), auch
+                                                    Cookies eingesetzt werden, werden Ihre personenbezogenen Daten in
+                                                    die USA übermittelt und dort verarbeitet. Die USA verfügt nach
+                                                    Ansicht des Europäischen Gerichtshofes über kein angemessenes
+                                                    Datenschutzniveau. Wenn Ihre Daten in die USA übermittelt werden,
+                                                    ergibt sich das Risiko, dass US-Behörden im Rahmen von
+                                                    Überwachungsprogrammen auf Ihre Daten zugreifen und Ihnen dagegen
+                                                    keine durchsetzbaren Rechte oder wirksamen Rechtsbehelfe zur
+                                                    Verfügung stehen.</p>
+                                                <p class="o-paragraph">Mit Ihrem Klick auf den Fortfahren Button
+                                                    erteilen Sie Ihre Einwilligung zu den mit der Nutzung des Social
+                                                    Login sowie der im Zusammenhang damit eingesetzten Cookies
+                                                    verbundenen Datenverarbeitungen.</p>
+                                                <p class="o-paragraph">Sie können Ihre Einwilligung jederzeit
+                                                    widerrufen. Dadurch werden bei logwien alle Daten und Verknüpfungen
+                                                    zum jeweiligen Social Login Anbieter gelöscht.</p>
+                                            </c-foldable-content>
+                                            <c-foldable-content-trigger
+                                                    target-id="foldable-content-1-social-overlaygoogle"
+                                                    class="c-foldable-content-trigger">
+                                                <button type="button" class="c-foldable-content-trigger__button">
+                                                    <svg class="c-foldable-content-trigger__icon" role="img"
+                                                         aria-hidden="true">
+                                                        <use xlink:href="#cross2"/>
+                                                    </svg>
+                                                    <span class="c-foldable-content-trigger__label--closed">Mehr anzeigen</span>
+                                                    <span class="c-foldable-content-trigger__label--opened">Weniger anzeigen</span>
+                                                </button>
+                                            </c-foldable-content-trigger>
+                                            <div class="c-overlay__footer">
+                                                <section class="c-form__actions">
+                                                    <p class="o-paragraph">
+                                                        <a href="/auth/realms/logwien/broker/google/login?client_id=wn-smartmeter&amp;tab_id=6tDgFA2FxbU&amp;session_code=xNcu6qpidXzT6tcvX1Nj2-SVuxm5Vh8ueZmhvvDvYyo"
+                                                           class="btn btn-primary btn--loading" type="button">
+                                                            Fortfahren
+                                                            <svg class="btn__icon" role="img" aria-hidden="true">
+                                                                <use xlink:href="#sync"></use>
+                                                            </svg>
+                                                        </a>
+                                                    </p>
+                                                    <a href="javascript:void(0);" class="o-text-link js-overlay__close">Abbrechen</a>
+                                                </section>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </c-overlay>
+                        <c-overlay-trigger target-id="social-overlaygoogle">
+                            <button id="zocial-google"
+                                    class="btn btn-secondary btn-text-icon btn-text-icon--left c-form--essential__btn c-form__sm-button"
+                                    type="button">
+                                    <span class="btn__text">
+                                        Anmelden mit Google
+                                    </span>
+                                <svg class="btn-text-icon__icon" role="img" aria-hidden="true">
+                                    <use xlink:href="#google-plus"></use>
+                                </svg>
+                            </button>
+                        </c-overlay-trigger>
+                        <c-overlay id="social-overlayfacebook" style="text-align: left"
+                                   class="c-overlay c-overlay--default">
+                            <div class="c-overlay__content">
+                                <div class="l-container">
+                                    <div class="c-overlay__header">
+                                        <img src="" alt="" class="c-search-overlay__logo c-logo-link__img">
+                                        <button class="btn c-overlay__close-button c-overlay__close-button--primary js-overlay__close"
+                                                aria-label="Info schliessen" type="button">
+                                            <svg class="c-search-overlay__icon">
+                                                <use xlink:href="#cross2"></use>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="l-row">
+                                        <div class="l-col l-col-sm-12 l-col-md-8 l-offset-md-2 c-overlay__text">
+                                            <h1 class="o-heading-1">Möchten Sie fortfahren?</h1>
+                                            <p class="o-paragraph">Wenn Sie fortfahren, stimmen Sie der mit den Services
+                                                verbundenen Übertragung personenbezogener Daten an diesen Anbieter bzw.
+                                                in die USA zu. Dort ist kein den EU-Standards entsprechendes
+                                                Datenschutzniveau gewährleistet. Sie können Ihre Einwilligung jederzeit
+                                                widerrufen. Bitte beachten Sie die Datenschutzhinweise von <a
+                                                        href="https://policies.google.com/technologies/cookies?hl=de"
+                                                        class="o-text-link">Google</a>, <a
+                                                        href="https://www.apple.com/de/legal/privacy/data/de/sign-in-with-apple/"
+                                                        class="o-text-link">Apple</a> und <a
+                                                        href="https://www.facebook.com/legal/terms/businesstools/"
+                                                        class="o-text-link">Facebook</a> sowie von <a
+                                                        href="https://log.wien/legal" class="o-text-link">logwien</a>.
+                                            </p>
+                                            <c-foldable-content id="foldable-content-1-social-overlayfacebook"
+                                                                class="c-foldable-content l-content-section">
+                                                <p class="o-paragraph">Die Nutzung der Social Logins erfolgt auf der
+                                                    Rechtsgrundlage Ihrer Einwilligung (Art 6 Abs 1 lit a DSGVO). Google
+                                                    und Apple agieren dabei als datenschutzrechtlich getrennter
+                                                    Verantwortlicher, während es bei der Nutzung von Facebook-Login zu
+                                                    einer gemeinsamen Verantwortlichenstellung mit Facebook kommt.
+                                                    Details zu den mit der Nutzung dieser Login Services verbundenen
+                                                    Datenflüssen sowie den von Google, Apple und Facebook eingesetzten
+                                                    Cookies finden Sie unter den Datenschutzhinweisen von <a
+                                                            href="https://policies.google.com/technologies/cookies?hl=de"
+                                                            class="o-text-link ">Google</a>, <a
+                                                            href="https://www.apple.com/de/legal/privacy/data/de/sign-in-with-apple/"
+                                                            class="o-text-link ">Apple</a> und <a
+                                                            href="https://www.facebook.com/legal/terms/businesstools/"
+                                                            class="o-text-link ">Facebook</a> sowie in den <a
+                                                            href="https://log.wien/legal" class="o-text-link">logwien-Datenschutzhinweisen</a>
+                                                    (AGB & Datenschutz).</p>
+                                                <p class="o-paragraph">Sofern in Zusammenhang mit der Nutzung des Social
+                                                    Logins vom jeweiligen Anbieter oder von diesem eingesetzter
+                                                    Drittanbieter, die ihren Sitz in den USA haben („US-Anbieter“), auch
+                                                    Cookies eingesetzt werden, werden Ihre personenbezogenen Daten in
+                                                    die USA übermittelt und dort verarbeitet. Die USA verfügt nach
+                                                    Ansicht des Europäischen Gerichtshofes über kein angemessenes
+                                                    Datenschutzniveau. Wenn Ihre Daten in die USA übermittelt werden,
+                                                    ergibt sich das Risiko, dass US-Behörden im Rahmen von
+                                                    Überwachungsprogrammen auf Ihre Daten zugreifen und Ihnen dagegen
+                                                    keine durchsetzbaren Rechte oder wirksamen Rechtsbehelfe zur
+                                                    Verfügung stehen.</p>
+                                                <p class="o-paragraph">Mit Ihrem Klick auf den Fortfahren Button
+                                                    erteilen Sie Ihre Einwilligung zu den mit der Nutzung des Social
+                                                    Login sowie der im Zusammenhang damit eingesetzten Cookies
+                                                    verbundenen Datenverarbeitungen.</p>
+                                                <p class="o-paragraph">Sie können Ihre Einwilligung jederzeit
+                                                    widerrufen. Dadurch werden bei logwien alle Daten und Verknüpfungen
+                                                    zum jeweiligen Social Login Anbieter gelöscht.</p>
+                                            </c-foldable-content>
+                                            <c-foldable-content-trigger
+                                                    target-id="foldable-content-1-social-overlayfacebook"
+                                                    class="c-foldable-content-trigger">
+                                                <button type="button" class="c-foldable-content-trigger__button">
+                                                    <svg class="c-foldable-content-trigger__icon" role="img"
+                                                         aria-hidden="true">
+                                                        <use xlink:href="#cross2"/>
+                                                    </svg>
+                                                    <span class="c-foldable-content-trigger__label--closed">Mehr anzeigen</span>
+                                                    <span class="c-foldable-content-trigger__label--opened">Weniger anzeigen</span>
+                                                </button>
+                                            </c-foldable-content-trigger>
+                                            <div class="c-overlay__footer">
+                                                <section class="c-form__actions">
+                                                    <p class="o-paragraph">
+                                                        <a href="/auth/realms/logwien/broker/facebook/login?client_id=wn-smartmeter&amp;tab_id=6tDgFA2FxbU&amp;session_code=xNcu6qpidXzT6tcvX1Nj2-SVuxm5Vh8ueZmhvvDvYyo"
+                                                           class="btn btn-primary btn--loading" type="button">
+                                                            Fortfahren
+                                                            <svg class="btn__icon" role="img" aria-hidden="true">
+                                                                <use xlink:href="#sync"></use>
+                                                            </svg>
+                                                        </a>
+                                                    </p>
+                                                    <a href="javascript:void(0);" class="o-text-link js-overlay__close">Abbrechen</a>
+                                                </section>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </c-overlay>
+                        <c-overlay-trigger target-id="social-overlayfacebook">
+                            <button id="zocial-facebook"
+                                    class="btn btn-secondary btn-text-icon btn-text-icon--left c-form--essential__btn c-form__sm-button"
+                                    type="button">
+                                    <span class="btn__text">
+                                        Anmelden mit Facebook
+                                    </span>
+                                <svg class="btn-text-icon__icon" role="img" aria-hidden="true">
+                                    <use xlink:href="#facebook"></use>
+                                </svg>
+                            </button>
+                        </c-overlay-trigger>
+                        <c-overlay id="social-overlayapple" style="text-align: left"
+                                   class="c-overlay c-overlay--default">
+                            <div class="c-overlay__content">
+                                <div class="l-container">
+                                    <div class="c-overlay__header">
+                                        <img src="" alt="" class="c-search-overlay__logo c-logo-link__img">
+                                        <button class="btn c-overlay__close-button c-overlay__close-button--primary js-overlay__close"
+                                                aria-label="Info schliessen" type="button">
+                                            <svg class="c-search-overlay__icon">
+                                                <use xlink:href="#cross2"></use>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="l-row">
+                                        <div class="l-col l-col-sm-12 l-col-md-8 l-offset-md-2 c-overlay__text">
+                                            <h1 class="o-heading-1">Möchten Sie fortfahren?</h1>
+                                            <p class="o-paragraph">Wenn Sie fortfahren, stimmen Sie der mit den Services
+                                                verbundenen Übertragung personenbezogener Daten an diesen Anbieter bzw.
+                                                in die USA zu. Dort ist kein den EU-Standards entsprechendes
+                                                Datenschutzniveau gewährleistet. Sie können Ihre Einwilligung jederzeit
+                                                widerrufen. Bitte beachten Sie die Datenschutzhinweise von <a
+                                                        href="https://policies.google.com/technologies/cookies?hl=de"
+                                                        class="o-text-link">Google</a>, <a
+                                                        href="https://www.apple.com/de/legal/privacy/data/de/sign-in-with-apple/"
+                                                        class="o-text-link">Apple</a> und <a
+                                                        href="https://www.facebook.com/legal/terms/businesstools/"
+                                                        class="o-text-link">Facebook</a> sowie von <a
+                                                        href="https://log.wien/legal" class="o-text-link">logwien</a>.
+                                            </p>
+                                            <c-foldable-content id="foldable-content-1-social-overlayapple"
+                                                                class="c-foldable-content l-content-section">
+                                                <p class="o-paragraph">Die Nutzung der Social Logins erfolgt auf der
+                                                    Rechtsgrundlage Ihrer Einwilligung (Art 6 Abs 1 lit a DSGVO). Google
+                                                    und Apple agieren dabei als datenschutzrechtlich getrennter
+                                                    Verantwortlicher, während es bei der Nutzung von Facebook-Login zu
+                                                    einer gemeinsamen Verantwortlichenstellung mit Facebook kommt.
+                                                    Details zu den mit der Nutzung dieser Login Services verbundenen
+                                                    Datenflüssen sowie den von Google, Apple und Facebook eingesetzten
+                                                    Cookies finden Sie unter den Datenschutzhinweisen von <a
+                                                            href="https://policies.google.com/technologies/cookies?hl=de"
+                                                            class="o-text-link ">Google</a>, <a
+                                                            href="https://www.apple.com/de/legal/privacy/data/de/sign-in-with-apple/"
+                                                            class="o-text-link ">Apple</a> und <a
+                                                            href="https://www.facebook.com/legal/terms/businesstools/"
+                                                            class="o-text-link ">Facebook</a> sowie in den <a
+                                                            href="https://log.wien/legal" class="o-text-link">logwien-Datenschutzhinweisen</a>
+                                                    (AGB & Datenschutz).</p>
+                                                <p class="o-paragraph">Sofern in Zusammenhang mit der Nutzung des Social
+                                                    Logins vom jeweiligen Anbieter oder von diesem eingesetzter
+                                                    Drittanbieter, die ihren Sitz in den USA haben („US-Anbieter“), auch
+                                                    Cookies eingesetzt werden, werden Ihre personenbezogenen Daten in
+                                                    die USA übermittelt und dort verarbeitet. Die USA verfügt nach
+                                                    Ansicht des Europäischen Gerichtshofes über kein angemessenes
+                                                    Datenschutzniveau. Wenn Ihre Daten in die USA übermittelt werden,
+                                                    ergibt sich das Risiko, dass US-Behörden im Rahmen von
+                                                    Überwachungsprogrammen auf Ihre Daten zugreifen und Ihnen dagegen
+                                                    keine durchsetzbaren Rechte oder wirksamen Rechtsbehelfe zur
+                                                    Verfügung stehen.</p>
+                                                <p class="o-paragraph">Mit Ihrem Klick auf den Fortfahren Button
+                                                    erteilen Sie Ihre Einwilligung zu den mit der Nutzung des Social
+                                                    Login sowie der im Zusammenhang damit eingesetzten Cookies
+                                                    verbundenen Datenverarbeitungen.</p>
+                                                <p class="o-paragraph">Sie können Ihre Einwilligung jederzeit
+                                                    widerrufen. Dadurch werden bei logwien alle Daten und Verknüpfungen
+                                                    zum jeweiligen Social Login Anbieter gelöscht.</p>
+                                            </c-foldable-content>
+                                            <c-foldable-content-trigger
+                                                    target-id="foldable-content-1-social-overlayapple"
+                                                    class="c-foldable-content-trigger">
+                                                <button type="button" class="c-foldable-content-trigger__button">
+                                                    <svg class="c-foldable-content-trigger__icon" role="img"
+                                                         aria-hidden="true">
+                                                        <use xlink:href="#cross2"/>
+                                                    </svg>
+                                                    <span class="c-foldable-content-trigger__label--closed">Mehr anzeigen</span>
+                                                    <span class="c-foldable-content-trigger__label--opened">Weniger anzeigen</span>
+                                                </button>
+                                            </c-foldable-content-trigger>
+                                            <div class="c-overlay__footer">
+                                                <section class="c-form__actions">
+                                                    <p class="o-paragraph">
+                                                        <a href="/auth/realms/logwien/broker/apple/login?client_id=wn-smartmeter&amp;tab_id=6tDgFA2FxbU&amp;session_code=xNcu6qpidXzT6tcvX1Nj2-SVuxm5Vh8ueZmhvvDvYyo"
+                                                           class="btn btn-primary btn--loading" type="button">
+                                                            Fortfahren
+                                                            <svg class="btn__icon" role="img" aria-hidden="true">
+                                                                <use xlink:href="#sync"></use>
+                                                            </svg>
+                                                        </a>
+                                                    </p>
+                                                    <a href="javascript:void(0);" class="o-text-link js-overlay__close">Abbrechen</a>
+                                                </section>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </c-overlay>
+                        <c-overlay-trigger target-id="social-overlayapple">
+                            <button id="zocial-apple"
+                                    class="btn btn-secondary btn-text-icon btn-text-icon--left c-form--essential__btn c-form__sm-button"
+                                    type="button">
+                                    <span class="btn__text">
+                                        Anmelden mit Apple
+                                    </span>
+                                <svg class="btn-text-icon__icon" role="img" aria-hidden="true">
+                                    <use xlink:href="#apple"></use>
+                                </svg>
+                            </button>
+                        </c-overlay-trigger>
+                    </div>
+                </section>
+
+            </fieldset>
+
+            <footer class="c-form__footer">
+                <div class="l-row l-align-items-center">
+                    <div class="l-col l-col-xs-12 l-col-sm-5">
+                        <span class="o-company-claim">logwien</span>
+                    </div>
+                    <div class="l-col l-col-xs-12 l-col-sm-7">
+                        <nav class="c-form__footer-nav">
+                            <ul class="o-inline-list">
+                                <li class="o-inline-list__item">
+                                    <c-overlay-trigger target-id="imprint-overlay">
+                                        <a href class="o-text-link" aria-haspopup="true">Impressum</a>
+                                    </c-overlay-trigger>
+                                </li>
+                                <li class="o-inline-list__item">
+                                    <c-overlay-trigger target-id="leagal-overlay">
+                                        <a href="" class="o-text-link" aria-haspopup="true">AGB &amp; Datenschutz</a>
+                                    </c-overlay-trigger>
+                                </li>
+                                <li class="o-inline-list__item">
+                                    <c-overlay-trigger target-id="contact-overlay">
+                                        <a href="" class="o-text-link" aria-haspopup="true">Kontakt</a>
+                                    </c-overlay-trigger>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </footer>
+
+            <c-overlay id="imprint-overlay" class="c-overlay c-overlay--default is-initialized" role="dialog"
+                       aria-modal="true" aria-hidden="true">
+                <div class="c-overlay__content">
+                    <div class="l-container">
+                        <div class="c-overlay__header">
+                            <div class="c-search-overlay__logo-container">
+                                <img src="/auth/resources/8lpg9/login/logwien/img/logos/logwien.svg"
+                                     alt="Logo der Wiener Stadtwerke" class="c-search-overlay__logo c-logo-link__img">
+                            </div>
+                            <button class="btn c-overlay__close-button c-overlay__close-button--primary js-overlay__close"
+                                    aria-label="Info schließen" type="button">
+                                <svg class="c-search-overlay__icon">
+                                    <use xlink:href="#cross2"></use>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="l-row">
+                            <div class="l-col l-col-sm-12 l-col-md-8 l-offset-md-2 c-overlay__text">
+                                <h1 class="o-heading-1">Impressum</h1>
+                                <h2 class="o-heading-2">Impressum und Offenlegung gemäß § 25 Mediengesetz</h2>
+                                <h2 class="o-heading-2">WIENER STADTWERKE GMBH</h2><span>Thomas-Klestil-Platz 13<br/>1030 Wien<br/>Tel.: +43 1 53123-0<br/>E-Mail: <a
+                                    class="o-text-link" href="mailto:contact@wienerstadtwerke.at">contact@wienerstadtwerke.at</a><br/>Web: <a
+                                    class="o-text-link"
+                                    href="http://www.wienerstadtwerke.at">www.wienerstadtwerke.at</a><br/>Firmenbuchnummer: FN 127783t<br/>Firmenbuchgericht: Handelsgericht Wien<br/>UID-Nummer: ATU 38309200 </span>
+                                <h3 class="o-heading-3">Aufsichtsbehörde</h3><span>keine </span>
+                                <h3 class="o-heading-3">Mitgliedschaften</h3><span>Wirtschaftskammer Wien </span>
+                                <h3 class="o-heading-3">Gewerbe- oder berufsrechtlichen Vorschriften (<a
+                                        class="o-text-link" href="http://www.ris.bka.gv.at/">www.ris.bka.gv.at/</a>)
+                                </h3><span>Allfällige gewerberechtliche bzw. berufsrechtliche Vorschriften sind der Gewerbeordnung 1994 zu entnehmen. </span>
+                                <p class="o-paragraph">Weitere Informationen (insbesondere Informationspflichten nach
+                                    dem Mediengesetz) finden Sie auf <a class="o-text-link"
+                                                                        href="http://www.wienerstadtwerke.at">www.wienerstadtwerke.at</a>
+                                </p>
+                                <h2 class="o-heading-2">WIENER LINIEN GmbH & Co KG</h2><span>Erdbergstraße 202<br/>1030 Wien<br/>Tel.: +43 (0)1 7909 - 0<br/>Fax: +43 (0)1 7909 - 24609<br/>E-Mail: <a
+                                    class="o-text-link" href="mailto:post@wienerlinien.at">post@wienerlinien.at</a><br/>Web: <a
+                                    class="o-text-link" href="http://www.wienerlinien.at">www.wienerlinien.at</a><br/>Firmenbuchnummer: 181593z<br/>Firmenbuchgericht: Handelsgericht Wien<br/>UID-Nummer: ATU47055001 </span>
+                                <h3 class="o-heading-3">Aufsichtsbehörden</h3><span>Magistratisches Bezirksamt für den III. Bezirk<br/>Magistratisches Bezirksamt für den XI. Bezirk<br/>MA 64<br/>MA 65<br/>Bundesministerium für Verkehr, Innovation und Technologie<br/>Landeshauptmann von Wien </span>
+                                <h3 class="o-heading-3">Mitgliedschaften</h3><span>Wirtschaftskammer Wien<br/>Fachgruppe Autobus-, Luftfahrt- und Schifffahrtunternehmungen<br/>Fachgruppe Druck<br/>Fachvertretung Schienenbahnen<br/>Landesinnung Kraftfahrzeugtechniker<br/>Landesinnung Metalltechniker </span>
+                                <h3 class="o-heading-3">Gewerbe- oder berufsrechtlichen Vorschriften (<a
+                                        class="o-text-link" href="http://www.ris.bka.gv.at/">www.ris.bka.gv.at/</a>)
+                                </h3>
+                                <span>Gewerbeordnung 1994<br>Kraftfahrliniengesetz<br/>Eisenbahngesetz 1957<br/></span>
+                                <p class="o-paragraph">Weitere Informationen (insbesondere Informationspflichten nach
+                                    dem Mediengesetz) finden Sie auf <a class="o-text-link"
+                                                                        href="http://www.wienerlinien.at">www.wienerlinien.at</a>
+                                </p>
+                                <h2 class="o-heading-2">WIENER LOKALBAHNEN GmbH</h2><span>Purkytgasse 1B<br>A - 1230 Wien<br>Tel.: +43 (0) 1/ 90 444<br>Fax: +43 (0) 1/ 90 444 - 53999<br>E-Mail: <a
+                                    class="o-text-link" href="mailto:wlb.office@wlb.at">wlb.office@wlb.at</a><br>Web: <a
+                                    class="o-text-link" href="http://www.wlb.at/">http://www.wlb.at/</a><br>Firmenbuchnummer: 128256m<br>Firmenbuchgericht: Handelsgericht Wien<br>UID-Nummer: ATU 15417608 </span>
+                                <h3 class="o-heading-3">Aufsichtsbehörde</h3><span>Bundesministerium für Verkehr, Innovation und Technologie </span>
+                                <h3 class="o-heading-3">Mitgliedschaften</h3><span>Bundeswirtschaftskammer<br>Fachverband der Schienenbahnen in der Bundeswirtschaftskammer </span>
+                                <h3 class="o-heading-3">Gewerbe- oder berufsrechtlichen Vorschriften (<a
+                                        class="o-text-link" href="http://www.ris.bka.gv.at/">www.ris.bka.gv.at/</a>)
+                                </h3><span>Allfällige gewerberechtlichen bzw. berufsrechtlichen Vorschriften sind insbesondere der Gewerbeordnung, dem Eisenbahngesetz bzw. den damit in Zusammenhang stehenden Gesetzen und Vorschriften zu entnehmen. </span>
+                                <p class="o-paragraph">Weitere Informationen (insbesondere Informationspflichten nach
+                                    dem Mediengesetz) finden Sie auf <a class="o-text-link" href="http://www.wlb.at/">http://www.wlb.at/</a>
+                                </p>
+                                <h2 class="o-heading-2">Friedhöfe Wien GmbH</h2><span>Simmeringer Hauptstrasse 339 <br>1110 Wien<br>Tel.: +43 (0)1 534 69-0<br>E-Mail: <a
+                                    class="o-text-link"
+                                    href="mailto:post@friedhoefewien.at">post@friedhoefewien.at</a><br>Web: <a
+                                    class="o-text-link"
+                                    href="http://www.friedhoefewien.at">www.friedhoefewien.at</a><br>Firmenbuchnummer: 302747t<br>Firmenbuchgericht: Handelsgericht Wien<br>UID-Nummer: ATU 63822634 </span>
+                                <h3 class="o-heading-3">Aufsichtsbehörde</h3><span>keine </span>
+                                <h3 class="o-heading-3">Mitgliedschaften</h3><span>Wirtschaftskammer </span>
+                                <h3 class="o-heading-3">Gewerbe- oder berufsrechtlichen Vorschriften (<a
+                                        class="o-text-link" href="http://www.ris.bka.gv.at/">www.ris.bka.gv.at/</a>)
+                                </h3><span>Gewerbeordnung 1994 </span>
+                                <p class="o-paragraph">Weitere Informationen (insbesondere Informationspflichten nach
+                                    dem Mediengesetz) finden Sie auf <a class="o-text-link"
+                                                                        href="http://www.friedhoefewien.at">www.friedhoefewien.at</a>
+                                </p>
+                                <h2 class="o-heading-2">Bestattung Wien GmbH</h2><span>Simmeringer Hauptstraße 339<br>1110 Wien<br>Tel.: (01) 501 95 / 0<br>Fax: (01) 501 95 / 28509<br>E-Mail: <a
+                                    class="o-text-link"
+                                    href="mailto:office@bestattungwien.at">office@bestattungwien.at</a><br>Web: <a
+                                    class="o-text-link"
+                                    href="http://www.bestattungwien.at">www.bestattungwien.at</a><br>Firmenbuchnummer: FN 336304s<br>Firmenbuchgericht: Handelsgericht Wien<br>UID-Nummer: ATU 65400069 </span>
+                                <h3 class="o-heading-3">Aufsichtsbehörde</h3><span>keine </span>
+                                <h3 class="o-heading-3">Mitgliedschaften</h3><span>Wirtschaftskammer </span>
+                                <h3 class="o-heading-3">Gewerbe- oder berufsrechtlichen Vorschriften (<a
+                                        class="o-text-link" href="http://www.ris.bka.gv.at/">www.ris.bka.gv.at/</a>)
+                                </h3><span>Gewerbeordnung 1994 </span>
+                                <p class="o-paragraph">Weitere Informationen (insbesondere Informationspflichten nach
+                                    dem Mediengesetz) finden Sie auf <a class="o-text-link"
+                                                                        href="https://www.bfwien.at">www.bfwien.at</a>
+                                </p>
+                                <h2 class="o-heading-2">Wiener Netze GmbH</h2><span>Erdbergstraße 236<br>A-1110 Wien<br>Tel.: +43 (0)50 128 – 10100<br>E-Mail: <a
+                                    class="o-text-link" href="mailto:post@wienernetze.at">post@wienernetze.at</a><br>Web: <a
+                                    class="o-text-link" href="https://www.wienernetze.at">www.wienernetze.at</a><br>Firmenbuchnummer: 174300z<br>Firmenbuchgericht: Handelsgericht Wien<br>UID-Nummer: ATU 45394906<br></span>
+                                <h3 class="o-heading-3">Aufsichtsbehörde</h3><span>Energie-Control Austria </span>
+                                <h3 class="o-heading-3">Mitgliedschaften</h3><span>keine </span>
+                                <h3 class="o-heading-3">Gewerbe- oder berufsrechtlichen Vorschriften (<a
+                                        class="o-text-link" href="http://www.ris.bka.gv.at/">www.ris.bka.gv.at/</a>)
+                                </h3><span>Allfällige gewerberechtliche bzw. berufsrechtliche Vorschriften sind insbesondere der Gewerbeordnung, dem Elektrizitätswirtschafts- und –organisationsgesetz 2010, dem Wiener Elektrizitätswirtschaftsgesetz 2005 sowie dem Gaswirtschaftsgesetz 2011 zu entnehmen. </span>
+                                <p class="o-paragraph">Weitere Informationen (insbesondere Informationspflichten nach
+                                    dem Mediengesetz) finden Sie auf <a class="o-text-link"
+                                                                        href="https://www.wienernetze.at/">www.wienernetze.at</a>
+                                </p>
+                                <h2 class="o-heading-2">Wien Energie GmbH</h2><span>Thomas-Klestil-Platz 14<br>1030 Wien<br>Tel.: +43 1 4004-0<br>E-Mail: <a
+                                    class="o-text-link"
+                                    href="mailto:office@wienenergie.at">office@wienenergie.at</a><br>Web: <a
+                                    class="o-text-link" href="https://www.wienenergie.at">www.wienenergie.at</a><br>Firmenbuchnummer: 215854H<br>Firmenbuchgericht: Handelsgericht Wien<br>UID-Nummer: ATU 55685501 </span>
+                                <h3 class="o-heading-3">Aufsichtsbehörde</h3><span>Energie-Control Austria </span>
+                                <h3 class="o-heading-3">Mitgliedschaften</h3><span>Wirtschaftskammer/Fachverband Gas- & Wärmeversorgungsunternehmen </span>
+                                <h3 class="o-heading-3">Gewerbe- oder berufsrechtlichen Vorschriften (<a
+                                        class="o-text-link" href="http://www.ris.bka.gv.at/">www.ris.bka.gv.at/</a>)
+                                </h3><span>Elektrizitätswirtschafts- und –organisationsgesetz 2010<br>Gaswirtschaftsgesetz 2011 </span>
+                                <p class="o-paragraph">Weitere Informationen (insbesondere Informationspflichten nach
+                                    dem Mediengesetz) finden Sie auf <a class="o-text-link"
+                                                                        href="https://www.wienenergie.at">www.wienenergie.at</a>
+                                </p>
+                                <h2 class="o-heading-2">Wien Energie Vertrieb GmbH & Co KG</h2><span>Thomas-Klestil-Platz 14<br>1030 Wien<br>Tel.: +43 1 977 00-0<br>Fax.: +43 1 97700 99 38006<br>E-Mail: <a
+                                    class="o-text-link"
+                                    href="mailto:officeKG@wienenergie.at">office@wienenergie.at</a><br>Web: <a
+                                    class="o-text-link" href="https://www.wienenergie.at">www.wienenergie.at</a><br>Firmenbuchnummer: FN 225657z<br>Firmenbuchgericht: Handelsgericht Wien<br>UID-Nummer: ATU55395806 </span>
+                                <h3 class="o-heading-3">Aufsichtsbehörde</h3><span>Energie-Control Austria </span>
+                                <h3 class="o-heading-3">Mitgliedschaften</h3><span>Wirtschaftskammer/Fachverband Gas- & Wärmeversorgungsunternehmen </span>
+                                <h3 class="o-heading-3">Gewerbe- oder berufsrechtlichen Vorschriften (<a
+                                        class="o-text-link" href="http://www.ris.bka.gv.at/">www.ris.bka.gv.at/</a>)
+                                </h3><span>Allfällige gewerberechtliche bzw. berufsrechtliche Vorschriften sind insbesondere der Gewerbeordnung, dem Elektrizitätswirtschafts- und -organisationsgesetz 2010, dem Wiener Elektrizitätswirtschaftsgesetz 2005 sowie dem Gaswirtschaftsgesetz 2011 zu entnehmen. </span>
+                                <p class="o-paragraph">Weitere Informationen (insbesondere Informationspflichten nach
+                                    dem Mediengesetz) finden Sie auf <a class="o-text-link"
+                                                                        href="https://www.wienenergie.at">www.wienenergie.at</a>
+                                </p>
+                                <h2 class="o-heading-2">WIPARK Garagen GmbH</h2><span>Thomas-Klestil-Platz 13<br>1030 Wien<br>Tel.: +43 1 600 30 22<br>Fax: +43 1 600 30 22-48199<br>E-Mail: <a
+                                    class="o-text-link" href="mailto:office@wipark.at">office@wipark.at</a><br>Web: <a
+                                    class="o-text-link" href="http://www.wipark.at">www.wipark.at</a><br>Firmenbuchnummer: FN 181046w<br>Firmenbuchgericht: Handelsgericht Wien<br>UID-Nummer: ATU 46662703 </span>
+                                <h3 class="o-heading-3">Berufsbezeichnung</h3><span>Garagen- und Servicestationsunternehmung (Land aus dem die Berufsbezeichnung stammt: Österreich) </span>
+                                <h3 class="o-heading-3">Aufsichtsbehörde</h3><span>keine </span>
+                                <h3 class="o-heading-3">Mitgliedschaften</h3><span>Wirtschaftskammer (Fachverband der Garagen-, Tankstellen- und Servicestationsunternehmungen) </span>
+                                <h3 class="o-heading-3">Gewerbe- oder berufsrechtlichen Vorschriften (<a
+                                        class="o-text-link" href="http://www.ris.bka.gv.at/">www.ris.bka.gv.at/</a>)
+                                </h3><span>Gewerbeordnung 1994 </span>
+                                <p class="o-paragraph">Weitere Informationen (insbesondere Informationspflichten nach
+                                    dem Mediengesetz) finden Sie auf <a class="o-text-link" href="http://www.wipark.at">www.wipark.at</a>
+                                </p>
+                                <h2 class="o-heading-2">ARAC GmbH</h2><span>Louise-Piëch-Straße 2<br>5020 Salzburg<br>Tel.: +43 1 866 16<br>Fax: +43 1 866 16 1699<br>E-Mail: <a
+                                    href="mailto:support@sharetoo.at">support@sharetoo.at</a><br>Web: <a
+                                    href="https://www.sharetoo.at">https://www.sharetoo.at</a><br>Firmenbuchnummer: FN 51.993k<br>Firmenbuchgericht: LG Salzburg<br>UID-Nummer: ATU 367 66 406 </span>
+                                <h3 class="o-heading-3">Berufsbezeichnung</h3><span>Vermieten von Kraftfahrzeugen ohne Beistellung eines Lenkers (Land aus dem die Berufsbezeichnung stammt: Österreich) </span>
+                                <h3 class="o-heading-3">Aufsichtsbehörde</h3><span>keine </span>
+                                <h3 class="o-heading-3">Mitgliedschaften</h3><span>Beförderungsgewerbe mit Personenkraftwagen</span>
+                                <h3 class="o-heading-3">Gewerbe- oder berufsrechtlichen Vorschriften (<a
+                                        href="http://www.ris.bka.gv.at/">www.ris.bka.gv.at/</a>)</h3><span>Gewerbeordnung 1994 </span>
+                                <p class="o-paragraph">Weitere Informationen (insbesondere Informationspflichten nach
+                                    dem Mediengesetz) finden Sie auf <a
+                                            href="https://www.sharetoo.at">www.sharetoo.at</a></p>
+                                <div class="c-overlay__footer">
+                                    <button class="btn btn-primary js-overlay__close" type="button">Schließen</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </c-overlay>
+            <c-overlay id="leagal-overlay" class="c-overlay c-overlay--default is-initialized" role="dialog"
+                       aria-modal="true" aria-hidden="true">
+                <div class="c-overlay__content">
+                    <div class="l-container">
+                        <div class="c-overlay__header">
+                            <div class="c-search-overlay__logo-container">
+                                <img src="/auth/resources/8lpg9/login/logwien/img/logos/logwien.svg"
+                                     alt="Logo der Wiener Stadtwerke" class="c-search-overlay__logo c-logo-link__img">
+                            </div>
+                            <button class="btn c-overlay__close-button c-overlay__close-button--primary js-overlay__close"
+                                    aria-label="Info schließen" type="button">
+                                <svg class="c-search-overlay__icon">
+                                    <use xlink:href="#cross2"></use>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="l-row">
+                            <div class="l-col l-col-sm-12 l-col-md-8 l-offset-md-2 c-overlay__text">
+                                <h1 class="o-heading-1"></h1>
+                                <div class="c-overlay__footer">
+                                    <button class="btn btn-primary js-overlay__close" type="button">Schließen</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </c-overlay>
+            <c-overlay id="contact-overlay" class="c-overlay c-overlay--default is-initialized" role="dialog"
+                       aria-modal="true" aria-hidden="true">
+                <div class="c-overlay__content">
+                    <div class="l-container">
+                        <div class="c-overlay__header">
+                            <div class="c-search-overlay__logo-container">
+                                <img src="/auth/resources/8lpg9/login/logwien/img/logos/logwien.svg"
+                                     alt="Logo der Wiener Stadtwerke" class="c-search-overlay__logo c-logo-link__img">
+                            </div>
+                            <button class="btn c-overlay__close-button c-overlay__close-button--primary js-overlay__close"
+                                    aria-label="Info schließen" type="button">
+                                <svg class="c-search-overlay__icon">
+                                    <use xlink:href="#cross2"></use>
+                                </svg>
+                            </button>
+                        </div>
+                        <h1 class="o-heading-1">Kontakt</h1>
+                        <div class="l-content-section" id="kontakt"><h2 class="o-heading-2 u-text-center">Nicht
+                            gefunden, wonach Sie suchen? <br><small>Kontaktieren Sie bitte den passenden
+                                Ansprechpartner</small></h2>
+                            <ul class="c-contact-cards__list l-justify-content-center">
+                                <li class="c-contact-cards__item">
+                                    <div class="c-card c-card--vertical c-card--block">
+                                        <div class="c-card__content"><h3 class="c-card__inner o-heading-2">logwien</h3>
+                                            <ul class="c-card__inner c-card-list">
+                                                <li class="c-card-list__item">Mo–Fr: 07:30–18:00 Uhr</li>
+                                                <li class="c-card-list__item"><a href="tel:0800555800"
+                                                                                 class="o-tel-link">0800 555 800</a>
+                                                </li>
+                                                <li class="c-card-list__item"><a href="mailto:info@log.wien"
+                                                                                 class="o-text-link">info@log.wien</a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <ul class="c-contact-cards__list">
+                                <li class="c-contact-cards__item">
+                                    <div class="c-card c-card--vertical c-card--block">
+                                        <div class="c-card__content"><h3 class="c-card__inner o-heading-2">Bestattung
+                                            Wien</h3>
+                                            <ul class="c-card__inner c-card-list">
+                                                <li class="c-card-list__item">Mo–Fr: 07:30–16:30 Uhr (werktags)</li>
+                                                <li class="c-card-list__item"><a href="tel:01501950" class="o-tel-link">01
+                                                    501 95 - 0</a></li>
+                                                <li class="c-card-list__item"><a
+                                                        href="mailto:kundenservice@bestattungwien.at"
+                                                        class="o-text-link">kundenservice@bestattungwien.at</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="c-contact-cards__item">
+                                    <div class="c-card c-card--vertical c-card--block">
+                                        <div class="c-card__content"><h3 class="c-card__inner o-heading-2">Friedhöfe
+                                            Wien</h3>
+                                            <ul class="c-card__inner c-card-list">
+                                                <li class="c-card-list__item">Mo–Fr: 07:30–16:30 Uhr (werktags)</li>
+                                                <li class="c-card-list__item"><a href="tel:01534690" class="o-tel-link">01
+                                                    534 69 - 0</a></li>
+                                                <li class="c-card-list__item"><a
+                                                        href="mailto:kundenservice@friedhoefewien.at"
+                                                        class="o-text-link">kundenservice@friedhoefewien.at</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="c-contact-cards__item">
+                                    <div class="c-card c-card--vertical c-card--block">
+                                        <div class="c-card__content"><h3 class="c-card__inner o-heading-2">Wien Energie
+                                            Strom/Gas</h3>
+                                            <ul class="c-card__inner c-card-list">
+                                                <li class="c-card-list__item">Mo–Fr: 07:30-18:00 Uhr</li>
+                                                <li class="c-card-list__item"><a href="tel:0800500800"
+                                                                                 class="o-tel-link">0800 500 800</a>
+                                                </li>
+                                                <li class="c-card-list__item"><a
+                                                        href="https://www.wienenergie.at/kontakt/kontaktformular-privat/"
+                                                        class="o-text-link">Kontaktformular</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="c-contact-cards__item">
+                                    <div class="c-card c-card--vertical c-card--block">
+                                        <div class="c-card__content"><h3 class="c-card__inner o-heading-2">Wien Energie
+                                            Fernwärme</h3>
+                                            <ul class="c-card__inner c-card-list">
+                                                <li class="c-card-list__item">Mo–Fr: 07:30–16:00 Uhr</li>
+                                                <li class="c-card-list__item"><a href="tel:0800500700"
+                                                                                 class="o-tel-link">0800 500 700</a>
+                                                </li>
+                                                <li class="c-card-list__item"><a
+                                                        href="https://www.wienenergie.at/kontakt/kontaktformular-privat/"
+                                                        class="o-text-link">Kontaktformular</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="c-contact-cards__item">
+                                    <div class="c-card c-card--vertical c-card--block">
+                                        <div class="c-card__content"><h3 class="c-card__inner o-heading-2">Wiener
+                                            Linien</h3>
+                                            <ul class="c-card__inner c-card-list">
+                                                <li class="c-card-list__item">Mo–Fr: 06:00–21:00 Uhr</li>
+                                                <li class="c-card-list__item">Sa,So,Feiertage: 09:00-17:00 Uhr</li>
+                                                <li class="c-card-list__item"><a href="tel:017909100"
+                                                                                 class="o-tel-link">01 7909 100</a></li>
+                                                <li class="c-card-list__item"><a
+                                                        href="mailto:kundendialog@wienerlinien.at" class="o-text-link">kundendialog@wienerlinien.at</a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="c-contact-cards__item">
+                                    <div class="c-card c-card--vertical c-card--block">
+                                        <div class="c-card__content"><h3 class="c-card__inner o-heading-2">Wiener
+                                            Lokalbahnen</h3>
+                                            <ul class="c-card__inner c-card-list">
+                                                <li class="c-card-list__item">Mo–Fr: 07:00–19:00 Uhr</li>
+                                                <li class="c-card-list__item"><a href="tel:0190444" class="o-tel-link">01
+                                                    90 444</a></li>
+                                                <li class="c-card-list__item"><a href="mailto:kundenservice@wlb.at"
+                                                                                 class="o-text-link">kundenservice@wlb.at</a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="c-contact-cards__item">
+                                    <div class="c-card c-card--vertical c-card--block">
+                                        <div class="c-card__content"><h3 class="c-card__inner o-heading-2">Wiener Netze
+                                            Online-Services</h3>
+                                            <ul class="c-card__inner c-card-list">
+                                                <li class="c-card-list__item">Mo–Fr: 08:00–17:00 Uhr</li>
+                                                <li class="c-card-list__item"><a href="tel:05012810100"
+                                                                                 class="o-tel-link">050 128 - 10100</a>
+                                                </li>
+                                                <li class="c-card-list__item"><a href="mailto:info@wienernetze.at"
+                                                                                 class="o-text-link">info@wienernetze.at</a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="c-contact-cards__item">
+                                    <div class="c-card c-card--vertical c-card--block">
+                                        <div class="c-card__content"><h3 class="c-card__inner o-heading-2">Wiener Netze
+                                            Smart Meter</h3>
+                                            <ul class="c-card__inner c-card-list">
+                                                <li class="c-card-list__item">Mo–Fr: 08:00–17:00 Uhr</li>
+                                                <li class="c-card-list__item"><a href="tel:05012810300"
+                                                                                 class="o-tel-link">050 128 - 10300</a>
+                                                </li>
+                                                <li class="c-card-list__item"><a href="mailto:smartmeter@wienernetze.at"
+                                                                                 class="o-text-link">smartmeter@wienernetze.at</a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="c-contact-cards__item">
+                                    <div class="c-card c-card--vertical c-card--block">
+                                        <div class="c-card__content"><h3 class="c-card__inner o-heading-2">WIPARK</h3>
+                                            <ul class="c-card__inner c-card-list">
+                                                <li class="c-card-list__item">Mon–Mitt: 09:00–15:30 Uhr</li>
+                                                <li class="c-card-list__item">Donn: 08:00–17:30 Uhr</li>
+                                                <li class="c-card-list__item">Freitag: 09:00–13:00 Uhr</li>
+                                                <li class="c-card-list__item"><a href="tel:01600302248122"
+                                                                                 class="o-tel-link">01 600 30 22
+                                                    48122</a></li>
+                                                <li class="c-card-list__item"><a href="mailto:info@wipark.at"
+                                                                                 class="o-text-link">info@wipark.at</a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="c-overlay__footer">
+                            <button class="btn btn-primary js-overlay__close" type="button">Schließen</button>
+                        </div>
+                    </div>
+                </div>
+            </c-overlay>
+        </form>
+    </main>
+</div>
+</body>
+</html>
