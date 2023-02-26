@@ -1,6 +1,6 @@
 name: Test
 
-on: [push]
+on: [pull_request, push]
 
 jobs:
   build:
@@ -29,7 +29,7 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Test with pytest
         run: |
-          pytest --cov=wnsm tests
+          pytest --cov=wnsm tests --cov-report html --cov-report term
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         with:
