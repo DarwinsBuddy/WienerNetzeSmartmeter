@@ -2,6 +2,17 @@
     "version": "0.2.0",
     "configurations": [
       {
+        "name": "Debug tests",
+        "type": "python",
+        "request": "launch",
+        "program": "${file}",
+        "purpose": ["debug-test"],
+        "console": "integratedTerminal",
+        "env": {
+            "PYTEST_ADDOPTS": "--no-cov"
+        }
+      },
+      {
         "name": "Python: Attach Local",
         "type": "python",
         "request": "attach",
