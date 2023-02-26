@@ -22,7 +22,6 @@ class Smartmeter:
         Args:
             username (str): Username used for API Login.
             password (str): Username used for API Login.
-            login (bool, optional): If _login() should be called. Defaults to True.
         """
         self.username = username
         self.password = password
@@ -68,8 +67,6 @@ class Smartmeter:
         fragment_dict = dict([x.split("=") for x in parsed_url.fragment.split("&") if len(x.split("=")) == 2])
         if 'code' in fragment_dict:
             code = fragment_dict['code']
-        elif "code" in params and len(params["code"]) > 0:
-            code = params["code"][0]
         else:
             raise SmartmeterLoginError("Login failed. Could not extract 'code' from 'Location'")
         try:
@@ -109,10 +106,11 @@ class Smartmeter:
             for match in const.API_GATEWAY_TOKEN_REGEX.findall(response.text):
                 return match
         raise SmartmeterConnectionError(
-            "Could not obtain API key - no match"
+            "Could not obtain API Key - no match"
         )
 
-    def _dt_string(self, datetime_string):
+    @staticmethod
+    def _dt_string(datetime_string):
         return datetime_string.strftime(const.API_DATE_FORMAT)[:-3] + "Z"
 
     def _call_api(
@@ -226,7 +224,7 @@ class Smartmeter:
         Args:
             day (datetime.datetime): Day date for the request
             zaehlpunkt (str, optional): Id for desired smartmeter.
-                If None check for first meter in user profile.
+                If None, check for first meter in user profile.
 
         Returns:
             dict: JSON response of api call to
@@ -242,7 +240,7 @@ class Smartmeter:
         return self._call_api(endpoint, query=query)
 
     def profil(self):
-        """Returns profil of logged in user.
+        """Returns profile of a logged-in user.
 
         Returns:
             dict: JSON response of api call to 'user/profile'
@@ -258,7 +256,7 @@ class Smartmeter:
             date_from (datetime.datetime): Starting date for request
             date_to (datetime.datetime, optional): Ending date for request.
                 Defaults to datetime.datetime.now().
-            zaehlpunkt (str, optional): Id for desired smart meter.
+            zaehlpunkt (str, optional): id for desired smart meter.
                 If is None check for first meter in user profile.
 
         Returns:

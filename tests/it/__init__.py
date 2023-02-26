@@ -1,10 +1,12 @@
 import os
 import sys
 import pytest
+import requests
 from requests_mock import Mocker
 from test_resources import post_data_matcher
 from importlib.resources import files
 from urllib import parse
+
 # necessary for pytest-cov to measure coverage
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../../custom_components')
@@ -134,37 +136,54 @@ def smartmeter(username=USERNAME, password=PASSWORD):
 
 
 @pytest.mark.usefixtures("requests_mock")
-def mock_login_page(requests_mock: Mocker):
+def mock_login_page(requests_mock: Mocker, status: int | None = 200):
     """
     mock GET login url from login page (+ session_code + client_id + execution param)
     """
     get_login_url = AUTH_URL + "/auth?" + parse.urlencode(LOGIN_ARGS)
-    requests_mock.get(url=get_login_url, text=files('test_resources').joinpath('auth.html').read_text())
+    if status == 200:
+        requests_mock.get(url=get_login_url, text=files('test_resources').joinpath('auth.html').read_text())
+    elif status is None:
+        requests_mock.get(url=get_login_url, exc=requests.exceptions.ConnectTimeout)
+    else:
+        requests_mock.get(url=get_login_url, text='', status_code=status)
 
 
 @pytest.mark.usefixtures("requests_mock")
-def mock_get_api_key(requests_mock: Mocker, bearer_token: str = ACCESS_TOKEN):
+def mock_get_api_key(requests_mock: Mocker, bearer_token: str = ACCESS_TOKEN,
+                     get_page_status: int | None = 200, get_main_js_status: int | None = 200):
     """
     mock GET smartmeter-web.wienernetze.at to retrieve main.XXX.js which carries the b2cApiKey
     """
-    requests_mock.get(url=PAGE_URL, request_headers={"Authorization": f"Bearer {bearer_token}"},
-                      text=files('test_resources').joinpath('smartmeter-web.wienernetze.at.html').read_text())
-    other_js_scripts = [
-        '/ruxitagentjs_ICA27NVfqrux_10257221222094147.js',
-        'assets/custom-elements.min.js',
-        'runtime.a5b80c17985e7fbd.js',
-        'polyfills.a2b46bd315684fc3.js'
-    ]
-    for irrelevant_script in other_js_scripts:
-        requests_mock.get(url=PAGE_URL + irrelevant_script, text='//some arbitrary javascript code')
-    main_js_name = 'main.8fea0d4d0a6b3710.js'
-    requests_mock.get(url=PAGE_URL + main_js_name, text=files('test_resources').joinpath(main_js_name).read_text())
-    return B2C_API_KEY
+    if get_page_status is None:
+        requests_mock.get(url=PAGE_URL, request_headers={"Authorization": f"Bearer {bearer_token}"},
+                          exc=requests.exceptions.ConnectTimeout)
+    else:
+        requests_mock.get(url=PAGE_URL, request_headers={"Authorization": f"Bearer {bearer_token}"},
+                          status_code=get_page_status,
+                          text=files('test_resources').joinpath('smartmeter-web.wienernetze.at.html').read_text())
+        other_js_scripts = [
+            '/ruxitagentjs_ICA27NVfqrux_10257221222094147.js',
+            'assets/custom-elements.min.js',
+            'runtime.a5b80c17985e7fbd.js',
+            'polyfills.a2b46bd315684fc3.js'
+        ]
+        for irrelevant_script in other_js_scripts:
+            requests_mock.get(url=PAGE_URL + irrelevant_script, text='//some arbitrary javascript code')
+        main_js_name = 'main.8fea0d4d0a6b3710.js'
+        if get_main_js_status == 200:
+            requests_mock.get(url=PAGE_URL + main_js_name,
+                              status_code=get_main_js_status,
+                              text=files('test_resources').joinpath(main_js_name).read_text())
+        else:
+            requests_mock.get(url=PAGE_URL + main_js_name,
+                              status_code=get_main_js_status,
+                              text='// main.js without key"')
 
 
 @pytest.mark.usefixtures("requests_mock")
 def mock_token(requests_mock: Mocker, code=RESPONSE_CODE, access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN,
-               id_token=ID_TOKEN):
+               id_token=ID_TOKEN, status: int | None = 200):
     response = {
         "access_token": access_token,
         "expires_in": 300,
@@ -176,17 +195,31 @@ def mock_token(requests_mock: Mocker, code=RESPONSE_CODE, access_token=ACCESS_TO
         "session_state": "949e0f0d-b447-4208-bfef-273d694dc633",
         "scope": "openid email profile"
     }
-    requests_mock.post(f'{AUTH_URL}/token', additional_matcher=post_data_matcher({
-        "grant_type": "authorization_code",
-        "client_id": "wn-smartmeter",
-        "redirect_uri": REDIRECT_URI,
-        "code": code
-    }),
-                       json=response)
+    if status == 200:
+        requests_mock.post(f'{AUTH_URL}/token', additional_matcher=post_data_matcher({
+            "grant_type": "authorization_code",
+            "client_id": "wn-smartmeter",
+            "redirect_uri": REDIRECT_URI,
+            "code": code
+        }), json=response, status_code=status)
+    elif status is None:
+        requests_mock.post(f'{AUTH_URL}/token', additional_matcher=post_data_matcher({
+            "grant_type": "authorization_code",
+            "client_id": "wn-smartmeter",
+            "redirect_uri": REDIRECT_URI,
+            "code": code
+        }), exc=requests.exceptions.ConnectTimeout)
+    else:
+        requests_mock.post(f'{AUTH_URL}/token', additional_matcher=post_data_matcher({
+            "grant_type": "authorization_code",
+            "client_id": "wn-smartmeter",
+            "redirect_uri": REDIRECT_URI,
+            "code": code
+        }), json={}, status_code=status)
 
 
 @pytest.mark.usefixtures("requests_mock")
-def mock_authenticate(requests_mock: Mocker, username, password, code=RESPONSE_CODE):
+def mock_authenticate(requests_mock: Mocker, username, password, code=RESPONSE_CODE, status: int | None = 302):
     """
     mock POST authenticate call resulting in a 302 Found redirecting to another Location
     """
@@ -197,14 +230,36 @@ def mock_authenticate(requests_mock: Mocker, username, password, code=RESPONSE_C
         "tab_id": "6tDgFA2FxbU"
     }
     authenticate_url = f'https://log.wien/auth/realms/logwien/login-actions/authenticate?{parse.urlencode(authenticate_query_params)}'
-    redirect_url = f'{REDIRECT_URI}/#state=cb142d1b-d8b4-4bf3-8a3e-92544790c5c4' \
-                   '&session_state=949e0f0d-b447-4208-bfef-273d694dc633' \
-                   f'&code={code}'
-    requests_mock.post(authenticate_url, status_code=302,
-                       additional_matcher=post_data_matcher({"username": username, "password": password}),
-                       headers={'location': redirect_url}
-                       )
-    requests_mock.get(redirect_url, text='Some page which loads a js, performing a call to /token')
+
+    if status == 302:
+        redirect_url = f'{REDIRECT_URI}/#state=cb142d1b-d8b4-4bf3-8a3e-92544790c5c4' \
+                       '&session_state=949e0f0d-b447-4208-bfef-273d694dc633' \
+                       f'&code={code}'
+        requests_mock.post(authenticate_url, status_code=status,
+                           additional_matcher=post_data_matcher({"username": username, "password": password}),
+                           headers={'location': redirect_url},
+                           )
+        requests_mock.get(redirect_url, text='Some page which loads a js, performing a call to /token')
+    elif status == 403:  # do not provide Location header on 403
+        requests_mock.post(authenticate_url, status_code=status,
+                           additional_matcher=post_data_matcher({"username": username, "password": password})
+                           )
+    elif status == 404:  # do provide a redirect to not-found page in Location header on 404 -> 302
+        requests_mock.post(authenticate_url, status_code=302,
+                           additional_matcher=post_data_matcher({"username": username, "password": password}),
+                           headers={'location': REDIRECT_URI + "not-found"}
+                           )
+    elif status == 201:  # if code is not within query params, but encoded otherwise
+        redirect_url = f'{REDIRECT_URI}/#code={code}#state=cb142d1b-d8b4-4bf3-8a3e-92544790c5c4' \
+                       '&session_state=949e0f0d-b447-4208-bfef-273d694dc633'
+        requests_mock.post(authenticate_url, status_code=201,
+                           additional_matcher=post_data_matcher({"username": username, "password": password}),
+                           headers={'location': redirect_url}
+                           )
+    elif status is None:
+        requests_mock.post(authenticate_url, exc=requests.exceptions.ConnectTimeout,
+                           additional_matcher=post_data_matcher({"username": username, "password": password})
+                           )
 
 
 @pytest.mark.usefixtures("requests_mock")
