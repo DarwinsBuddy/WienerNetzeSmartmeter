@@ -5,7 +5,6 @@ from __future__ import annotations
 from functools import reduce
 from datetime import datetime, timedelta
 import logging
-from types import UnionType
 
 
 def today() -> datetime:

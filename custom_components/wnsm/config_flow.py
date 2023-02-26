@@ -30,9 +30,9 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
         Validates credentials for smartmeter.
         Raises a ValueError if the auth credentials are invalid.
         """
-        api = Smartmeter(username, password)
-        await self.hass.async_add_executor_job(api.login)
-        zps = await self.hass.async_add_executor_job(api.zaehlpunkte)
+        smartmeter = Smartmeter(username, password)
+        await self.hass.async_add_executor_job(smartmeter.login)
+        zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
         return zps[0]["zaehlpunkte"] if zps is not None else []
 
     async def async_step_user(self, user_input: Optional[dict[str, Any]] = None):
