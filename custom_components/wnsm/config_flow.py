@@ -1,13 +1,13 @@
-'''
+"""
 Setting up config flow for homeassistant
-'''
+"""
 import logging
 from typing import Any, Optional
 
-from homeassistant import config_entries
-from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
+from homeassistant import config_entries
+from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
 
 from .api import Smartmeter
 from .const import ATTRS_ZAEHLPUNKTE_CALL, DOMAIN, CONF_ZAEHLPUNKTE
@@ -30,9 +30,9 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
         Validates credentials for smartmeter.
         Raises a ValueError if the auth credentials are invalid.
         """
-        api = Smartmeter(username, password)
-        await self.hass.async_add_executor_job(api.login)
-        zps = await self.hass.async_add_executor_job(api.zaehlpunkte)
+        smartmeter = Smartmeter(username, password)
+        await self.hass.async_add_executor_job(smartmeter.login)
+        zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
         return zps[0]["zaehlpunkte"] if zps is not None else []
 
     async def async_step_user(self, user_input: Optional[dict[str, Any]] = None):
@@ -43,7 +43,7 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
                 zps = await self.validate_auth(
                     user_input[CONF_USERNAME], user_input[CONF_PASSWORD]
                 )
-            except Exception as exception: # pylint: disable=broad-except
+            except Exception as exception:  # pylint: disable=broad-except
                 _LOGGER.error("Error validating Wiener Netze auth")
                 _LOGGER.exception(exception)
                 errors["base"] = "auth"

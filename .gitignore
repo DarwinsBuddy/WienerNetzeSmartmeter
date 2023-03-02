@@ -2,3 +2,8 @@ node_modules/
 **/__pycache__
 venv/
 .idea/
+.coverage
+.pytest_cache
+htmlcov
+coverage.lcov
+coverage.xml

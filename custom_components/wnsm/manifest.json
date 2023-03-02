@@ -1,4 +1,6 @@
 {
+    "domain": "wnsm",
+    "name": "WienerNetzeSmartmeter",
     "codeowners": [
         "@DarwinsBuddy"
     ],
@@ -7,10 +9,8 @@
         "recorder"
     ],
     "documentation": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter",
-    "domain": "wnsm",
     "iot_class": "calculated",
     "issue_tracker": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter/issues",
-    "name": "WienerNetzeSmartmeter",
     "requirements": [
         "lxml",
         "requests"

@@ -1,6 +1,6 @@
-'''
+"""
     api constants
-'''
+"""
 import re
 import enum
 
@@ -33,9 +33,9 @@ class Resolution(enum.Enum):
 
 
 def build_access_token_args(**kwargs):
-    '''
+    """
     build access token and add kwargs
-    '''
+    """
     args = {
         "grant_type": "authorization_code",
         "client_id": "wn-smartmeter",
@@ -46,9 +46,9 @@ def build_access_token_args(**kwargs):
 
 
 def build_verbrauchs_args(**kwargs):
-    '''
+    """
     build arguments for verbrauchs call and add kwargs
-    '''
+    """
     args = {
         "period": "DAY",
         "accumulate": False,  # can be changed to True to get a cum-sum

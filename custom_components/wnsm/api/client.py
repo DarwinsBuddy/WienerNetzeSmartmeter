@@ -22,7 +22,6 @@ class Smartmeter:
         Args:
             username (str): Username used for API Login.
             password (str): Username used for API Login.
-            login (bool, optional): If _login() should be called. Defaults to True.
         """
         self.username = username
         self.password = password
@@ -56,7 +55,7 @@ class Smartmeter:
                 allow_redirects=False,
             )
         except Exception as exception:
-            raise SmartmeterConnectionError("Could not load login page.") from exception
+            raise SmartmeterConnectionError("Could not login with credentials") from exception
 
         logger.debug(f"LOGIN HEADERS: {result.headers}")
 
@@ -70,8 +69,6 @@ class Smartmeter:
         fragment_dict = dict([x.split("=") for x in parsed_url.fragment.split("&") if len(x.split("=")) == 2])
         if 'code' in fragment_dict:
             code = fragment_dict['code']
-        elif "code" in params and len(params["code"]) > 0:
-            code = params["code"][0]
         else:
             raise SmartmeterLoginError("Login failed. Could not extract 'code' from 'Location'")
         try:
@@ -111,10 +108,11 @@ class Smartmeter:
             for match in const.API_GATEWAY_TOKEN_REGEX.findall(response.text):
                 return match
         raise SmartmeterConnectionError(
-            "Could not obtain API key - no match"
+            "Could not obtain API Key - no match"
         )
 
-    def _dt_string(self, datetime_string):
+    @staticmethod
+    def _dt_string(datetime_string):
         return datetime_string.strftime(const.API_DATE_FORMAT)[:-3] + "Z"
 
     def _call_api(
@@ -161,9 +159,17 @@ class Smartmeter:
         """Returns zaehlpunkte for currently logged in user."""
         return self._call_api("zaehlpunkte")
 
-    def welcome(self):
-        """Returns response from 'welcome' endpoint."""
-        return self._call_api("zaehlpunkt/default/welcome")
+    def consumptions(self):
+        """Returns response from 'consumptions' endpoint."""
+        return self._call_api("zaehlpunkt/consumptions")
+
+    def base_information(self):
+        """Returns response from 'baseInformation' endpoint."""
+        return self._call_api("zaehlpunkt/baseInformation")
+
+    def meter_readings(self):
+        """Returns response from 'meterReadings' endpoint."""
+        return self._call_api("zaehlpunkt/meterReadings")
 
     def verbrauch_raw(
         self, date_from: datetime, date_to: datetime = None, zaehlpunkt=None
@@ -225,7 +231,7 @@ class Smartmeter:
         Args:
             day (datetime.datetime): Day date for the request
             zaehlpunkt (str, optional): Id for desired smartmeter.
-                If None check for first meter in user profile.
+                If None, check for first meter in user profile.
             resolution (const.Resolution, optinal): Specify either 1h or 15min resolution
 
         Returns:
@@ -238,7 +244,7 @@ class Smartmeter:
         return self.verbrauch(day.replace(hour=0, minute=0, second=0, microsecond=0), zaehlpunkt, resolution)
 
     def profil(self):
-        """Returns profil of logged in user.
+        """Returns profile of a logged-in user.
 
         Returns:
             dict: JSON response of api call to 'user/profile'
@@ -254,7 +260,7 @@ class Smartmeter:
             date_from (datetime.datetime): Starting date for request
             date_to (datetime.datetime, optional): Ending date for request.
                 Defaults to datetime.datetime.now().
-            zaehlpunkt (str, optional): Id for desired smart meter.
+            zaehlpunkt (str, optional): id for desired smart meter.
                 If is None check for first meter in user profile.
 
         Returns:

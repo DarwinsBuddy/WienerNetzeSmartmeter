@@ -3,9 +3,8 @@ Utility functions and convenience methods to avoid boilerplate
 """
 from __future__ import annotations
 from functools import reduce
-import datetime as dt
+from datetime import datetime, timedelta
 import logging
-from types import UnionType
 
 
 def today(tz: None | dt.timezone = None) -> dt.datetime:
@@ -15,16 +14,16 @@ def today(tz: None | dt.timezone = None) -> dt.datetime:
     return dt.datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def before(datetime=None, days=1) -> dt.datetime:
+def before(timestamp=None, days=1) -> datetime:
     """
     subtract {days} days from given datetime (default: 1)
     """
-    if datetime is None:
-        datetime = today()
-    return datetime - datetime.timedelta(days=days)
+    if timestamp is None:
+        timestamp = today()
+    return timestamp - timedelta(days=days)
 
 
-def strint(string: str) -> UnionType[str, int]:
+def strint(string: str) -> int | None:
     """
     convenience function for easily convert None-able str to in
     """
@@ -33,9 +32,9 @@ def strint(string: str) -> UnionType[str, int]:
     return string
 
 
-def is_valid_access(data: UnionType[list, dict], accessor: UnionType[str, int]) -> bool:
+def is_valid_access(data: list | dict, accessor: str | int) -> bool:
     """
-    convenience function for double checking if attribute of list or dict can be accessed
+    convenience function for double-checking if attribute of list or dict can be accessed
     """
     if isinstance(accessor, int) and isinstance(data, list):
         return accessor < len(data)
@@ -45,7 +44,7 @@ def is_valid_access(data: UnionType[list, dict], accessor: UnionType[str, int]) 
         return False
 
 
-def dict_path(path: str, dictionary: dict) -> str:
+def dict_path(path: str, dictionary: dict) -> str | None:
     """
     convenience function for accessing nested attributes within a dict
     """
@@ -70,8 +69,8 @@ def translate_dict(
     returns a dictionary including all "picked" attributes addressed by attrs_list
     """
     result = {}
-    for src, dest in attrs_list:
+    for src, destination in attrs_list:
         value = dict_path(src, dictionary)
         if value is not None:
-            result[dest] = value
+            result[destination] = value
     return result

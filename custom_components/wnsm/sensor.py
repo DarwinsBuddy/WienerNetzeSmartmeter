@@ -15,13 +15,13 @@ from homeassistant.components.sensor import (
     ENTITY_ID_FORMAT,
     SensorDeviceClass,
     SensorEntity,
-    SensorStateClass,
+    SensorStateClass
 )
 from homeassistant.const import (
     CONF_USERNAME,
     CONF_PASSWORD,
     CONF_DEVICE_ID,
-    ENERGY_KILO_WATT_HOUR,
+    UnitOfEnergy
 )
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.models import (
@@ -44,7 +44,9 @@ from homeassistant.util import slugify
 
 from .api import Smartmeter
 from .const import (
-    ATTRS_WELCOME_CALL,
+    ATTRS_BASEINFORMATION_CALL,
+    ATTRS_CONSUMPTIONS_CALL,
+    ATTRS_METERREADINGS_CALL,
     ATTRS_ZAEHLPUNKTE_CALL,
     ATTRS_VERBRAUCH_CALL,
     CONF_ZAEHLPUNKTE,
@@ -113,12 +115,12 @@ class SmartmeterSensor(SensorEntity):
         self._attr_icon = "mdi:flash"
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
-        self._attr_native_unit_of_measurement = ENERGY_KILO_WATT_HOUR
-        self._attr_unit_of_measurement = ENERGY_KILO_WATT_HOUR
+        self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+        self._attr_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
 
         self.attrs: dict[str, Any] = {}
         self._name: str = zaehlpunkt
-        self._state: int = None
+        self._state: int | str | None = None
         self._available: bool = True
         self._updatets: str = None
 
@@ -188,16 +190,35 @@ class SmartmeterSensor(SensorEntity):
 
         return translate_dict(response, ATTRS_VERBRAUCH_CALL)
 
-    async def get_welcome(self, smartmeter: Smartmeter) -> dict[str, str]:
+    async def get_base_information(self, smartmeter: Smartmeter) -> dict[str, str]:
         """
-        asynchronously get adn parse /welcome response
+        asynchronously get and parse /baseInformation response
         Returns response already sanitzied of the specified zahlpunkt in ctor
         """
-        response = await self.hass.async_add_executor_job(smartmeter.welcome)
+        response = await self.hass.async_add_executor_job(smartmeter.base_information)
         if "Exception" in response:
-            raise RuntimeError(f"Cannot access welcome: {response}")
+            raise RuntimeError("Cannot access /baseInformation: ", response)
+        return translate_dict(response, ATTRS_BASEINFORMATION_CALL)
 
-        return translate_dict(response, ATTRS_WELCOME_CALL)
+    async def get_consumptions(self, smartmeter: Smartmeter) -> dict[str, str]:
+        """
+        asynchronously get and parse /consumptions response
+        Returns response already sanitized of the specified zaehlpunkt in ctor
+        """
+        response = await self.hass.async_add_executor_job(smartmeter.consumptions)
+        if "Exception" in response:
+            raise RuntimeError("Cannot access /consumptions: ", response)
+        return translate_dict(response, ATTRS_CONSUMPTIONS_CALL)
+
+    async def get_meter_readings(self, smartmeter: Smartmeter) -> dict[str, any]:
+        """
+        asynchronously get and parse /meterReadings response
+        Returns response already sanitized of the specified zaehlpunkt in ctor
+        """
+        response = await self.hass.async_add_executor_job(smartmeter.meter_readings)
+        if "Exception" in response:
+            raise RuntimeError("Cannot access /meterReadings: ", response)
+        return translate_dict(response, ATTRS_METERREADINGS_CALL)
 
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, sum_: Decimal):
         """Import hourly consumption data into the statistics module, using start date and sum"""
@@ -281,7 +302,8 @@ class SmartmeterSensor(SensorEntity):
         # Import the statistics data
         async_import_statistics(self.hass, metadata, statistics)
 
-    def is_active(self, zaehlpunkt_response: dict) -> bool:
+    @staticmethod
+    def is_active(zaehlpunkt_response: dict) -> bool:
         """
         returns active status of smartmeter, according to zaehlpunkt response
         """

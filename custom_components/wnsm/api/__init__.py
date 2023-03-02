@@ -1,8 +1,5 @@
 """Unofficial Python wrapper for the Wiener Netze Smart Meter private API."""
-try:
-    from importlib.metadata import version
-except ModuleNotFoundError:
-    from importlib_metadata import version
+from importlib.metadata import version
 
 from .client import Smartmeter
 
@@ -12,12 +9,3 @@ except Exception:  # pylint: disable=broad-except
     pass
 
 __all__ = ["Smartmeter"]
-
-try:
-
-    from ._async.client import AsyncSmartmeter
-
-    __all__ += ["AsyncSmartmeter"]
-
-except (ImportError, SyntaxError):
-    pass
