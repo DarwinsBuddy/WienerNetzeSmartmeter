@@ -325,10 +325,23 @@ class SmartmeterSensor(SensorEntity):
             _sum = Decimal(last_inserted_stat[self._id][0]["sum"])
             # The next start is the previous end
             # XXX: since HA core 2022.12, we get a datetime and not a str...
+            # XXX: since HA core 2023.03, we get a float and not a datetime...
             start = last_inserted_stat[self._id][0]["end"]
+            if isinstance(start, (int, float)):
+                start = dt_util.utc_from_timestamp(start)
+            if isinstance(start, str):
+                start = dt_util.parse_datetime(start)
+
+            if not isinstance(start, datetime):
+                _LOGGER.error("HA core decided to change the return type AGAIN! "
+                              "Please open a bug report. "
+                              "Additional Information: %s Type: %s",
+                              last_inserted_stat,
+                              type(last_inserted_stat[self._id][0]["end"]))
+                return
 
             # Extra check to not strain the API too much:
-            # If the last insert date is less than 24h away, simply exit here, 
+            # If the last insert date is less than 24h away, simply exit here,
             # because we will not get any data from the API
             min_wait = timedelta(hours=24)
             delta_t = datetime.now(timezone.utc).replace(microsecond=0) - start.replace(microsecond=0)
