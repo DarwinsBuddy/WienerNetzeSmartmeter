@@ -7,11 +7,11 @@ from datetime import datetime, timedelta
 import logging
 
 
-def today(tz: None | dt.timezone = None) -> dt.datetime:
+def today(tz: None | datetime.timezone = None) -> datetime.datetime:
     """
     today's timestamp (start of day)
     """
-    return dt.datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    return datetime.datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def before(timestamp=None, days=1) -> datetime:
