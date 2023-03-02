@@ -339,6 +339,7 @@ class SmartmeterSensor(SensorEntity):
                               last_inserted_stat,
                               type(last_inserted_stat[self._id][0]["end"]))
                 return
+            _LOGGER.debug("New starting datetime: %s", start)
 
             # Extra check to not strain the API too much:
             # If the last insert date is less than 24h away, simply exit here,
