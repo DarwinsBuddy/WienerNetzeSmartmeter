@@ -1,6 +1,6 @@
 """Contains the Smartmeter API Client."""
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from urllib import parse
 
 import requests
@@ -64,7 +64,6 @@ class Smartmeter:
         location = result.headers["Location"]
 
         parsed_url = parse.urlparse(location)
-        params = parse.parse_qs(parsed_url.query)
 
         fragment_dict = dict([x.split("=") for x in parsed_url.fragment.split("&") if len(x.split("=")) == 2])
         if 'code' in fragment_dict:
