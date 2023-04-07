@@ -20,6 +20,7 @@ class LiveSensor(BaseSensor, SensorEntity):
 
     def __init__(self, username: str, password: str, zaehlpunkt: str) -> None:
         super().__init__(username, password, zaehlpunkt)
+
     async def get_daily_consumption(self, smartmeter: Smartmeter, date: datetime):
         """
         asynchronously get and parse /tages_verbrauch response
@@ -31,27 +32,6 @@ class LiveSensor(BaseSensor, SensorEntity):
         if "Exception" in response:
             raise RuntimeError("Cannot access daily consumption: ", response)
         return response
-    def parse_quarterly_consumption_response(self, response):
-        """
-        Parse and aggregate quarter-hourly consumption
-        """
-        data = []
-        if "values" not in response:
-            return None
-        values = response["values"]
-
-        sum_consumption = 0
-        for value in values:
-            timestamp = value["timestamp"]
-            quarter_hourly_data = {"utc": timestamp}
-            usage = value["value"]
-            if usage is not None:
-                sum_consumption += usage
-
-            quarter_hourly_data["usage"] = usage
-            data.append(quarter_hourly_data)
-        self._state = sum_consumption
-        return data
 
     async def async_update(self):
         """
@@ -63,9 +43,6 @@ class LiveSensor(BaseSensor, SensorEntity):
             zaehlpunkt = await self.get_zaehlpunkt(smartmeter)
             self._attr_extra_state_attributes = zaehlpunkt
 
-            # TODO: find out how to use quarterly data in another sensor
-            #       wiener smartmeter does not expose them quarterly, but daily :/
-            # self.attrs = self.parse_quarterly_consumption_response(response)
             if self.is_active(zaehlpunkt):
                 consumptions = await self.get_consumptions(smartmeter)
                 base_information = await self.get_base_information(smartmeter)

@@ -26,19 +26,24 @@ class StatisticsSensor(BaseSensor, SensorEntity):
     @staticmethod
     def statistics(s: str) -> str:
         return f'{s}_statistics'
+
     @property
     def icon(self) -> str:
         return "mdi:meter-electric-outline"
+
     @property
     def _id(self) -> str:
         return StatisticsSensor.statistics(super()._id)
+
     @property
     def name(self) -> str:
         return StatisticsSensor.statistics(super().name)
+
     @property
     def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
         return StatisticsSensor.statistics(super().unique_id)
+
     async def async_update(self):
         """
         update sensor
@@ -121,7 +126,6 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         except RuntimeError:
             self._available = False
             _LOGGER.exception("Error retrieving data from smart meter api")
-
 
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, total_usage: Decimal):
         """Import hourly consumption data into the statistics module, using start date and sum"""
