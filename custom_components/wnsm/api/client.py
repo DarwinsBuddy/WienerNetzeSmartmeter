@@ -30,9 +30,9 @@ class Smartmeter:
         self._refresh_token = None
         self._api_gateway_token = None
 
-    def login(self):
+    def load_login_page(self):
         """
-        login with credentials specified in ctor
+        loads login page and extracts encoded login url
         """
         login_url = const.AUTH_URL + "auth?" + parse.urlencode(const.LOGIN_ARGS)
         try:
@@ -45,9 +45,15 @@ class Smartmeter:
             )
         tree = html.fromstring(result.content)
         action = tree.xpath("(//form/@action)")[0]
+        return action
+
+    def credentials_login(self, url):
+        """
+        login with credentials provided the login url
+        """
         try:
             result = self.session.post(
-                action,
+                url,
                 data={
                     "username": self.username,
                     "password": self.password,
@@ -62,13 +68,18 @@ class Smartmeter:
         location = result.headers["Location"]
 
         parsed_url = parse.urlparse(location)
-        params = parse.parse_qs(parsed_url.query)
-        
+
         fragment_dict = dict([x.split("=") for x in parsed_url.fragment.split("&") if len(x.split("=")) == 2])
         if 'code' in fragment_dict:
             code = fragment_dict['code']
+            return code
         else:
             raise SmartmeterLoginError("Login failed. Could not extract 'code' from 'Location'")
+
+    def load_tokens(self, code):
+        """
+        Provided the totp code loads access and refresh token
+        """
         try:
             result = self.session.post(
                 const.AUTH_URL + "token",
@@ -83,9 +94,18 @@ class Smartmeter:
             raise SmartmeterConnectionError(
                 f"Could not obtain access token: {result.content}"
             )
+        return result.json()
 
-        self._access_token = result.json()["access_token"]
-        self._refresh_token = result.json()["refresh_token"] # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
+    def login(self):
+        """
+        login with credentials specified in ctor
+        """
+        url = self.load_login_page()
+        code = self.credentials_login(url)
+        tokens = self.load_tokens(code)
+        self._access_token = tokens["access_token"]
+        # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
+        self._refresh_token = tokens["refresh_token"]
         self._api_gateway_token = self._get_api_key(self._access_token)
 
     def _get_api_key(self, token):
