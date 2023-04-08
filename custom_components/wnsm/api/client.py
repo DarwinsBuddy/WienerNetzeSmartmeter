@@ -123,26 +123,27 @@ class Smartmeter:
             raise SmartmeterConnectionError("Could not obtain API key") from exception
         tree = html.fromstring(result.content)
         scripts = tree.xpath("(//script/@src)")
+
+        # sort the scripts in some order to find the keys faster
+        # so far, the script was called main.XXXX.js
+        scripts = sorted(scripts, key=lambda x: 'main' not in x)
+
         for script in scripts:
+            if key_b2c is not None and key_b2b is not None:
+                break
             try:
                 response = self.session.get(const.PAGE_URL + script)
             except Exception as exception:
                 raise SmartmeterConnectionError(
                     "Could not obtain API Key from scripts"
                 ) from exception
-            for match in const.API_GATEWAY_TOKEN_REGEX.findall(response.text):
-                if not key_b2c:
-                    key_b2c = match
-                    break
-            for match in const.API_GATEWAY_B2B_TOKEN_REGEX.findall(response.text):
-                if not key_b2b:
-                    key_b2b = match
-                    break
+            key_b2c = const.API_GATEWAY_TOKEN_REGEX.search(response.text)
+            key_b2b = const.API_GATEWAY_B2B_TOKEN_REGEX.search(response.text)
         if key_b2c is None or key_b2b is None:
             raise SmartmeterConnectionError(
                 "Could not obtain API Key - no match"
             )
-        return key_b2c, key_b2b
+        return key_b2c.group(1), key_b2b.group(1)
 
     @staticmethod
     def _dt_string(datetime_string):
