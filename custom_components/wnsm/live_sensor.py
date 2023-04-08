@@ -90,6 +90,9 @@ class LiveSensor(BaseSensor, SensorEntity):
                         return
             self._available = True
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-        except RuntimeError:
+        except TimeoutError as e:
             self._available = False
-            _LOGGER.exception("Error retrieving data from smart meter api")
+            _LOGGER.warning("Error retrieving data from smart meter api - Timeout: %s" % e)
+        except RuntimeError as e:
+            self._available = False
+            _LOGGER.exception("Error retrieving data from smart meter api - Error: %s" % e)

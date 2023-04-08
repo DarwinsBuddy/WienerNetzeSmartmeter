@@ -64,7 +64,7 @@ class Smartmeter:
         except Exception as exception:
             raise SmartmeterConnectionError("Could not login with credentials") from exception
 
-        logger.debug(f"LOGIN HEADERS: {result.headers}")
+        logger.debug("LOGIN HEADERS: %s" % result.headers)
 
         if "Location" not in result.headers:
             raise SmartmeterLoginError("Login failed. Check username/password.")
@@ -169,7 +169,7 @@ class Smartmeter:
         if query:
             url += ("?" if "?" not in endpoint else "&") + parse.urlencode(query)
 
-        logger.debug(f"REQUEST: {url}")
+        logger.debug("REQUEST: %s" % url)
 
         headers = {
             "Authorization": f"Bearer {self._access_token}",
@@ -185,7 +185,7 @@ class Smartmeter:
             headers.update(extra_headers)
 
         if data:
-            logger.debug(f"DATA: {data}")
+            logger.debug("DATA: %s" % data)
             headers["Content-Type"] = "application/json"
 
         response = self.session.request(
