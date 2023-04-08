@@ -116,8 +116,7 @@ def test_zaehlpunkte(requests_mock: Mocker):
     expect_login(requests_mock)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt()), disabled(zaehlpunkt())])
 
-    smartmeter().login()
-    zps = smartmeter().zaehlpunkte()
+    zps = smartmeter().login().zaehlpunkte()
     assert 2 == len(zps[0]['zaehlpunkte'])
     assert zps[0]['zaehlpunkte'][0]['isActive']
     assert not zps[0]['zaehlpunkte'][1]['isActive']

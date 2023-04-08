@@ -1,5 +1,6 @@
 """Contains the Smartmeter API Client."""
 import logging
+import pprint
 from datetime import datetime, timedelta, date
 from urllib import parse
 
@@ -32,8 +33,9 @@ class Smartmeter:
         self._access_token = None
         self._refresh_token = None
         self._api_gateway_token = None
-        self._access_token_valid = None
-        self._refresh_token_valid = None
+        self._access_token_expiration = None
+        self._refresh_token_expiration = None
+        self._api_gateway_b2b_token = None
 
     def login(self):
         """
@@ -98,18 +100,20 @@ class Smartmeter:
         self._access_token = res_json["access_token"]
         self._refresh_token = res_json["refresh_token"] # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
 
-        self._access_token_valid = datetime.now() + timedelta(seconds=res_json['expires_in'])
-        self._refresh_token_valid = datetime.now() + timedelta(seconds=res_json['refresh_expires_in'])
+        now = datetime.now()
+        self._access_token_expiration = now + timedelta(seconds=res_json['expires_in'])
+        self._refresh_token_expiration = now + timedelta(seconds=res_json['refresh_expires_in'])
 
-        logger.debug(f"Access Token valid until {self._access_token_valid}")
+        logger.debug("Access Token valid until %s" % self._access_token_expiration)
 
         self._api_gateway_token, self._api_gateway_b2b_token = self._get_api_key(self._access_token)
+        return self
 
     def _get_api_key(self, token):
         key_b2c = None
         key_b2b = None
 
-        if datetime.now() >= self._access_token_valid:
+        if datetime.now() >= self._access_token_expiration:
             raise SmartmeterConnectionError("Access Token is not valid anymore, please re-log!")
 
         headers = {"Authorization": f"Bearer {token}"}
@@ -155,7 +159,7 @@ class Smartmeter:
         timeout=60.0,
         extra_headers=None,
     ):
-        if datetime.now() >= self._access_token_valid:
+        if datetime.now() >= self._access_token_expiration:
             raise SmartmeterConnectionError("Access Token is not valid anymore, please re-log!")
 
         if base_url is None:
@@ -225,7 +229,7 @@ class Smartmeter:
             date_to (datetime, optional): End date for energy usage request.
                 Defaults to datetime.now().
             zaehlpunkt (str, optional): Id for desired smartmeter.
-                If None check for first meter in user profile.
+                If None, check for first meter in user profile.
 
         Returns:
             dict: JSON response of api call to
@@ -249,7 +253,7 @@ class Smartmeter:
         Args:
             date_from (datetime.datetime): Starting date for energy usage request
             zaehlpunkt (str, optional): Id for desired smartmeter.
-                If None check for first meter in user profile.
+                If None, check for first meter in user profile.
             resolution (const.Resolution, optinal): Specify either 1h or 15min resolution
 
         Returns:
@@ -323,7 +327,7 @@ class Smartmeter:
 
         Args:
             zaehlpunkt (str): Id for desired smartmeter.
-                If None check for first meter in user profile
+                If None, check for first meter in user profile
             name (str): Event name
             date_from (datetime.datetime): (Starting) date for request
             date_to (datetime.datetime, optional): Ending date for request.
