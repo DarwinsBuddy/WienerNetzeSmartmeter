@@ -41,8 +41,9 @@ jobs:
       - name: Test with pytest
         run: |
           . ./.venv/bin/activate
-          pytest --cov=wnsm tests --cov-report html --cov-report term
+          pytest --cov=wnsm tests --cov-report html --cov-report xml --cov-report term
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: false
+          files: coverage.xml

@@ -7,8 +7,8 @@ coverage:
     project:
       default: # This can be anything, but it needs to exist as the name
         # basic settings
-        target: auto
-        threshold: 5%
+        target: 80%
+        threshold: 1%
         base: auto
 ignore:
   - "custom_components/wnsm/translations"
