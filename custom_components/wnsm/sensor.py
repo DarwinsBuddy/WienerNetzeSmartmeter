@@ -189,7 +189,7 @@ class SmartmeterSensor(SensorEntity):
         if "Exception" in response:
             raise RuntimeError("Cannot access /consumptions: ", response)
         return translate_dict(response, ATTRS_CONSUMPTIONS_CALL)
-   
+
     async def get_meter_readings(self, smartmeter: Smartmeter) -> dict[str, any]:
         """
         asynchronously get and parse /meterReadings response

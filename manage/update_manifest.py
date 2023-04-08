@@ -23,4 +23,5 @@ def update_manifest():
     ) as manifestfile:
         manifestfile.write(json.dumps(manifest, indent=4, sort_keys=True))
 
+
 update_manifest()
