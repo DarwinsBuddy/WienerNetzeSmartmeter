@@ -20,6 +20,7 @@ from .const import (
     ATTRS_METERREADINGS_CALL,
     ATTRS_ZAEHLPUNKTE_CALL,
     ATTRS_VERBRAUCH_CALL,
+    ATTRS_HISTORIC_DATA,
 )
 from .utils import translate_dict
 
@@ -111,6 +112,17 @@ class BaseSensor(SensorEntity, ABC):
             raise RuntimeError(f"Cannot access daily consumption: {response}")
 
         return translate_dict(response, ATTRS_VERBRAUCH_CALL)
+
+    async def get_historic_data(self, smartmeter: Smartmeter):
+        """Return three years of historic quarter-hourly data"""
+        response = await self.hass.async_add_executor_job(
+            smartmeter.historical_data, self.zaehlpunkt,
+        )
+        if "Exception" in response:
+            raise RuntimeError(f"Cannot access historic data: {response}")
+
+        return translate_dict(response, ATTRS_HISTORIC_DATA)
+
 
     async def get_base_information(self, smartmeter: Smartmeter) -> dict[str, str]:
         """

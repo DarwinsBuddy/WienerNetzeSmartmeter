@@ -17,6 +17,8 @@ from homeassistant.components.recorder.statistics import (
 from decimal import Decimal
 from homeassistant.util import dt as dt_util
 from datetime import timedelta, timezone, datetime
+from operator import itemgetter
+from collections import defaultdict
 
 _LOGGER = logging.getLogger(__name__)
 class StatisticsSensor(BaseSensor, SensorEntity):
@@ -64,13 +66,11 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         )
         _LOGGER.debug(f"Last inserted stat: {last_inserted_stat}")
 
+        init_meter = False
+
         if len(last_inserted_stat) == 0 or len(last_inserted_stat[self._id]) == 0:
             # No previous data - start from scratch
-            _sum = Decimal(0)
-            # Select as start date two days before the current day.
-            # Could be increased to load a lot of historical data, but we do not want to
-            # strain the API...
-            start = today(timezone.utc) - timedelta(hours=48)
+            init_meter = True
         elif len(last_inserted_stat) == 1 and len(last_inserted_stat[self._id]) == 1:
             # Previous data found in the statistics table
             _sum = Decimal(last_inserted_stat[self._id][0]["sum"])
@@ -120,12 +120,60 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                 self._available = True
 
             # Collect hourly data
-            await self._import_statistics(smartmeter, start, _sum)
+            if init_meter:
+                _LOGGER.warning("Starting import of historical data. This might take some time.")
+                await self._import_historical_data(smartmeter)
+            else:
+                await self._import_statistics(smartmeter, start, _sum)
 
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except RuntimeError:
             self._available = False
             _LOGGER.exception("Error retrieving data from smart meter api")
+
+    async def _import_historical_data(self, smartmeter: Smartmeter):
+        """Initialize the statistics by fetching three years of data"""
+        recording = await self.get_historic_data(smartmeter)
+
+        factor = 1.0
+        if recording['unitOfMeasurement'] == 'WH':
+            factor = 1e-3
+        else:
+            raise NotImplementedError(f'Unit {recording["unitOfMeasurement"]}" is not yet implemented. Please report!')
+
+        dates = defaultdict(Decimal)
+
+        for value in recording['values']:
+            reading = Decimal(value['messwert'] * factor)
+            ts = dt_util.parse_datetime(value['zeitVon'])
+            ts_to = dt_util.parse_datetime(value['zeitBis'])
+            qual = value['qualitaet']
+            if qual != 'VAL':
+                _LOGGER.warning(f"Historic data with different quality than 'VAL' detected: {value}")
+            if ts.minute % 15 != 0 or ts.second != 0 or ts.microsecond != 0:
+                _LOGGER.warning(f"Unexpected time detected in historic data: {value}")
+            if (ts_to - ts) != timedelta(minutes=15):
+                _LOGGER.warning(f"Unexpected time step detected in historic data: {value}")
+            dates[ts.replace(minute=0)] += reading
+
+        statistics = []
+        metadata = StatisticMetaData(
+            source="recorder",
+            statistic_id=self._id,
+            name=self.name,
+            unit_of_measurement=self._attr_unit_of_measurement,
+            has_mean=False,
+            has_sum=True,
+        )
+        _LOGGER.debug(metadata)
+
+        total_usage = Decimal(0)
+        for ts, usage in sorted(dates.items(), key=itemgetter(0)):
+            total_usage += usage
+            statistics.append(StatisticData(start=ts, sum=total_usage, state=usage))
+
+        _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
+        async_import_statistics(self.hass, metadata, statistics)
 
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, total_usage: Decimal):
         """Import hourly consumption data into the statistics module, using start date and sum"""

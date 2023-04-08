@@ -1,14 +1,17 @@
 """Contains the Smartmeter API Client."""
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from urllib import parse
 
 import requests
 from lxml import html
 
 from . import constants as const
-from .errors import SmartmeterConnectionError
-from .errors import SmartmeterLoginError
+from .errors import (
+    SmartmeterConnectionError,
+    SmartmeterLoginError,
+    SmartmeterQueryError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +32,8 @@ class Smartmeter:
         self._access_token = None
         self._refresh_token = None
         self._api_gateway_token = None
+        self._access_token_valid = None
+        self._refresh_token_valid = None
 
     def login(self):
         """
@@ -85,11 +90,28 @@ class Smartmeter:
                 f"Could not obtain access token: {result.content}"
             )
 
-        self._access_token = result.json()["access_token"]
-        self._refresh_token = result.json()["refresh_token"] # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
-        self._api_gateway_token = self._get_api_key(self._access_token)
+        logger.debug(f"LOGIN RESULT: {result.json()}")
+        res_json = result.json()
+        if res_json['token_type'] != 'Bearer':
+            raise SmartmeterConnectionError(f'Bearer token required, but got {res_json["token_type"]!r}')
+
+        self._access_token = res_json["access_token"]
+        self._refresh_token = res_json["refresh_token"] # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
+
+        self._access_token_valid = datetime.now() + timedelta(seconds=res_json['expires_in'])
+        self._refresh_token_valid = datetime.now() + timedelta(seconds=res_json['refresh_expires_in'])
+
+        logger.debug(f"Access Token valid until {self._access_token_valid}")
+
+        self._api_gateway_token, self._api_gateway_b2b_token = self._get_api_key(self._access_token)
 
     def _get_api_key(self, token):
+        key_b2c = None
+        key_b2b = None
+
+        if datetime.now() >= self._access_token_valid:
+            raise SmartmeterConnectionError("Access Token is not valid anymore, please re-log!")
+
         headers = {"Authorization": f"Bearer {token}"}
         try:
             result = self.session.get(const.PAGE_URL, headers=headers)
@@ -105,10 +127,18 @@ class Smartmeter:
                     "Could not obtain API Key from scripts"
                 ) from exception
             for match in const.API_GATEWAY_TOKEN_REGEX.findall(response.text):
-                return match
-        raise SmartmeterConnectionError(
-            "Could not obtain API Key - no match"
-        )
+                if not key_b2c:
+                    key_b2c = match
+                    break
+            for match in const.API_GATEWAY_B2B_TOKEN_REGEX.findall(response.text):
+                if not key_b2b:
+                    key_b2b = match
+                    break
+        if key_b2c is None or key_b2b is None:
+            raise SmartmeterConnectionError(
+                "Could not obtain API Key - no match"
+            )
+        return key_b2c, key_b2b
 
     @staticmethod
     def _dt_string(datetime_string):
@@ -123,7 +153,11 @@ class Smartmeter:
         query=None,
         return_response=False,
         timeout=60.0,
+        extra_headers=None,
     ):
+        if datetime.now() >= self._access_token_valid:
+            raise SmartmeterConnectionError("Access Token is not valid anymore, please re-log!")
+
         if base_url is None:
             base_url = const.API_URL
         url = f"{base_url}{endpoint}"
@@ -135,8 +169,16 @@ class Smartmeter:
 
         headers = {
             "Authorization": f"Bearer {self._access_token}",
-            "X-Gateway-APIKey": self._api_gateway_token,
         }
+
+        # For API calls to B2C or B2B, we need to add the Gateway-APIKey:
+        if base_url == const.API_URL:
+            headers['X-Gateway-APIKey'] = self._api_gateway_token
+        elif base_url == const.API_URL_B2B:
+            headers['X-Gateway-APIKey'] = self._api_gateway_b2b_token
+
+        if extra_headers:
+            headers.update(extra_headers)
 
         if data:
             logger.debug(f"DATA: {data}")
@@ -309,3 +351,54 @@ class Smartmeter:
     def delete_ereignis(self, ereignis_id):
         """Deletes ereignis."""
         return self._call_api(f"user/ereignis/{ereignis_id}", method="DELETE")
+
+    def historical_data(
+        self,
+        zaehlpunkt: str = None,
+        date_from: date = None,
+        date_until: date = None,
+        valuetype: const.ValueType = const.ValueType.QUARTER_HOUR,
+    ):
+        """
+        Query historical data in a batch
+
+        If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
+        If date_from is not given but date_until, again a three year span is assumed.
+        """
+        if zaehlpunkt is None:
+            zaehlpunkt = self._get_first_zaehlpunkt()
+
+        if date_until is None:
+            date_until = date.today()
+
+        if date_from is None:
+            date_from  = date_until.replace(year=date_until.year - 3)
+
+        query = {
+            'zaehlpunkt': zaehlpunkt,
+            'datumVon': date_from.strftime('%Y-%m-%d'),
+            'datumBis': date_until.strftime('%Y-%m-%d'),
+            'wertetyp': valuetype.value,
+        }
+
+        extra = {
+            # For this API Call, requesting json is important!
+            "Accept": "application/json"
+        }
+
+        data = self._call_api('zaehlpunkte/messwerte', base_url=const.API_URL_B2B, query=query, extra_headers=extra)
+
+        # Some Sanity Checks...
+        if len(data) != 1 or data[0]['zaehlpunkt'] != zaehlpunkt or len(data[0]['zaehlwerke']) != 1:
+            # TODO: Is it possible to have multiple zaehlwerke in one zaehlpunkt?
+            # I guess so, otherwise it would not be a list...
+            # Probably (my guess), we would see this on the OBIS Code.
+            # The OBIS Code can code for channels, thus we would probably see that there.
+            # Keep that in mind if for someone this fails.
+            logger.debug(f"Returned data: {data}")
+            raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
+        obis_code = data[0]['zaehlwerke'][0]['obisCode']
+        if obis_code[0] != '1':
+            logger.warning(f"The OBIS code of the meter ({obis_code}) reports that this meter does not count electrical energy!")
+        return data[0]['zaehlwerke'][0]
+

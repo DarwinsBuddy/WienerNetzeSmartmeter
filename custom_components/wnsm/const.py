@@ -72,3 +72,11 @@ ATTRS_VERBRAUCH_CALL = [
     ("statistics.maximum", "consumptionMaximum"),
     ("values", "values"),
 ]
+
+ATTRS_HISTORIC_DATA = [
+    ('obisCode', 'obisCode'),
+    ('einheit', 'unitOfMeasurement'),
+    ('messwerte', 'values'),
+]
+ATTRS_HISTORIC_MEASUREMENT = [
+]
