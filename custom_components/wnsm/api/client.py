@@ -1,6 +1,5 @@
 """Contains the Smartmeter API Client."""
 import logging
-import pprint
 from datetime import datetime, timedelta, date
 from urllib import parse
 
@@ -95,7 +94,8 @@ class Smartmeter:
             raise SmartmeterConnectionError(f'Bearer token required, but got {res_json["token_type"]!r}')
 
         self._access_token = res_json["access_token"]
-        self._refresh_token = res_json["refresh_token"] # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
+        # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
+        self._refresh_token = res_json["refresh_token"]
 
         now = datetime.now()
         self._access_token_expiration = now + timedelta(seconds=res_json['expires_in'])
@@ -215,7 +215,7 @@ class Smartmeter:
         return self._call_api("zaehlpunkt/meterReadings")
 
     def verbrauch_raw(
-        self, date_from: datetime, date_to: datetime = None, zaehlpunkt=None
+        self, date_from: datetime, date_to: datetime = None, zaehlpunkt: str | None = None
     ):
         """Returns energy usage.
 
@@ -245,7 +245,7 @@ class Smartmeter:
         }
         return self._call_api(endpoint, query=query)
 
-    def verbrauch(self, date_from: datetime, zaehlpunkt = None, resolution: const.Resolution = const.Resolution.HOUR):
+    def verbrauch(self, date_from: datetime, zaehlpunkt: str | None = None, resolution: const.Resolution = const.Resolution.HOUR):
         """Returns energy usage for 24h after date_to.
 
         Args:
@@ -262,12 +262,12 @@ class Smartmeter:
             zaehlpunkt = self._get_first_zaehlpunkt()
         endpoint = f"messdaten/zaehlpunkt/{zaehlpunkt}/verbrauch"
         query = const.build_verbrauchs_args(
-            dateFrom = self._dt_string(date_from),
-            dayViewResolution = resolution.value,
+            dateFrom=self._dt_string(date_from),
+            dayViewResolution=resolution.value,
         )
         return self._call_api(endpoint, query=query)
 
-    def tages_verbrauch(self, day: datetime, zaehlpunkt = None, resolution: const.Resolution = const.Resolution.QUARTER_HOUR):
+    def tages_verbrauch(self, day: datetime, zaehlpunkt: str | None = None, resolution: const.Resolution = const.Resolution.QUARTER_HOUR):
         """Returns energy usage for the current day.
 
 
@@ -374,7 +374,7 @@ class Smartmeter:
             date_until = date.today()
 
         if date_from is None:
-            date_from  = date_until.replace(year=date_until.year - 3)
+            date_from = date_until.replace(year=date_until.year - 3)
 
         query = {
             'zaehlpunkt': zaehlpunkt,
@@ -403,4 +403,3 @@ class Smartmeter:
         if obis_code[0] != '1':
             logger.warning(f"The OBIS code of the meter ({obis_code}) reports that this meter does not count electrical energy!")
         return data[0]['zaehlwerke'][0]
-

@@ -28,7 +28,6 @@ LOGIN_ARGS = {
 }
 
 
-
 class Resolution(enum.Enum):
     """Possible resolution for consumption data of one day"""
     HOUR = "HOUR"  #: gets consumption data per hour

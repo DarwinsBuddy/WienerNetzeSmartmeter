@@ -1,17 +1,15 @@
 import logging
 from datetime import datetime
 
-from homeassistant.components.sensor import (
-    SensorEntity,
-    ENTITY_ID_FORMAT
-)
-from homeassistant.util import slugify
+from homeassistant.components.sensor import SensorEntity
 
 from .api import Smartmeter
 from .base_sensor import BaseSensor
 from .utils import before, today
 
 _LOGGER = logging.getLogger(__name__)
+
+
 class LiveSensor(BaseSensor, SensorEntity):
     """
     Representation of a Wiener Smartmeter sensor

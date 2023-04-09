@@ -1,5 +1,5 @@
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 from datetime import datetime
 
 from typing import Any, Optional
@@ -25,6 +25,7 @@ from .const import (
 from .utils import translate_dict
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class BaseSensor(SensorEntity, ABC):
     """
@@ -59,9 +60,11 @@ class BaseSensor(SensorEntity, ABC):
     @property
     def _id(self):
         return ENTITY_ID_FORMAT.format(slugify(self._name).lower())
+
     @property
     def icon(self) -> str:
         return self._attr_icon
+
     @property
     def name(self) -> str:
         """Return the name of the entity."""
@@ -123,7 +126,6 @@ class BaseSensor(SensorEntity, ABC):
 
         return translate_dict(response, ATTRS_HISTORIC_DATA)
 
-
     async def get_base_information(self, smartmeter: Smartmeter) -> dict[str, str]:
         """
         asynchronously get and parse /baseInformation response
@@ -160,10 +162,10 @@ class BaseSensor(SensorEntity, ABC):
         returns active status of smartmeter, according to zaehlpunkt response
         """
         return (
-                not ("active" in zaehlpunkt_response) or zaehlpunkt_response["active"]
+            not ("active" in zaehlpunkt_response) or zaehlpunkt_response["active"]
         ) or (
-                not ("smartMeterReady" in zaehlpunkt_response)
-                or zaehlpunkt_response["smartMeterReady"]
+            not ("smartMeterReady" in zaehlpunkt_response)
+            or zaehlpunkt_response["smartMeterReady"]
         )
 
     async def async_update(self):

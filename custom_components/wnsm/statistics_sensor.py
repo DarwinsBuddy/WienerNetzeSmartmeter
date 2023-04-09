@@ -5,7 +5,6 @@ from homeassistant.components.sensor import SensorEntity
 
 from .api import Smartmeter
 from .base_sensor import BaseSensor
-from .utils import today
 
 from homeassistant.components.recorder.models import (
     StatisticData,
@@ -21,6 +20,8 @@ from operator import itemgetter
 from collections import defaultdict
 
 _LOGGER = logging.getLogger(__name__)
+
+
 class StatisticsSensor(BaseSensor, SensorEntity):
     def __init__(self, username: str, password: str, zaehlpunkt: str) -> None:
         super().__init__(username, password, zaehlpunkt)
