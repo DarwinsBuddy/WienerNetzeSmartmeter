@@ -1,0 +1,28 @@
+codecov:
+  token: ${{secrets.CODECOV_TOKEN}}
+  require_ci_to_pass: true
+  max_report_age: false
+coverage:
+  status:
+    project:
+      default: # This can be anything, but it needs to exist as the name
+        # basic settings
+        target: 80%
+        threshold: 1%
+        base: auto
+ignore:
+  - "custom_components/wnsm/translations"
+component_management:
+  default_rules: # default rules that will be inherited by all components
+    statuses:
+      - type: project # in this case every component that doesn't have a status defined will have a project type one
+        target: auto
+  individual_components:
+    - component_id: module_api
+      name: api  # this is a display name, and can be changed freely
+      paths:
+        - "custom_components/wnsm/api/**"
+    - component_id: module_integration
+      name: integration  # this is a display name, and can be changed freely
+      paths:
+        - "custom_components/wnsm/[^/api/].*"

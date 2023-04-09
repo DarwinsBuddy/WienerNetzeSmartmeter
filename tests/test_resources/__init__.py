@@ -24,4 +24,3 @@ def json_matcher(expected: dict = None):
         return request.json() == expected
 
     return match
-
