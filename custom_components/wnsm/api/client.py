@@ -64,8 +64,6 @@ class Smartmeter:
         except Exception as exception:
             raise SmartmeterConnectionError("Could not login with credentials") from exception
 
-        logger.debug(f"LOGIN HEADERS: {result.headers}")
-
         if "Location" not in result.headers:
             raise SmartmeterLoginError("Login failed. Check username/password.")
         location = result.headers["Location"]
@@ -92,7 +90,6 @@ class Smartmeter:
                 f"Could not obtain access token: {result.content}"
             )
 
-        logger.debug(f"LOGIN RESULT: {result.json()}")
         res_json = result.json()
         if res_json['token_type'] != 'Bearer':
             raise SmartmeterConnectionError(f'Bearer token required, but got {res_json["token_type"]!r}')
