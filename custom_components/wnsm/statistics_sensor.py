@@ -64,7 +64,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             # XXX: since HA core 2022.12 need to specify this:
             {"sum", "state"},  # the fields we want to query (state might be used in the future)
         )
-        _LOGGER.debug(f"Last inserted stat: {last_inserted_stat}")
+        _LOGGER.debug("Last inserted stat: %s" % last_inserted_stat)
 
         init_meter = False
 
@@ -99,7 +99,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             delta_t = datetime.now(timezone.utc).replace(microsecond=0) - start.replace(microsecond=0)
             if delta_t <= min_wait:
                 _LOGGER.debug(
-                    f"Not querying the API, because last update is not older than 24 hours. Earliest update in {min_wait - delta_t}")
+                    "Not querying the API, because last update is not older than 24 hours. Earliest update in %s" % (min_wait - delta_t))
                 return
 
         else:
@@ -114,7 +114,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
 
             if not self.is_active(zaehlpunkt):
                 self._available = False
-                _LOGGER.debug(f"Smartmeter {zaehlpunkt} is not active")
+                _LOGGER.debug("Smartmeter %s is not active" % zaehlpunkt)
                 return
             else:
                 self._available = True
@@ -127,9 +127,12 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                 await self._import_statistics(smartmeter, start, _sum)
 
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-        except RuntimeError:
+        except TimeoutError as e:
             self._available = False
-            _LOGGER.exception("Error retrieving data from smart meter api")
+            _LOGGER.warning("Error retrieving data from smart meter api - Timeout: %s" % e)
+        except RuntimeError as e:
+            self._available = False
+            _LOGGER.exception("Error retrieving data from smart meter api - Error: %s" % e)
 
     async def _import_historical_data(self, smartmeter: Smartmeter):
         """Initialize the statistics by fetching three years of data"""
@@ -197,9 +200,9 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         _LOGGER.debug(metadata)
 
         now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-        _LOGGER.debug(f"Selecting data up to {now}")
+        _LOGGER.debug("Selecting data up to %s" % now)
         while start < now:
-            _LOGGER.debug(f"Select 24h of Data, using sum={total_usage:.3f}, start={start}")
+            _LOGGER.debug("Select 24h of Data, using sum=%.3f, start=%s" % total_usage, start)
             consumption = await self.get_consumption(smartmeter, start)
             _LOGGER.debug(consumption)
             last_ts = start
