@@ -15,10 +15,12 @@ from wnsm import api # noqa: E402
 PAGE_URL = "https://smartmeter-web.wienernetze.at/"
 API_URL_ALT = "https://service.wienernetze.at/sm/api/"
 API_URL = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2C/1.0/"
+API_URL_B2B = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/1.0/"
 REDIRECT_URI = "https://smartmeter-web.wienernetze.at/"
 API_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 AUTH_URL = "https://log.wien/auth/realms/logwien/protocol/openid-connect"  # noqa
 B2C_API_KEY = "afb0be74-6455-44f5-a34d-6994223020ba"
+B2B_API_KEY = "93d5d520-7cc8-11eb-99bc-ba811041b5f6"
 LOGIN_ARGS = {
     "client_id": "wn-smartmeter",
     "redirect_uri": REDIRECT_URI,
@@ -127,6 +129,28 @@ def zaehlpunkt_response(zps=None):
             "bezeichnung": "Margit Musterfrau, Kundennummer 1234567890",
             "geschaeftspartner": "1234567890",
             "zaehlpunkte": zps or []
+        }
+    ]
+
+
+def history_response(zp: str):
+    return [
+        {
+            "zaehlpunkt": zp,
+            "zaehlwerke": [
+                {
+                    "obisCode": "1-1:1.9.0",
+                    "einheit": "WH",
+                    "messwerte": [
+                        {
+                            "messwert": 42.0,
+                            "zeitVon": "2023-04-01T22:00:00.000Z",
+                            "zeitBis": "2023-04-01T22:15:00.000Z",
+                            "qualitaet": "VAL",
+                        }
+                    ]
+                }
+            ]
         }
     ]
 
@@ -280,3 +304,14 @@ def expect_zaehlpunkte(requests_mock: Mocker, zps: list[dict]):
                           "X-Gateway-APIKey": B2C_API_KEY,
                       },
                       json=zaehlpunkt_response(zps))
+
+
+@pytest.mark.usefixtures("requests_mock")
+def expect_history(requests_mock: Mocker, zp: str):
+    requests_mock.get(API_URL_B2B + 'zaehlpunkte/messwerte',
+                      headers={
+                          "Authorization": f"Bearer {ACCESS_TOKEN}",
+                          "X-Gateway-APIKey": B2B_API_KEY,
+                          "Accept": "application/json"
+                      },
+                      json=history_response(zp))

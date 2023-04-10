@@ -3,8 +3,21 @@ import pytest
 import time
 from requests_mock import Mocker
 
-from it import expect_login, smartmeter, expect_zaehlpunkte, zaehlpunkt, enabled, disabled, mock_login_page, \
-    mock_authenticate, PASSWORD, USERNAME, mock_token, mock_get_api_key
+from it import (
+    expect_login,
+    smartmeter,
+    expect_zaehlpunkte,
+    zaehlpunkt,
+    enabled,
+    disabled,
+    mock_login_page,
+    mock_authenticate,
+    PASSWORD,
+    USERNAME,
+    mock_token,
+    mock_get_api_key,
+    expect_history,
+)
 from wnsm.api.errors import SmartmeterConnectionError, SmartmeterLoginError
 
 
@@ -144,3 +157,15 @@ def test_zaehlpunkte(requests_mock: Mocker):
     assert 2 == len(zps[0]['zaehlpunkte'])
     assert zps[0]['zaehlpunkte'][0]['isActive']
     assert not zps[0]['zaehlpunkte'][1]['isActive']
+
+
+@pytest.mark.usefixtures("requests_mock")
+def test_history(requests_mock: Mocker):
+    expect_login(requests_mock)
+    expect_history(requests_mock, enabled(zaehlpunkt())['zaehlpunktnummer'])
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+
+    hist = smartmeter().login().historical_data()
+
+    assert 1 == len(hist['messwerte'])
+    assert 'WH' == hist['einheit']
