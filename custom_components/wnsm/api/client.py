@@ -102,7 +102,7 @@ class Smartmeter:
             )
         tokens = result.json()
         if tokens['token_type'] != 'Bearer':
-            raise SmartmeterLoginError(f'Bearer token required, but got {res_json["token_type"]!r}')
+            raise SmartmeterLoginError(f'Bearer token required, but got {tokens["token_type"]!r}')
         return tokens
 
     def login(self):
