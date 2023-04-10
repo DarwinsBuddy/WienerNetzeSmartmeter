@@ -183,7 +183,6 @@ class Smartmeter:
             headers.update(extra_headers)
 
         if data:
-            logger.debug("DATA: %s" % data)
             headers["Content-Type"] = "application/json"
 
         response = self.session.request(
