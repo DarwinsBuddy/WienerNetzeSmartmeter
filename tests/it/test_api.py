@@ -1,5 +1,6 @@
 """API tests"""
 import pytest
+import time
 from requests_mock import Mocker
 
 from it import expect_login, smartmeter, expect_zaehlpunkte, zaehlpunkt, enabled, disabled, mock_login_page, \
@@ -47,6 +48,16 @@ def test_unsuccessful_login_failing_on_credentials_login(requests_mock):
     with pytest.raises(SmartmeterLoginError) as exc_info:
         smartmeter(username=USERNAME, password="WrongPassword").login()
     assert 'Login failed. Check username/password.' in str(exc_info.value)
+
+
+@pytest.mark.usefixtures("requests_mock")
+def test_unsuccessful_login_failing_on_non_bearer_token(requests_mock):
+    mock_login_page(requests_mock)
+    mock_authenticate(requests_mock, USERNAME, PASSWORD)
+    mock_token(requests_mock, token_type="IAmNotABearerToken")
+    with pytest.raises(SmartmeterLoginError) as exc_info:
+        smartmeter(username=USERNAME, password=PASSWORD).login()
+    assert 'Bearer token required' in str(exc_info.value)
 
 
 @pytest.mark.usefixtures("requests_mock")
@@ -109,6 +120,19 @@ def test_unsuccessful_login_failing_on_invalid_script_while_get_main_js_on_get_a
     with pytest.raises(SmartmeterConnectionError) as exc_info:
         smartmeter().login()
     assert 'Could not obtain API Key - no match' == str(exc_info.value)
+
+
+@pytest.mark.usefixtures("requests_mock")
+def test_access_key_expired(requests_mock):
+    mock_login_page(requests_mock)
+    mock_authenticate(requests_mock, USERNAME, PASSWORD)
+    mock_token(requests_mock, expires=1)
+    mock_get_api_key(requests_mock)
+    sm = smartmeter(username=USERNAME, password=PASSWORD).login()
+    time.sleep(2)
+    with pytest.raises(SmartmeterConnectionError) as exc_info:
+        sm._access_valid_or_raise()
+    assert 'Access Token is not valid anymore' in str(exc_info.value)
 
 
 @pytest.mark.usefixtures("requests_mock")

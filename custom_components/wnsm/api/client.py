@@ -91,7 +91,7 @@ class Smartmeter:
 
         res_json = result.json()
         if res_json['token_type'] != 'Bearer':
-            raise SmartmeterConnectionError(f'Bearer token required, but got {res_json["token_type"]!r}')
+            raise SmartmeterLoginError(f'Bearer token required, but got {res_json["token_type"]!r}')
 
         self._access_token = res_json["access_token"]
         # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API

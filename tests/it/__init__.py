@@ -183,13 +183,15 @@ def mock_get_api_key(requests_mock: Mocker, bearer_token: str = ACCESS_TOKEN,
 
 @pytest.mark.usefixtures("requests_mock")
 def mock_token(requests_mock: Mocker, code=RESPONSE_CODE, access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN,
-               id_token=ID_TOKEN, status: int | None = 200):
+               id_token=ID_TOKEN, status: int | None = 200,
+               expires: int = 300,
+               token_type: str = "Bearer"):
     response = {
         "access_token": access_token,
-        "expires_in": 300,
-        "refresh_expires_in": 1800,
+        "expires_in": expires,
+        "refresh_expires_in": 6 * expires,
         "refresh_token": refresh_token,
-        "token_type": "Bearer",
+        "token_type": token_type,
         "id_token": id_token,
         "not-before-policy": 0,
         "session_state": "949e0f0d-b447-4208-bfef-273d694dc633",
