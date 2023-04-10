@@ -203,7 +203,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
         _LOGGER.debug("Selecting data up to %s" % now)
         while start < now:
-            _LOGGER.debug("Select 24h of Data, using sum=%.3f, start=%s" % total_usage, start)
+            _LOGGER.debug("Select 24h of Data, using sum=%.3f, start=%s" % (total_usage, start))
             consumption = await self.get_consumption(smartmeter, start)
             _LOGGER.debug(consumption)
             last_ts = start

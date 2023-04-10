@@ -1,7 +1,7 @@
 """
 WienerNetze Smartmeter sensor platform
 """
-import collections
+import collections.abc
 from datetime import timedelta
 from typing import Optional
 

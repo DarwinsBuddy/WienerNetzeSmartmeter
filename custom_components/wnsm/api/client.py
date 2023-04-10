@@ -36,9 +36,9 @@ class Smartmeter:
         self._refresh_token_expiration = None
         self._api_gateway_b2b_token = None
 
-    def login(self):
+    def load_login_page(self):
         """
-        login with credentials specified in ctor
+        loads login page and extracts encoded login url
         """
         login_url = const.AUTH_URL + "auth?" + parse.urlencode(const.LOGIN_ARGS)
         try:
@@ -51,9 +51,15 @@ class Smartmeter:
             )
         tree = html.fromstring(result.content)
         action = tree.xpath("(//form/@action)")[0]
+        return action
+
+    def credentials_login(self, url):
+        """
+        login with credentials provided the login url
+        """
         try:
             result = self.session.post(
-                action,
+                url,
                 data={
                     "username": self.username,
                     "password": self.password,
@@ -72,8 +78,14 @@ class Smartmeter:
         fragment_dict = dict([x.split("=") for x in parsed_url.fragment.split("&") if len(x.split("=")) == 2])
         if 'code' in fragment_dict:
             code = fragment_dict['code']
+            return code
         else:
             raise SmartmeterLoginError("Login failed. Could not extract 'code' from 'Location'")
+
+    def load_tokens(self, code):
+        """
+        Provided the totp code loads access and refresh token
+        """
         try:
             result = self.session.post(
                 const.AUTH_URL + "token",
@@ -88,18 +100,25 @@ class Smartmeter:
             raise SmartmeterConnectionError(
                 f"Could not obtain access token: {result.content}"
             )
-
-        res_json = result.json()
-        if res_json['token_type'] != 'Bearer':
+        tokens = result.json()
+        if tokens['token_type'] != 'Bearer':
             raise SmartmeterLoginError(f'Bearer token required, but got {res_json["token_type"]!r}')
+        return tokens
 
-        self._access_token = res_json["access_token"]
+    def login(self):
+        """
+        login with credentials specified in ctor
+        """
+        url = self.load_login_page()
+        code = self.credentials_login(url)
+        tokens = self.load_tokens(code)
+
+        self._access_token = tokens["access_token"]
         # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
-        self._refresh_token = res_json["refresh_token"]
-
+        self._refresh_token = tokens["refresh_token"]
         now = datetime.now()
-        self._access_token_expiration = now + timedelta(seconds=res_json['expires_in'])
-        self._refresh_token_expiration = now + timedelta(seconds=res_json['refresh_expires_in'])
+        self._access_token_expiration = now + timedelta(seconds=tokens['expires_in'])
+        self._refresh_token_expiration = now + timedelta(seconds=tokens['refresh_expires_in'])
 
         logger.debug("Access Token valid until %s" % self._access_token_expiration)
 
