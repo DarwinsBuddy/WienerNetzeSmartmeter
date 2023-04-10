@@ -106,12 +106,17 @@ class Smartmeter:
         self._api_gateway_token, self._api_gateway_b2b_token = self._get_api_key(self._access_token)
         return self
 
+    def _access_valid_or_raise(self):
+        """Checks if the access token is still valid or raises an exception"""
+        if datetime.now() >= self._access_token_expiration:
+            # TODO: If the refresh token is still valid, it could be refreshed here
+            raise SmartmeterConnectionError("Access Token is not valid anymore, please re-log!")
+
     def _get_api_key(self, token):
         key_b2c = None
         key_b2b = None
 
-        if datetime.now() >= self._access_token_expiration:
-            raise SmartmeterConnectionError("Access Token is not valid anymore, please re-log!")
+        self._access_valid_or_raise()
 
         headers = {"Authorization": f"Bearer {token}"}
         try:
@@ -157,8 +162,7 @@ class Smartmeter:
         timeout=60.0,
         extra_headers=None,
     ):
-        if datetime.now() >= self._access_token_expiration:
-            raise SmartmeterConnectionError("Access Token is not valid anymore, please re-log!")
+        self._access_valid_or_raise()
 
         if base_url is None:
             base_url = const.API_URL
