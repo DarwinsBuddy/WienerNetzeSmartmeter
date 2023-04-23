@@ -19,7 +19,7 @@ jobs:
         uses: actions/cache@v3
         id: cache-venv  # name for referring later
         with:
-          path: ./.venv/  # what we cache: the virtualenv
+          path: .venv/  # what we cache: the virtualenv
           # The cache key depends on requirements.txt
           key: ${{ runner.os }}-${{ matrix.python-version }}-venv-${{ hashFiles('tests/requirements*.txt') }}
           restore-keys: |
@@ -27,8 +27,8 @@ jobs:
           # Build a virtualenv, but only if it doesn't already exist
       - name: Install dependencies (if changed)
         run: |
-          python -m venv ./.venv
-          . ./.venv/bin/activate 
+          python -m venv .venv
+          . .venv/bin/activate 
           pip install -r tests/requirements.txt
         if: steps.cache-venv.outputs.cache-hit != 'true'
       - name: Lint with flake8
@@ -40,7 +40,7 @@ jobs:
           flake8 custom_components/wnsm --count --exit-zero --max-complexity=10 --statistics --config tests/setup.cfg
       - name: Test with pytest
         run: |
-          . ./.venv/bin/activate
+          . .venv/bin/activate
           pytest --cov=wnsm tests --cov-report html --cov-report xml --cov-report term
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
