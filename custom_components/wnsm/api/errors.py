@@ -25,3 +25,7 @@ class SmartmeterLoginError(SmartmeterError):
 
 class SmartmeterConnectionError(SmartmeterError):
     """Raised due to network connectivity-related issues."""
+
+
+class SmartmeterQueryError(SmartmeterError):
+    """Raised if query went not as expected."""

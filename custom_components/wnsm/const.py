@@ -64,3 +64,19 @@ ATTRS_METERREADINGS_CALL = [
     ("meterReadings.0.validated", "lastValidated"),
     ("meterReadings.0.type", "lastType")
 ]
+
+ATTRS_VERBRAUCH_CALL = [
+    ("quarter-hour-opt-in", "optIn"),
+    ("statistics.average", "consumptionAverage"),
+    ("statistics.minimum", "consumptionMinimum"),
+    ("statistics.maximum", "consumptionMaximum"),
+    ("values", "values"),
+]
+
+ATTRS_HISTORIC_DATA = [
+    ('obisCode', 'obisCode'),
+    ('einheit', 'unitOfMeasurement'),
+    ('messwerte', 'values'),
+]
+ATTRS_HISTORIC_MEASUREMENT = [
+]

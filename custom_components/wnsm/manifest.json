@@ -5,12 +5,15 @@
         "@DarwinsBuddy"
     ],
     "config_flow": true,
-    "dependencies": [],
+    "dependencies": [
+        "recorder"
+    ],
     "documentation": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter",
     "iot_class": "calculated",
     "issue_tracker": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter/issues",
     "requirements": [
-        "lxml"
+        "lxml",
+        "requests"
     ],
     "version": "1.0.1"
 }

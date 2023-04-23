@@ -15,10 +15,12 @@ from wnsm import api # noqa: E402
 PAGE_URL = "https://smartmeter-web.wienernetze.at/"
 API_URL_ALT = "https://service.wienernetze.at/sm/api/"
 API_URL = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2C/1.0/"
+API_URL_B2B = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/1.0/"
 REDIRECT_URI = "https://smartmeter-web.wienernetze.at/"
 API_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 AUTH_URL = "https://log.wien/auth/realms/logwien/protocol/openid-connect"  # noqa
 B2C_API_KEY = "afb0be74-6455-44f5-a34d-6994223020ba"
+B2B_API_KEY = "93d5d520-7cc8-11eb-99bc-ba811041b5f6"
 LOGIN_ARGS = {
     "client_id": "wn-smartmeter",
     "redirect_uri": REDIRECT_URI,
@@ -131,6 +133,28 @@ def zaehlpunkt_response(zps=None):
     ]
 
 
+def history_response(zp: str):
+    return [
+        {
+            "zaehlpunkt": zp,
+            "zaehlwerke": [
+                {
+                    "obisCode": "1-1:1.9.0",
+                    "einheit": "WH",
+                    "messwerte": [
+                        {
+                            "messwert": 42.0,
+                            "zeitVon": "2023-04-01T22:00:00.000Z",
+                            "zeitBis": "2023-04-01T22:15:00.000Z",
+                            "qualitaet": "VAL",
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+
+
 def smartmeter(username=USERNAME, password=PASSWORD):
     return api.client.Smartmeter(username=username, password=password)
 
@@ -183,13 +207,15 @@ def mock_get_api_key(requests_mock: Mocker, bearer_token: str = ACCESS_TOKEN,
 
 @pytest.mark.usefixtures("requests_mock")
 def mock_token(requests_mock: Mocker, code=RESPONSE_CODE, access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN,
-               id_token=ID_TOKEN, status: int | None = 200):
+               id_token=ID_TOKEN, status: int | None = 200,
+               expires: int = 300,
+               token_type: str = "Bearer"):
     response = {
         "access_token": access_token,
-        "expires_in": 300,
-        "refresh_expires_in": 1800,
+        "expires_in": expires,
+        "refresh_expires_in": 6 * expires,
         "refresh_token": refresh_token,
-        "token_type": "Bearer",
+        "token_type": token_type,
         "id_token": id_token,
         "not-before-policy": 0,
         "session_state": "949e0f0d-b447-4208-bfef-273d694dc633",
@@ -278,3 +304,14 @@ def expect_zaehlpunkte(requests_mock: Mocker, zps: list[dict]):
                           "X-Gateway-APIKey": B2C_API_KEY,
                       },
                       json=zaehlpunkt_response(zps))
+
+
+@pytest.mark.usefixtures("requests_mock")
+def expect_history(requests_mock: Mocker, zp: str):
+    requests_mock.get(API_URL_B2B + 'zaehlpunkte/messwerte',
+                      headers={
+                          "Authorization": f"Bearer {ACCESS_TOKEN}",
+                          "X-Gateway-APIKey": B2B_API_KEY,
+                          "Accept": "application/json"
+                      },
+                      json=history_response(zp))

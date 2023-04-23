@@ -3,15 +3,15 @@ Utility functions and convenience methods to avoid boilerplate
 """
 from __future__ import annotations
 from functools import reduce
-from datetime import datetime, timedelta
+from datetime import timezone, timedelta, datetime
 import logging
 
 
-def today() -> datetime:
+def today(tz: None | timezone = None) -> datetime:
     """
     today's timestamp (start of day)
     """
-    return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    return datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def before(timestamp=None, days=1) -> datetime:
