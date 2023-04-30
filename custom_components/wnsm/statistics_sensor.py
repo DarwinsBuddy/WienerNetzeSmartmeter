@@ -1,7 +1,7 @@
 import logging
 
 from homeassistant.components.recorder import get_instance
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 
 from .api import Smartmeter
 from .base_sensor import BaseSensor
@@ -29,6 +29,10 @@ class StatisticsSensor(BaseSensor, SensorEntity):
     @staticmethod
     def statistics(s: str) -> str:
         return f'{s}_statistics'
+
+    @property
+    def _attr_state_class(self):
+        return SensorStateClass.MEASUREMENT
 
     @property
     def icon(self) -> str:
@@ -126,7 +130,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                 await self._import_historical_data(smartmeter)
             else:
                 await self._import_statistics(smartmeter, start, _sum)
-
+            self._state = 0
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except TimeoutError as e:
             self._available = False
