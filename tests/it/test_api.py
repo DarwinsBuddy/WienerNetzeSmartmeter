@@ -2,11 +2,14 @@
 import pytest
 import time
 from requests_mock import Mocker
+import datetime as dt
 
 from it import (
     expect_login,
+    expect_verbrauch_raw,
     smartmeter,
     expect_zaehlpunkte,
+    verbrauch_raw_response,
     zaehlpunkt,
     enabled,
     disabled,
@@ -169,3 +172,19 @@ def test_history(requests_mock: Mocker):
 
     assert 1 == len(hist['messwerte'])
     assert 'WH' == hist['einheit']
+
+@pytest.mark.usefixtures("requests_mock")
+def test_verbrauch_raw(requests_mock: Mocker):
+
+    dateFrom = dt.datetime(2023, 4, 21, 22, 00, 00)
+    dateTo   = dt.datetime(2023, 5,  1, 21, 59, 59)
+    zp       = "AT000000001234567890"
+    valid_verbrauch_raw_response = verbrauch_raw_response()
+    expect_login(requests_mock)
+    expect_history(requests_mock, enabled(zaehlpunkt())['zaehlpunktnummer'])
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    expect_verbrauch_raw(requests_mock, zp, dateFrom, dateTo, valid_verbrauch_raw_response)
+
+    verbrauch = smartmeter().login().verbrauch_raw(dateFrom, dateTo, zp)
+
+    assert 7 == len(verbrauch['values'])

@@ -67,7 +67,9 @@ class Smartmeter:
                 allow_redirects=False,
             )
         except Exception as exception:
-            raise SmartmeterConnectionError("Could not login with credentials") from exception
+            raise SmartmeterConnectionError(
+                "Could not login with credentials"
+            ) from exception
 
         if "Location" not in result.headers:
             raise SmartmeterLoginError("Login failed. Check username/password.")
@@ -75,12 +77,20 @@ class Smartmeter:
 
         parsed_url = parse.urlparse(location)
 
-        fragment_dict = dict([x.split("=") for x in parsed_url.fragment.split("&") if len(x.split("=")) == 2])
-        if 'code' in fragment_dict:
-            code = fragment_dict['code']
-            return code
-        else:
-            raise SmartmeterLoginError("Login failed. Could not extract 'code' from 'Location'")
+        fragment_dict = dict(
+            [
+                x.split("=")
+                for x in parsed_url.fragment.split("&")
+                if len(x.split("=")) == 2
+            ]
+        )
+        if "code" not in fragment_dict:
+            raise SmartmeterLoginError(
+                "Login failed. Could not extract 'code' from 'Location'"
+            )
+
+        code = fragment_dict["code"]
+        return code
 
     def load_tokens(self, code):
         """
@@ -101,8 +111,10 @@ class Smartmeter:
                 f"Could not obtain access token: {result.content}"
             )
         tokens = result.json()
-        if tokens['token_type'] != 'Bearer':
-            raise SmartmeterLoginError(f'Bearer token required, but got {tokens["token_type"]!r}')
+        if tokens["token_type"] != "Bearer":
+            raise SmartmeterLoginError(
+                f'Bearer token required, but got {tokens["token_type"]!r}'
+            )
         return tokens
 
     def login(self):
@@ -117,19 +129,25 @@ class Smartmeter:
         # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
         self._refresh_token = tokens["refresh_token"]
         now = datetime.now()
-        self._access_token_expiration = now + timedelta(seconds=tokens['expires_in'])
-        self._refresh_token_expiration = now + timedelta(seconds=tokens['refresh_expires_in'])
+        self._access_token_expiration = now + timedelta(seconds=tokens["expires_in"])
+        self._refresh_token_expiration = now + timedelta(
+            seconds=tokens["refresh_expires_in"]
+        )
 
         logger.debug("Access Token valid until %s" % self._access_token_expiration)
 
-        self._api_gateway_token, self._api_gateway_b2b_token = self._get_api_key(self._access_token)
+        self._api_gateway_token, self._api_gateway_b2b_token = self._get_api_key(
+            self._access_token
+        )
         return self
 
     def _access_valid_or_raise(self):
         """Checks if the access token is still valid or raises an exception"""
         if datetime.now() >= self._access_token_expiration:
             # TODO: If the refresh token is still valid, it could be refreshed here
-            raise SmartmeterConnectionError("Access Token is not valid anymore, please re-log!")
+            raise SmartmeterConnectionError(
+                "Access Token is not valid anymore, please re-log!"
+            )
 
     def _get_api_key(self, token):
         key_b2c = None
@@ -147,7 +165,7 @@ class Smartmeter:
 
         # sort the scripts in some order to find the keys faster
         # so far, the script was called main.XXXX.js
-        scripts = sorted(scripts, key=lambda x: 'main' not in x)
+        scripts = sorted(scripts, key=lambda x: "main" not in x)
 
         for script in scripts:
             if key_b2c is not None and key_b2b is not None:
@@ -161,9 +179,7 @@ class Smartmeter:
             key_b2c = const.API_GATEWAY_TOKEN_REGEX.search(response.text)
             key_b2b = const.API_GATEWAY_B2B_TOKEN_REGEX.search(response.text)
         if key_b2c is None or key_b2b is None:
-            raise SmartmeterConnectionError(
-                "Could not obtain API Key - no match"
-            )
+            raise SmartmeterConnectionError("Could not obtain API Key - no match")
         return key_b2c.group(1), key_b2b.group(1)
 
     @staticmethod
@@ -198,9 +214,9 @@ class Smartmeter:
 
         # For API calls to B2C or B2B, we need to add the Gateway-APIKey:
         if base_url == const.API_URL:
-            headers['X-Gateway-APIKey'] = self._api_gateway_token
+            headers["X-Gateway-APIKey"] = self._api_gateway_token
         elif base_url == const.API_URL_B2B:
-            headers['X-Gateway-APIKey'] = self._api_gateway_b2b_token
+            headers["X-Gateway-APIKey"] = self._api_gateway_b2b_token
 
         if extra_headers:
             headers.update(extra_headers)
@@ -237,20 +253,20 @@ class Smartmeter:
         return self._call_api("zaehlpunkt/meterReadings")
 
     def verbrauch_raw(
-        self, date_from: datetime, date_to: datetime = None, zaehlpunkt: str | None = None
+        self,
+        date_from: datetime,
+        date_to: datetime = None,
+        zaehlpunkt: str | None = None,
     ):
         """Returns energy usage.
-
         This can be used to query the daily consumption for a long period of time,
         for example several months or a week.
-
         Args:
             date_from (datetime): Start date for energy usage request
             date_to (datetime, optional): End date for energy usage request.
                 Defaults to datetime.now().
             zaehlpunkt (str, optional): Id for desired smartmeter.
                 If None, check for first meter in user profile.
-
         Returns:
             dict: JSON response of api call to
                 'messdaten/zaehlpunkt/ZAEHLPUNKT/verbrauchRaw'
@@ -267,15 +283,18 @@ class Smartmeter:
         }
         return self._call_api(endpoint, query=query)
 
-    def verbrauch(self, date_from: datetime, zaehlpunkt: str | None = None, resolution: const.Resolution = const.Resolution.HOUR):
+    def verbrauch(
+        self,
+        date_from: datetime,
+        zaehlpunkt: str | None = None,
+        resolution: const.Resolution = const.Resolution.HOUR,
+    ):
         """Returns energy usage for 24h after date_to.
-
         Args:
             date_from (datetime.datetime): Starting date for energy usage request
             zaehlpunkt (str, optional): Id for desired smartmeter.
                 If None, check for first meter in user profile.
             resolution (const.Resolution, optinal): Specify either 1h or 15min resolution
-
         Returns:
             dict: JSON response of api call to
                 'm/messdaten/zaehlpunkt/ZAEHLPUNKT/verbrauch'
@@ -289,16 +308,18 @@ class Smartmeter:
         )
         return self._call_api(endpoint, query=query)
 
-    def tages_verbrauch(self, day: datetime, zaehlpunkt: str | None = None, resolution: const.Resolution = const.Resolution.QUARTER_HOUR):
+    def tages_verbrauch(
+        self,
+        day: datetime,
+        zaehlpunkt: str | None = None,
+        resolution: const.Resolution = const.Resolution.QUARTER_HOUR,
+    ):
         """Returns energy usage for the current day.
-
-
         Args:
             day (datetime.datetime): Day date for the request
             zaehlpunkt (str, optional): Id for desired smartmeter.
                 If None, check for first meter in user profile.
             resolution (const.Resolution, optinal): Specify either 1h or 15min resolution
-
         Returns:
             dict: JSON response of api call to
                 'messdaten/zaehlpunkt/ZAEHLPUNKT/verbrauch'
@@ -306,7 +327,11 @@ class Smartmeter:
         # FIXME: Actually, using 00:00:00.000 does not query the beginning of the day!
         # The problem is, that the time has to specified in UTC and during standard time,
         # UTC day starts at 23:00:00 and during summer time even on 22:00:00!
-        return self.verbrauch(day.replace(hour=0, minute=0, second=0, microsecond=0), zaehlpunkt, resolution)
+        return self.verbrauch(
+            day.replace(hour=0, minute=0, second=0, microsecond=0),
+            zaehlpunkt,
+            resolution,
+        )
 
     def profil(self):
         """Returns profile of a logged-in user.
@@ -320,14 +345,12 @@ class Smartmeter:
         self, date_from: datetime, date_to: datetime = None, zaehlpunkt=None
     ):
         """Returns events between date_from and date_to of a specific smart meter.
-
         Args:
             date_from (datetime.datetime): Starting date for request
             date_to (datetime.datetime, optional): Ending date for request.
                 Defaults to datetime.datetime.now().
             zaehlpunkt (str, optional): id for desired smart meter.
                 If is None check for first meter in user profile.
-
         Returns:
             dict: JSON response of api call to 'user/ereignisse'
         """
@@ -344,14 +367,12 @@ class Smartmeter:
 
     def create_ereignis(self, zaehlpunkt, name, date_from, date_to=None):
         """Creates new event.
-
         Args:
             zaehlpunkt (str): Id for desired smartmeter.
                 If None, check for first meter in user profile
             name (str): Event name
             date_from (datetime.datetime): (Starting) date for request
             date_to (datetime.datetime, optional): Ending date for request.
-
         Returns:
             dict: JSON response of api call to 'user/ereignis'
         """
@@ -385,7 +406,6 @@ class Smartmeter:
     ):
         """
         Query historical data in a batch
-
         If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
         If date_from is not given but date_until, again a three year span is assumed.
         """
@@ -399,10 +419,10 @@ class Smartmeter:
             date_from = date_until.replace(year=date_until.year - 3)
 
         query = {
-            'zaehlpunkt': zaehlpunkt,
-            'datumVon': date_from.strftime('%Y-%m-%d'),
-            'datumBis': date_until.strftime('%Y-%m-%d'),
-            'wertetyp': valuetype.value,
+            "zaehlpunkt": zaehlpunkt,
+            "datumVon": date_from.strftime("%Y-%m-%d"),
+            "datumBis": date_until.strftime("%Y-%m-%d"),
+            "wertetyp": valuetype.value,
         }
 
         extra = {
@@ -410,18 +430,23 @@ class Smartmeter:
             "Accept": "application/json"
         }
 
-        data = self._call_api('zaehlpunkte/messwerte', base_url=const.API_URL_B2B, query=query, extra_headers=extra)
+        data = self._call_api(
+            "zaehlpunkte/messwerte",
+            base_url=const.API_URL_B2B,
+            query=query,
+            extra_headers=extra,
+        )
 
         # Some Sanity Checks...
-        if len(data) != 1 or data[0]['zaehlpunkt'] != zaehlpunkt or len(data[0]['zaehlwerke']) != 1:
+        if len(data) != 1 or data[0]["zaehlpunkt"] != zaehlpunkt or len(data[0]["zaehlwerke"]) != 1:
             # TODO: Is it possible to have multiple zaehlwerke in one zaehlpunkt?
             # I guess so, otherwise it would not be a list...
             # Probably (my guess), we would see this on the OBIS Code.
             # The OBIS Code can code for channels, thus we would probably see that there.
             # Keep that in mind if for someone this fails.
-            logger.debug(f"Returned data: {data}")
+            logger.debug("Returned data: %s" % data)
             raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
-        obis_code = data[0]['zaehlwerke'][0]['obisCode']
-        if obis_code[0] != '1':
+        obis_code = data[0]["zaehlwerke"][0]["obisCode"]
+        if obis_code[0] != "1":
             logger.warning(f"The OBIS code of the meter ({obis_code}) reports that this meter does not count electrical energy!")
-        return data[0]['zaehlwerke'][0]
+        return data[0]["zaehlwerke"][0]

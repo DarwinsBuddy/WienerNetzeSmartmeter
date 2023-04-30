@@ -3,18 +3,24 @@ import sys
 import pytest
 import requests
 from requests_mock import Mocker
+import urllib3
 from test_resources import post_data_matcher
 from importlib.resources import files
+import datetime as dt
 from urllib import parse
 
 # necessary for pytest-cov to measure coverage
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../../custom_components')
 from wnsm import api # noqa: E402
+from wnsm.api.constants import Resolution # noqa: E402
+
+def _dt_string(datetime_string):
+        return datetime_string.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 PAGE_URL = "https://smartmeter-web.wienernetze.at/"
 API_URL_ALT = "https://service.wienernetze.at/sm/api/"
-API_URL = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2C/1.0/"
+API_URL_B2C = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2C/1.0/"
 API_URL_B2B = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/1.0/"
 REDIRECT_URI = "https://smartmeter-web.wienernetze.at/"
 API_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
@@ -132,6 +138,52 @@ def zaehlpunkt_response(zps=None):
         }
     ]
 
+def verbrauch_raw_response():
+    return {
+    "quarter-hour-opt-in":True,
+    "values":[
+        {
+            "value":5461,
+            "timestamp":"2023-04-22T22:00:00.000Z",
+            "isEstimated":False
+        },
+        {
+            "value":5513,
+            "timestamp":"2023-04-23T22:00:00.000Z",
+            "isEstimated":False
+        },
+        {
+            "value":4672,
+            "timestamp":"2023-04-24T22:00:00.000Z",
+            "isEstimated":False
+        },
+        {
+            "value":5550,
+            "timestamp":"2023-04-25T22:00:00.000Z",
+            "isEstimated":False
+        },
+        {
+            "value":3856,
+            "timestamp":"2023-04-26T22:00:00.000Z",
+            "isEstimated":False
+        },
+        {
+            "value":5137,
+            "timestamp":"2023-04-27T22:00:00.000Z",
+            "isEstimated":False
+        },
+        {
+            "value":6918,
+            "timestamp":"2023-04-28T22:00:00.000Z",
+            "isEstimated":False
+        }
+    ],
+    "statistics":{
+        "maximum":6918,
+        "minimum":3856,
+        "average":5301
+    }
+    }
 
 def history_response(zp: str):
     return [
@@ -298,12 +350,28 @@ def expect_login(requests_mock: Mocker, username=USERNAME, password=PASSWORD):
 
 @pytest.mark.usefixtures("requests_mock")
 def expect_zaehlpunkte(requests_mock: Mocker, zps: list[dict]):
-    requests_mock.get(API_URL + 'zaehlpunkte',
+    requests_mock.get(API_URL_B2C + 'zaehlpunkte',
                       headers={
                           "Authorization": f"Bearer {ACCESS_TOKEN}",
                           "X-Gateway-APIKey": B2C_API_KEY,
                       },
                       json=zaehlpunkt_response(zps))
+
+@pytest.mark.usefixtures("requests_mock")
+def expect_verbrauch_raw(requests_mock: Mocker, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime, response: dict, granularity = 'DAY'):
+    params = {
+        "dateFrom":     _dt_string(dateFrom),
+        "dateTo":       _dt_string(dateTo),
+        "granularity":  granularity
+    }
+    path = f'messdaten/zaehlpunkt/{zp}/verbrauchRaw?{urllib3.request.urlencode(params)}'
+    print("MOCK: ", API_URL_B2C + path)
+    requests_mock.get(API_URL_B2C + path,
+                      headers={
+                          "Authorization": f"Bearer {ACCESS_TOKEN}",
+                          "X-Gateway-APIKey": B2C_API_KEY,
+                      },
+                      json=response)
 
 
 @pytest.mark.usefixtures("requests_mock")
