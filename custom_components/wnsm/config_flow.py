@@ -33,7 +33,9 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
         smartmeter = Smartmeter(username, password)
         await self.hass.async_add_executor_job(smartmeter.login)
         zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
-        return zps[0]["zaehlpunkte"] if zps is not None else []
+        if zps is not None and isinstance(zps, list) and len(zps) > 0 and "zaehlpunkte" in zps[0]:
+            return zps[0]["zaehlpunkte"]
+        return []
 
     async def async_step_user(self, user_input: Optional[dict[str, Any]] = None):
         """Invoked when a user initiates a flow via the user interface."""

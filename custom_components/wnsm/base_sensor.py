@@ -94,17 +94,21 @@ class BaseSensor(SensorEntity, ABC):
         zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
         if zps is None or len(zps) == 0:
             raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
-        zaehlpunkt = [
-            z for z in zps[0]["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt
-        ]
+        if zps is not None and isinstance(zps, list) and len(zps) > 0 and "zaehlpunkte" in zps[0]:
+            zaehlpunkt = [
+                z for z in zps[0]["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt
+            ]
+        else:
+            zaehlpunkt = []
+        
         if len(zaehlpunkt) == 0:
             raise RuntimeError(f"Zaehlpunkt {self.zaehlpunkt} not found")
-        else:
-            return (
-                translate_dict(zaehlpunkt[0], ATTRS_ZAEHLPUNKTE_CALL)
-                if len(zaehlpunkt) > 0
-                else None
-            )
+
+        return (
+            translate_dict(zaehlpunkt[0], ATTRS_ZAEHLPUNKTE_CALL)
+            if len(zaehlpunkt) > 0
+            else None
+        )
 
     async def get_consumption(self, smartmeter: Smartmeter, start_date: datetime):
         """Return 24h of hourly consumption starting from a date"""
