@@ -138,7 +138,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
     async def _import_historical_data(self, smartmeter: Smartmeter):
         """Initialize the statistics by fetching three years of data"""
         recording = await self.get_historic_data(smartmeter)
-
+        _LOGGER.debug(f"Mapped historical data: {recording}")
         factor = 1.0
         if recording['unitOfMeasurement'] == 'WH':
             factor = 1e-3
@@ -146,7 +146,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             raise NotImplementedError(f'Unit {recording["unitOfMeasurement"]}" is not yet implemented. Please report!')
 
         dates = defaultdict(Decimal)
-        if not 'values' in recording:
+        if 'values' not in recording:
             raise ValueError("WienerNetze does not report historical data (yet)")
         for value in recording['values']:
             reading = Decimal(value['messwert'] * factor)

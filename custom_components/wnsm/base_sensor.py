@@ -127,7 +127,7 @@ class BaseSensor(SensorEntity, ABC):
         )
         if "Exception" in response:
             raise RuntimeError(f"Cannot access historic data: {response}")
-
+        _LOGGER.debug(f"Raw historical data: {response}")
         return translate_dict(response, ATTRS_HISTORIC_DATA)
 
     async def get_base_information(self, smartmeter: Smartmeter) -> dict[str, str]:
