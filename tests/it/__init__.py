@@ -1,5 +1,7 @@
 import os
 import sys
+from urllib.parse import urlencode
+
 import pytest
 import requests
 from requests_mock import Mocker
@@ -364,7 +366,7 @@ def expect_verbrauch_raw(requests_mock: Mocker, zp: str, dateFrom: dt.datetime, 
         "dateTo":       _dt_string(dateTo),
         "granularity":  granularity
     }
-    path = f'messdaten/zaehlpunkt/{zp}/verbrauchRaw?{urllib3.request.urlencode(params)}'
+    path = f'messdaten/zaehlpunkt/{zp}/verbrauchRaw?{urlencode(params)}'
     print("MOCK: ", API_URL_B2C + path)
     requests_mock.get(API_URL_B2C + path,
                       headers={
