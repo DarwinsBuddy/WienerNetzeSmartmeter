@@ -147,7 +147,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
 
         dates = defaultdict(Decimal)
         if not 'values' in recording:
-            raise ValueError("WienerNetze does not report hsitorical data (yet)")
+            raise ValueError("WienerNetze does not report historical data (yet)")
         for value in recording['values']:
             reading = Decimal(value['messwert'] * factor)
             ts = dt_util.parse_datetime(value['zeitVon'])
