@@ -146,7 +146,8 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             raise NotImplementedError(f'Unit {recording["unitOfMeasurement"]}" is not yet implemented. Please report!')
 
         dates = defaultdict(Decimal)
-
+        if not 'values' in recording:
+            raise ValueError("WienerNetze does not report hsitorical data (yet)")
         for value in recording['values']:
             reading = Decimal(value['messwert'] * factor)
             ts = dt_util.parse_datetime(value['zeitVon'])
@@ -175,11 +176,6 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         for ts, usage in sorted(dates.items(), key=itemgetter(0)):
             total_usage += usage
             statistics.append(StatisticData(start=ts, sum=total_usage, state=usage))
-        
-        if len(statistics) == 0:
-             # No data is returned, possibly the smart meter is too new or not active yet...
-            _LOGGER.info("No historical data available for smart meter!")
-            return
 
         _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
         async_import_statistics(self.hass, metadata, statistics)
