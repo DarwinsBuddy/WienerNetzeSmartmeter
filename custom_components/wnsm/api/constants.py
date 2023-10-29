@@ -40,6 +40,17 @@ class ValueType(enum.Enum):
     DAY = "DAY"  #: Consumption for the day
     QUARTER_HOUR = "QUARTER_HOUR"  #: Consumption for 15min slots
 
+    @staticmethod
+    def from_str(label):
+        if label in ('METER_READ', 'meter_read'):
+            return ValueType.METER_READ
+        elif label in ('DAY', 'day'):
+            return ValueType.DAY
+        elif label in ('QUARTER_HOUR', 'quarter_hour'):
+            return ValueType.QUARTER_HOUR
+        else:
+            raise NotImplementedError
+
 
 def build_access_token_args(**kwargs):
     """

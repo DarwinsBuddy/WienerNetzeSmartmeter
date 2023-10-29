@@ -14,6 +14,7 @@ from homeassistant.const import UnitOfEnergy
 from homeassistant.util import slugify
 
 from .api import Smartmeter
+from .api.constants import ValueType
 from .const import (
     ATTRS_BASEINFORMATION_CALL,
     ATTRS_CONSUMPTIONS_CALL,
@@ -89,7 +90,7 @@ class BaseSensor(SensorEntity, ABC):
     async def get_zaehlpunkt(self, smartmeter: Smartmeter) -> dict[str, str]:
         """
         asynchronously get and parse /zaehlpunkt response
-        Returns response already sanitzied of the specified zahlpunkt in ctor
+        Returns response already sanitized of the specified zaehlpunkt in ctor
         """
         zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
         if zps is None or len(zps) == 0:
@@ -123,7 +124,11 @@ class BaseSensor(SensorEntity, ABC):
     async def get_historic_data(self, smartmeter: Smartmeter):
         """Return three years of historic quarter-hourly data"""
         response = await self.hass.async_add_executor_job(
-            smartmeter.historical_data, self.zaehlpunkt,
+            smartmeter.historical_data,
+            self.zaehlpunkt,
+            None,
+            None,
+            ValueType.from_str(self._attr_extra_state_attributes.get('granularity', 'QUARTER_HOUR'))
         )
         if "Exception" in response:
             raise RuntimeError(f"Cannot access historic data: {response}")

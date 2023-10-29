@@ -36,6 +36,7 @@ ATTRS_ZAEHLPUNKTE_CALL = [
     ("isDefault", "default"),
     ("isActive", "active"),
     ("isSmartMeterMarketReady", "smartMeterReady"),
+    ("idexStatus.granularity.status", "granularity")
 ]
 
 ATTRS_CONSUMPTIONS_CALL = [
