@@ -176,8 +176,8 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         for ts, usage in sorted(dates.items(), key=itemgetter(0)):
             total_usage += usage
             statistics.append(StatisticData(start=ts, sum=total_usage, state=usage))
-
-        _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
+        if len(statistics) > 0:
+            _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
         async_import_statistics(self.hass, metadata, statistics)
 
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, total_usage: Decimal):
