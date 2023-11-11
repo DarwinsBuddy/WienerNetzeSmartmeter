@@ -6,7 +6,7 @@ import datetime as dt
 
 from it import (
     expect_login,
-    expect_verbrauch_raw,
+    expect_verbrauch,
     smartmeter,
     expect_zaehlpunkte,
     verbrauch_raw_response,
@@ -179,12 +179,13 @@ def test_verbrauch_raw(requests_mock: Mocker):
     dateFrom = dt.datetime(2023, 4, 21, 22, 00, 00)
     dateTo   = dt.datetime(2023, 5,  1, 21, 59, 59)
     zp       = "AT000000001234567890"
+    customer_id       = "123456789"
     valid_verbrauch_raw_response = verbrauch_raw_response()
     expect_login(requests_mock)
     expect_history(requests_mock, enabled(zaehlpunkt())['zaehlpunktnummer'])
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
-    expect_verbrauch_raw(requests_mock, zp, dateFrom, dateTo, valid_verbrauch_raw_response)
+    expect_verbrauch(requests_mock, customer_id, zp, dateFrom, dateTo, valid_verbrauch_raw_response)
 
-    verbrauch = smartmeter().login().verbrauch_raw(dateFrom, dateTo, zp)
+    verbrauch = smartmeter().login().verbrauch(customer_id, zp, dateFrom, dateTo)
 
     assert 7 == len(verbrauch['values'])

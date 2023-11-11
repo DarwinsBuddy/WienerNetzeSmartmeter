@@ -360,13 +360,17 @@ def expect_zaehlpunkte(requests_mock: Mocker, zps: list[dict]):
                       json=zaehlpunkt_response(zps))
 
 @pytest.mark.usefixtures("requests_mock")
-def expect_verbrauch_raw(requests_mock: Mocker, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime, response: dict, granularity = 'DAY'):
+def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime, response: dict, granularity ='DAY', resolution ='HOUR'):
     params = {
         "dateFrom":     _dt_string(dateFrom),
         "dateTo":       _dt_string(dateTo),
-        "granularity":  granularity
+        "granularity":  granularity,
+        "dayViewResolution":   resolution,
+        "period":       "DAY",
+        "offset":       0,
+        "accumulate":   False
     }
-    path = f'messdaten/zaehlpunkt/{zp}/verbrauchRaw?{urlencode(params)}'
+    path = f'messdaten/{customer_id}/{zp}/verbrauch?{urlencode(params)}'
     print("MOCK: ", API_URL_B2C + path)
     requests_mock.get(API_URL_B2C + path,
                       headers={

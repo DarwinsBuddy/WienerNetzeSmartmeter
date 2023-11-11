@@ -22,6 +22,7 @@ ATTRS_ZAEHLPUNKT_CALL = [
 ]
 
 ATTRS_ZAEHLPUNKTE_CALL = [
+    ("geschaeftspartner", "customerId"),
     ("zaehlpunktnummer", "zaehlpunktnummer"),
     ("customLabel", "label"),
     ("equipmentNumber", "equipmentNumber"),

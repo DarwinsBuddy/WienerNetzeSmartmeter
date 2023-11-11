@@ -87,21 +87,26 @@ class BaseSensor(SensorEntity, ABC):
     def state(self) -> Optional[str]:  # pylint: disable=overridden-final-method
         return self._state
 
+    def contracts2zaehlpunkte(self, contracts: dict) -> [dict]:
+        if contracts is None or len(contracts) == 0:
+            raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
+        geschaeftspartner = contracts[0]["geschaeftspartner"] if "geschaeftspartner" in contracts[0] else None
+        if contracts is not None and isinstance(contracts, list) and len(contracts) > 0 and "zaehlpunkte" in contracts[0]:
+            zaehlpunkte = [
+                {**z, "geschaeftspartner": geschaeftspartner} for z in contracts[0]["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt
+            ]
+        else:
+            zaehlpunkte = []
+        return zaehlpunkte
+
     async def get_zaehlpunkt(self, smartmeter: Smartmeter) -> dict[str, str]:
         """
         asynchronously get and parse /zaehlpunkt response
         Returns response already sanitized of the specified zaehlpunkt in ctor
         """
-        zps = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
-        if zps is None or len(zps) == 0:
-            raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
-        if zps is not None and isinstance(zps, list) and len(zps) > 0 and "zaehlpunkte" in zps[0]:
-            zaehlpunkt = [
-                z for z in zps[0]["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt
-            ]
-        else:
-            zaehlpunkt = []
-        
+        contracts = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
+        zaehlpunkte = self.contracts2zaehlpunkte(contracts)
+        zaehlpunkt = [z for z in zaehlpunkte if z["zaehlpunktnummer"] == self.zaehlpunkt]
         if len(zaehlpunkt) == 0:
             raise RuntimeError(f"Zaehlpunkt {self.zaehlpunkt} not found")
 
@@ -114,7 +119,7 @@ class BaseSensor(SensorEntity, ABC):
     async def get_consumption(self, smartmeter: Smartmeter, start_date: datetime):
         """Return 24h of hourly consumption starting from a date"""
         response = await self.hass.async_add_executor_job(
-            smartmeter.verbrauch, start_date, self.zaehlpunkt
+            smartmeter.verbrauch, self._attr_extra_state_attributes.get('customerId'), self.zaehlpunkt, start_date
         )
         if "Exception" in response:
             raise RuntimeError(f"Cannot access daily consumption: {response}")
