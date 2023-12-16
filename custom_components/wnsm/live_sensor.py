@@ -19,18 +19,6 @@ class LiveSensor(BaseSensor, SensorEntity):
     def __init__(self, username: str, password: str, zaehlpunkt: str) -> None:
         super().__init__(username, password, zaehlpunkt)
 
-    async def get_daily_consumption(self, smartmeter: Smartmeter, date: datetime):
-        """
-        asynchronously get and parse /tages_verbrauch response
-        Returns response already sanitzied of the specified zahlpunkt in ctor
-        """
-        response = await self.hass.async_add_executor_job(
-            smartmeter.tages_verbrauch, date, self.zaehlpunkt
-        )
-        if "Exception" in response:
-            raise RuntimeError("Cannot access daily consumption: ", response)
-        return response
-
     async def async_update(self):
         """
         update sensor
@@ -59,14 +47,14 @@ class LiveSensor(BaseSensor, SensorEntity):
                 else:
                     # if not, we'll have to guesstimate (because api is shitty-pom-fritty)
                     # for that zaehlpunkt
-                    yesterdays_consumption = await self.get_daily_consumption(
+                    yesterdays_consumption = await self.get_consumption_raw(
                         smartmeter, before(today())
                     )
                     if (
                             "values" in yesterdays_consumption
-                            and "statistics" in yesterdays_consumption
+                            and "consumptionAverage" in yesterdays_consumption
                     ):
-                        avg = yesterdays_consumption["statistics"]["average"]
+                        avg = yesterdays_consumption["consumptionAverage"]
                         yesterdays_sum = sum(
                             (
                                 y["value"] if y["value"] is not None else avg

@@ -205,7 +205,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         _LOGGER.debug("Selecting data up to %s" % now)
         while start < now:
             _LOGGER.debug("Select 24h of Data, using sum=%.3f, start=%s" % (total_usage, start))
-            consumption = await self.get_consumption(smartmeter, start)
+            consumption = await self.get_consumption_raw(smartmeter, start)
             _LOGGER.debug(consumption)
             last_ts = start
             start += timedelta(hours=24)  # Next batch. Setting this here should avoid endless loops
