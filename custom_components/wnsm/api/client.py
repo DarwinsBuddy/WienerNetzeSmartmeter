@@ -235,9 +235,9 @@ class Smartmeter:
 
     def _get_first_zaehlpunkt(self) -> (str, str):
         zps = self.zaehlpunkte()[0]
-        customerId = zps["geschaeftspartner"]
+        customer_id = zps["geschaeftspartner"]
         zp = zps["zaehlpunkte"][0]["zaehlpunktnummer"]
-        return customerId, zp
+        return customer_id, zp
 
     def zaehlpunkte(self):
         """Returns zaehlpunkte for currently logged in user."""
@@ -281,7 +281,7 @@ class Smartmeter:
         if date_to is None:
             date_to = datetime.now()
         if zaehlpunkt is None or customer_id is None:
-            customerId, zaehlpunkt = self._get_first_zaehlpunkt()
+            customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
         endpoint = f"messdaten/{customer_id}/{zaehlpunkt}/verbrauch"
         query = const.build_verbrauchs_args(
             dateFrom=self._dt_string(date_from),
@@ -317,7 +317,7 @@ class Smartmeter:
         if date_to is None:
             date_to = datetime.now()
         if zaehlpunkt is None or customer_id is None:
-            customerId, zaehlpunkt = self._get_first_zaehlpunkt()
+            customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
         endpoint = f"messdaten/{customer_id}/{zaehlpunkt}/verbrauchRaw"
         query = const.build_verbrauchs_args(
             dateFrom=self._dt_string(date_from),
@@ -351,7 +351,7 @@ class Smartmeter:
         if date_to is None:
             date_to = datetime.now()
         if zaehlpunkt is None:
-            zaehlpunkt = self._get_first_zaehlpunkt()
+            customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
         query = {
             "zaehlpunkt": zaehlpunkt,
             "dateFrom": self._dt_string(date_from),
