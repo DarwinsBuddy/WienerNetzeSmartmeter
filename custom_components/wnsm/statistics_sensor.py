@@ -214,21 +214,29 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             last_ts = start
             start += timedelta(hours=24)  # Next batch. Setting this here should avoid endless loops
 
-            if 'values' not in consumption:
-                _LOGGER.error(f"No values in API response! This likely indicates an API error. Original response: {consumption}")
-                return
 
             # Check if this batch of data is valid and contains hourly statistics:
             if not consumption.get('optIn'):
                 # TODO: actually, we could insert zero-usage data here, to increase the start time
                 # for the next run. Otherwise, the same data is queried over and over.
-                _LOGGER.warning(f"Data starting at {start} does not contain granular data! Opt-in was not set back then.")
+                _LOGGER.warning(f"Data starting at {start} does not contain granular data! Opt-in was not set back then. Skipping.")
                 continue
 
             # Can actually check, if the whole batch can be skipped.
             if consumption.get('consumptionMinimum') == 0 and consumption.get('consumptionMaximum') == 0:
-                _LOGGER.debug("Batch of data does not contain any consumption, skipping")
+                _LOGGER.debug(f"Batch of data starting at {start} does not contain any consumption, skipping")
                 continue
+
+            if 'values' not in consumption:
+                # before, this indicated an error. Since 2023-12-15 no more values means that
+                # data is not available (yet) - but could still indicate an error...
+                _LOGGER.debug(f"No more values in API response. Possibly the end of the available data is reached. Original response: {consumption}")
+                # We break the loop here and hope that in the next iteration, data will be collected
+                # again...
+                # TODO: has to be carefully checked if the API can return a response without values
+                # between responses WITH values! Otherwise, we produce here an endless wait for that
+                # values to turn up.
+                break
 
             for v in consumption['values']:
                 # Timestamp has to be aware of timezone, parse_datetime does that.
@@ -237,7 +245,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                     # This usually happens if the start date minutes are != 0
                     # However, we set them to 0 in this function, thus if this happens, the API has
                     # a problem...
-                    _LOGGER.error("Minute of timestamp is non-zero, this must not happen!")
+                    _LOGGER.error(f"Minute of timestamp is non-zero: {ts}. This must not happen! Has the API changed?")
                     return
                 if ts < last_ts:
                     # This should prevent any issues with ambiguous values though...
@@ -256,7 +264,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                 total_usage += usage  # ... and accumulate
                 if v['isEstimated']:
                     # Can we do anything special here?
-                    _LOGGER.debug("Estimated Value found for {ts}: {usage}")
+                    _LOGGER.debug(f"Estimated Value found for {ts}: {usage}")
 
                 statistics.append(StatisticData(start=ts, sum=total_usage, state=usage))
 
