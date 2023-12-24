@@ -360,10 +360,9 @@ def expect_zaehlpunkte(requests_mock: Mocker, zps: list[dict]):
                       json=zaehlpunkt_response(zps))
 
 @pytest.mark.usefixtures("requests_mock")
-def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime, response: dict, granularity ='DAY', resolution ='HOUR'):
+def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, response: dict, granularity ='DAY', resolution ='HOUR'):
     params = {
         "dateFrom":     _dt_string(dateFrom),
-        "dateTo":       _dt_string(dateTo),
         "granularity":  granularity,
         "dayViewResolution":   resolution,
         "period":       "DAY",

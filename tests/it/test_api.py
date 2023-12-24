@@ -184,7 +184,7 @@ def test_verbrauch_raw(requests_mock: Mocker):
     expect_login(requests_mock)
     expect_history(requests_mock, enabled(zaehlpunkt())['zaehlpunktnummer'])
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
-    expect_verbrauch(requests_mock, customer_id, zp, dateFrom, dateTo, valid_verbrauch_raw_response)
+    expect_verbrauch(requests_mock, customer_id, zp, dateFrom, valid_verbrauch_raw_response)
 
     verbrauch = smartmeter().login().verbrauch(customer_id, zp, dateFrom, dateTo)
 
