@@ -130,7 +130,7 @@ class BaseSensor(SensorEntity, ABC):
         return translate_dict(response, ATTRS_VERBRAUCH_CALL)
 
     async def get_consumption_raw(self, smartmeter: Smartmeter, start_date: datetime):
-        """Return 24h of hourly consumption starting from a date"""
+        """Return daily consumptions from the given start date until today"""
         response = await self.hass.async_add_executor_job(
             smartmeter.verbrauchRaw, self._attr_extra_state_attributes.get('customerId'), self.zaehlpunkt, start_date
         )

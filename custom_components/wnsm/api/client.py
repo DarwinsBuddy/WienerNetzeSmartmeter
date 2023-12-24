@@ -260,12 +260,13 @@ class Smartmeter:
         customer_id: str,
         zaehlpunkt: str,
         date_from: datetime,
-        date_to: datetime = None,
         resolution: const.Resolution = const.Resolution.HOUR
     ):
         """Returns energy usage.
-        This can be used to query the daily consumption for a long period of time,
-        for example several months or a week.
+
+        This returns hourly or quarter hour consumptions for a single day,
+        i.e., for 24 hours after the given date_from.
+
         Args:
             customer_id (str): Customer ID returned by zaehlpunkt call ("geschaeftspartner")
             zaehlpunkt (str, optional): id for desired smartmeter.
@@ -278,15 +279,12 @@ class Smartmeter:
             dict: JSON response of api call to
                 'messdaten/CUSTOMER_ID/ZAEHLPUNKT/verbrauchRaw'
         """
-        if date_to is None:
-            date_to = datetime.now()
         if zaehlpunkt is None or customer_id is None:
             customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
         endpoint = f"messdaten/{customer_id}/{zaehlpunkt}/verbrauch"
         query = const.build_verbrauchs_args(
+            # This one does not have a dateTo...
             dateFrom=self._dt_string(date_from),
-            dateTo=self._dt_string(date_to),
-            granularity="DAY",
             dayViewResolution=resolution.value
         )
         return self._call_api(endpoint, query=query)
@@ -297,11 +295,14 @@ class Smartmeter:
         zaehlpunkt: str,
         date_from: datetime,
         date_to: datetime = None,
-        resolution: const.Resolution = const.Resolution.HOUR
     ):
         """Returns energy usage.
         This can be used to query the daily consumption for a long period of time,
         for example several months or a week.
+
+        Note: The minimal resolution is a single day.
+        For hourly consumptions use `verbrauch`.
+
         Args:
             customer_id (str): Customer ID returned by zaehlpunkt call ("geschaeftspartner")
             zaehlpunkt (str, optional): id for desired smartmeter.
@@ -309,7 +310,6 @@ class Smartmeter:
             date_from (datetime): Start date for energy usage request
             date_to (datetime, optional): End date for energy usage request.
                 Defaults to datetime.now()
-            resolution (const.Resolution, optional): Specify either 1h or 15min resolution
         Returns:
             dict: JSON response of api call to
                 'messdaten/CUSTOMER_ID/ZAEHLPUNKT/verbrauchRaw'
@@ -319,11 +319,11 @@ class Smartmeter:
         if zaehlpunkt is None or customer_id is None:
             customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
         endpoint = f"messdaten/{customer_id}/{zaehlpunkt}/verbrauchRaw"
-        query = const.build_verbrauchs_args(
+        query = dict(
+            # These are the only three fields that are used for that endpoint:
             dateFrom=self._dt_string(date_from),
             dateTo=self._dt_string(date_to),
             granularity="DAY",
-            dayViewResolution=resolution.value
         )
         return self._call_api(endpoint, query=query)
 
