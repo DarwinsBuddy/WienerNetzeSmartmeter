@@ -363,11 +363,7 @@ def expect_zaehlpunkte(requests_mock: Mocker, zps: list[dict]):
 def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, response: dict, granularity ='DAY', resolution ='HOUR'):
     params = {
         "dateFrom":     _dt_string(dateFrom),
-        "granularity":  granularity,
-        "dayViewResolution":   resolution,
-        "period":       "DAY",
-        "offset":       0,
-        "accumulate":   False
+        "dayViewResolution":   resolution
     }
     path = f'messdaten/{customer_id}/{zp}/verbrauch?{urlencode(params)}'
     print("MOCK: ", API_URL_B2C + path)
