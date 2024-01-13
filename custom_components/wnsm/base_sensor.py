@@ -119,7 +119,7 @@ class BaseSensor(SensorEntity, ABC):
     async def get_consumption(self, smartmeter: Smartmeter, start_date: datetime):
         """Return 24h of hourly consumption starting from a date"""
         response = await self.hass.async_add_executor_job(
-            smartmeter.verbrauchRaw, self._attr_extra_state_attributes.get('customerId'), self.zaehlpunkt, start_date
+            smartmeter.verbrauch, self._attr_extra_state_attributes.get('customerId'), self.zaehlpunkt, start_date
         )
         if "Exception" in response:
             raise RuntimeError(f"Cannot access daily consumption: {response}")

@@ -61,8 +61,17 @@ def dict_path(path: str, dictionary: dict) -> str | None:
     return None
 
 
+def safeget(dct, *keys, default=None):
+    for key in keys:
+        try:
+            dct = dct[key]
+        except KeyError:
+            return default
+    return dct
+
+
 def translate_dict(
-    dictionary: dict, attrs_list: list[tuple[str, str]]
+        dictionary: dict, attrs_list: list[tuple[str, str]]
 ) -> dict[str, str]:
     """
     Given a response dictionary and an attribute mapping (with nested accessors separated by '.')

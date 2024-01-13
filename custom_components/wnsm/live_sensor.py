@@ -5,7 +5,7 @@ from homeassistant.components.sensor import SensorEntity
 
 from .api import Smartmeter
 from .base_sensor import BaseSensor
-from .utils import before, today
+from .utils import before, today, safeget
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,18 +47,18 @@ class LiveSensor(BaseSensor, SensorEntity):
                 else:
                     # if not, we'll have to guesstimate (because api is shitty-pom-fritty)
                     # for that zaehlpunkt
-                    yesterdays_consumption = await self.get_consumption_raw(
+                    verbrauch_raw = await self.get_consumption_raw(
                         smartmeter, before(today())
                     )
                     if (
-                            "values" in yesterdays_consumption
-                            and "consumptionAverage" in yesterdays_consumption
+                            "values" in verbrauch_raw
+                            and "statistics" in verbrauch_raw
                     ):
-                        avg = yesterdays_consumption["consumptionAverage"]
+                        avg = safeget(verbrauch_raw, [["statistics"], ["average"]])
                         yesterdays_sum = sum(
                             (
                                 y["value"] if y["value"] is not None else avg
-                                for y in yesterdays_consumption["values"]
+                                for y in verbrauch_raw["values"]
                             )
                         )
                         if yesterdays_sum > 0:
@@ -71,7 +71,7 @@ class LiveSensor(BaseSensor, SensorEntity):
                             base_information,
                             consumptions,
                             meter_readings,
-                            yesterdays_consumption,
+                            verbrauch_raw,
                         )
                         return
             self._available = True
