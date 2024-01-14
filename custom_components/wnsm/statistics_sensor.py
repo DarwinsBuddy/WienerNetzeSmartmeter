@@ -23,16 +23,15 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class StatisticsSensor(BaseSensor, SensorEntity):
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
     def __init__(self, username: str, password: str, zaehlpunkt: str) -> None:
         super().__init__(username, password, zaehlpunkt)
 
     @staticmethod
     def statistics(s: str) -> str:
         return f'{s}_statistics'
-
-    @property
-    def _attr_state_class(self):
-        return SensorStateClass.MEASUREMENT
 
     @property
     def icon(self) -> str:
