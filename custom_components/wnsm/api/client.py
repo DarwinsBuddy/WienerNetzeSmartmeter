@@ -239,6 +239,13 @@ class Smartmeter:
         zp = zps["zaehlpunkte"][0]["zaehlpunktnummer"]
         return customer_id, zp
 
+
+    def get_zaehlpunkt(self, zaehlpunkt: str) -> (str, str):
+        zps = self.zaehlpunkte()
+        zp = [z for z in zps if z["zaehlpunktnummer"] == zaehlpunkt]
+        customer_id = zps["geschaeftspartner"]
+        return customer_id, zp
+
     def zaehlpunkte(self):
         """Returns zaehlpunkte for currently logged in user."""
         return self._call_api("zaehlpunkte")
@@ -393,7 +400,7 @@ class Smartmeter:
 
     def historical_data(
         self,
-        zaehlpunkt: str = None,
+        zaehlpunktnummer: str = None,
         date_from: date = None,
         date_until: date = None,
         valuetype: const.ValueType = const.ValueType.QUARTER_HOUR,
@@ -403,8 +410,10 @@ class Smartmeter:
         If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
         If date_from is not given but date_until, again a three year span is assumed.
         """
-        if zaehlpunkt is None:
+        if zaehlpunktnummer is None:
             customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
+        else:
+            customer_id, zaehlpunkt = self.get_zaehlpunkt(zaehlpunktnummer)
 
         if date_until is None:
             date_until = date.today()
@@ -444,3 +453,53 @@ class Smartmeter:
         if obis_code[0] != "1":
             logger.warning(f"The OBIS code of the meter ({obis_code}) reports that this meter does not count electrical energy!")
         return data[0]["zaehlwerke"][0]
+
+
+    def bewegungsdaten(
+        self,
+        zaehlpunktnummer: str = None,
+        date_from: date = None,
+        date_until: date = None,
+    ):
+        """
+        Query historical data in a batch
+        If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
+        If date_from is not given but date_until, again a three year span is assumed.
+        """
+        if zaehlpunktnummer is None:
+            customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
+        else:
+            customer_id, zaehlpunkt = self.get_zaehlpunkt(zaehlpunktnummer)
+
+        if date_until is None:
+            date_until = date.today()
+
+        if date_from is None:
+            date_from = date_until.replace(year=date_until.year - 3)
+
+        query = {
+            "geschaeftspartner": customer_id,
+            "zaehlpunktnummer": zaehlpunkt,
+            "rolle": "V001",
+            "zeitpunktVon": date_from.strftime("%Y-%m-%dT00:00:00Z"),
+            "zeitpunktBis": date_until.strftime("%Y-%m-%dT23:59:59.999Z"),
+            "aggregat": "NONE"
+        }
+
+        extra = {
+            # For this API Call, requesting json is important!
+            "Accept": "application/json"
+        }
+
+        data = self._call_api(
+            f"user/messwerte/bewegungsdaten",
+            base_url=const.API_URL_B2B,
+            query=query,
+            extra_headers=extra,
+        )
+
+        if data["descriptor"]["zaehlpunktnummer"] != zaehlpunktnummer:
+            raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
+        if len(data["values"]) == 0:
+            raise SmartmeterQueryError("Historical data is empty")
+        return data

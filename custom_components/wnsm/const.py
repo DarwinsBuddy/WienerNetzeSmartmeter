@@ -80,5 +80,16 @@ ATTRS_HISTORIC_DATA = [
     ('einheit', 'unitOfMeasurement'),
     ('messwerte', 'values'),
 ]
+
+ATTRS_BEWEGUNGSDATEN = [
+    ('descriptor.geschaeftspartnernummer', 'customerId'),
+    ('descriptor.zaehlpunktnummer', 'zaehlpunkt'),
+    ('descriptor.rolle', 'role'),
+    ('descriptor.aggregat', 'aggregator'),
+    ('descriptor.granularitaet', 'granularity'),
+    ('descriptor.einheit', 'unitOfMeasurement'),
+    ('values', 'values'),
+]
+
 ATTRS_HISTORIC_MEASUREMENT = [
 ]
