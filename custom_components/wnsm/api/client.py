@@ -236,17 +236,15 @@ class Smartmeter:
 
         return response.json()
 
-    def _get_first_zaehlpunkt(self) -> (str, str):
+    def get_zaehlpunkt(self, zaehlpunkt: str = None) -> (str, str):
         zps = self.zaehlpunkte()[0]
         customer_id = zps["geschaeftspartner"]
-        zp = zps["zaehlpunkte"][0]["zaehlpunktnummer"]
+        if zaehlpunkt is not None:
+            zp = [z for z in zps["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
+            zp = zp[0]["zaehlpunktnummer"] if len(zp) > 0 else None
+        else:
+            zp = zps["zaehlpunkte"][0]["zaehlpunktnummer"]
         return customer_id, zp
-
-    def get_zaehlpunkt(self, zaehlpunkt: str) -> (str, str):
-        zps = self.zaehlpunkte()[0]
-        customer_id = zps["geschaeftspartner"]
-        zp = [z for z in zps["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
-        return customer_id, zp[0] if len(zp) > 0 else None
 
     def zaehlpunkte(self):
         """Returns zaehlpunkte for currently logged in user."""
@@ -289,7 +287,7 @@ class Smartmeter:
                 'messdaten/CUSTOMER_ID/ZAEHLPUNKT/verbrauchRaw'
         """
         if zaehlpunkt is None or customer_id is None:
-            customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
+            customer_id, zaehlpunkt = self.get_zaehlpunkt()
         endpoint = f"messdaten/{customer_id}/{zaehlpunkt}/verbrauch"
         query = const.build_verbrauchs_args(
             # This one does not have a dateTo...
@@ -326,7 +324,7 @@ class Smartmeter:
         if date_to is None:
             date_to = datetime.now()
         if zaehlpunkt is None or customer_id is None:
-            customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
+            customer_id, zaehlpunkt = self.get_zaehlpunkt()
         endpoint = f"messdaten/{customer_id}/{zaehlpunkt}/verbrauchRaw"
         query = dict(
             # These are the only three fields that are used for that endpoint:
@@ -360,7 +358,7 @@ class Smartmeter:
         if date_to is None:
             date_to = datetime.now()
         if zaehlpunkt is None:
-            customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
+            customer_id, zaehlpunkt = self.get_zaehlpunkt()
         query = {
             "zaehlpunkt": zaehlpunkt,
             "dateFrom": self._dt_string(date_from),
@@ -413,7 +411,7 @@ class Smartmeter:
         If date_from is not given but date_until, again a three year span is assumed.
         """
         if zaehlpunktnummer is None:
-            customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
+            customer_id, zaehlpunkt = self.get_zaehlpunkt()
         else:
             customer_id, zaehlpunkt = self.get_zaehlpunkt(zaehlpunktnummer)
 
@@ -472,10 +470,7 @@ class Smartmeter:
         else:
             rolle = "V002"
 
-        if zaehlpunktnummer is None:
-            customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
-        else:
-            customer_id, zaehlpunkt = self.get_zaehlpunkt(zaehlpunktnummer)
+        customer_id, zaehlpunkt = self.get_zaehlpunkt(zaehlpunktnummer)
 
         if date_until is None:
             date_until = date.today()
