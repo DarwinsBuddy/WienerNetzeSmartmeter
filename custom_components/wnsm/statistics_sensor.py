@@ -23,7 +23,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class StatisticsSensor(BaseSensor, SensorEntity):
-
     _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, username: str, password: str, zaehlpunkt: str) -> None:
@@ -50,11 +49,47 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         """Return the unique ID of the sensor."""
         return StatisticsSensor.statistics(super().unique_id)
 
+    def is_last_inserted_stat_valid(self, last_inserted_stat):
+        return len(last_inserted_stat) == 1 and len(last_inserted_stat[self._id]) == 1 and \
+            "sum" in last_inserted_stat[self._id][0] and "end" in last_inserted_stat[self._id][0]
+
+    def prepare_start_off_point(self, last_inserted_stat):
+        # Previous data found in the statistics table
+        _sum = Decimal(last_inserted_stat[self._id][0]["sum"])
+        # The next start is the previous end
+        # XXX: since HA core 2022.12, we get a datetime and not a str...
+        # XXX: since HA core 2023.03, we get a float and not a datetime...
+        start = last_inserted_stat[self._id][0]["end"]
+        if isinstance(start, (int, float)):
+            start = dt_util.utc_from_timestamp(start)
+        if isinstance(start, str):
+            start = dt_util.parse_datetime(start)
+
+        if not isinstance(start, datetime):
+            _LOGGER.error("HA core decided to change the return type AGAIN! "
+                          "Please open a bug report. "
+                          "Additional Information: %s Type: %s",
+                          last_inserted_stat,
+                          type(last_inserted_stat[self._id][0]["end"]))
+            return None
+        _LOGGER.debug("New starting datetime: %s", start)
+
+        # Extra check to not strain the API too much:
+        # If the last insert date is less than 24h away, simply exit here,
+        # because we will not get any data from the API
+        min_wait = timedelta(hours=24)
+        delta_t = datetime.now(timezone.utc).replace(microsecond=0) - start.replace(microsecond=0)
+        if delta_t <= min_wait:
+            _LOGGER.debug(
+                "Not querying the API, because last update is not older than 24 hours. Earliest update in %s" % (
+                        min_wait - delta_t))
+            return None
+        return start, _sum
+
     async def async_update(self):
         """
         update sensor
         """
-
         # Query the statistics database for the last value
         # It is crucial to use get_instance here!
         last_inserted_stat = await get_instance(
@@ -69,47 +104,6 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             {"sum", "state"},  # the fields we want to query (state might be used in the future)
         )
         _LOGGER.debug("Last inserted stat: %s" % last_inserted_stat)
-
-        init_meter = False
-
-        if len(last_inserted_stat) == 0 or len(last_inserted_stat[self._id]) == 0:
-            # No previous data - start from scratch
-            init_meter = True
-        elif len(last_inserted_stat) == 1 and len(last_inserted_stat[self._id]) == 1:
-            # Previous data found in the statistics table
-            _sum = Decimal(last_inserted_stat[self._id][0]["sum"])
-            # The next start is the previous end
-            # XXX: since HA core 2022.12, we get a datetime and not a str...
-            # XXX: since HA core 2023.03, we get a float and not a datetime...
-            start = last_inserted_stat[self._id][0]["end"]
-            if isinstance(start, (int, float)):
-                start = dt_util.utc_from_timestamp(start)
-            if isinstance(start, str):
-                start = dt_util.parse_datetime(start)
-
-            if not isinstance(start, datetime):
-                _LOGGER.error("HA core decided to change the return type AGAIN! "
-                              "Please open a bug report. "
-                              "Additional Information: %s Type: %s",
-                              last_inserted_stat,
-                              type(last_inserted_stat[self._id][0]["end"]))
-                return
-            _LOGGER.debug("New starting datetime: %s", start)
-
-            # Extra check to not strain the API too much:
-            # If the last insert date is less than 24h away, simply exit here,
-            # because we will not get any data from the API
-            min_wait = timedelta(hours=24)
-            delta_t = datetime.now(timezone.utc).replace(microsecond=0) - start.replace(microsecond=0)
-            if delta_t <= min_wait:
-                _LOGGER.debug(
-                    "Not querying the API, because last update is not older than 24 hours. Earliest update in %s" % (min_wait - delta_t))
-                return
-
-        else:
-            _LOGGER.error(f"unexpected result of get_last_statistics: {last_inserted_stat}")
-            return
-
         try:
             smartmeter = Smartmeter(self.username, self.password)
             await self.hass.async_add_executor_job(smartmeter.login)
@@ -123,12 +117,17 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             else:
                 self._available = True
 
-            # Collect hourly data
-            if init_meter:
+            if not self.is_last_inserted_stat_valid(last_inserted_stat):
+                # No previous data - start from scratch
                 _LOGGER.warning("Starting import of historical data. This might take some time.")
-                await self._import_historical_data(smartmeter)
+                await self._import_bewegungsdaten(smartmeter)
             else:
+                start_off_point = self.prepare_start_off_point(last_inserted_stat)
+                if start_off_point is None:
+                    return
+                start, _sum = start_off_point
                 await self._import_statistics(smartmeter, start, _sum)
+
             self._state = 0
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except TimeoutError as e:
@@ -158,6 +157,49 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             qual = value['qualitaet']
             if qual != 'VAL':
                 _LOGGER.warning(f"Historic data with different quality than 'VAL' detected: {value}")
+            if ts.minute % 15 != 0 or ts.second != 0 or ts.microsecond != 0:
+                _LOGGER.warning(f"Unexpected time detected in historic data: {value}")
+            if (ts_to - ts) != timedelta(minutes=15):
+                _LOGGER.warning(f"Unexpected time step detected in historic data: {value}")
+            dates[ts.replace(minute=0)] += reading
+
+        statistics = []
+        metadata = StatisticMetaData(
+            source="recorder",
+            statistic_id=self._id,
+            name=self.name,
+            unit_of_measurement=self._attr_unit_of_measurement,
+            has_mean=False,
+            has_sum=True,
+        )
+        _LOGGER.debug(metadata)
+
+        total_usage = Decimal(0)
+        for ts, usage in sorted(dates.items(), key=itemgetter(0)):
+            total_usage += usage
+            statistics.append(StatisticData(start=ts, sum=total_usage, state=usage))
+        if len(statistics) > 0:
+            _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
+        async_import_statistics(self.hass, metadata, statistics)
+
+    async def _import_bewegungsdaten(self, smartmeter: Smartmeter):
+        """Initialize the statistics by fetching three years of data"""
+        recording = await self.get_bewegungsdaten(smartmeter)
+        _LOGGER.debug(f"Mapped historical data: {recording}")
+        if recording['unitOfMeasurement'] == 'WH':
+            factor = 1e-3
+        elif recording['unitOfMeasurement'] == 'KWH':
+            factor = 1.0
+        else:
+            raise NotImplementedError(f'Unit {recording["unitOfMeasurement"]}" is not yet implemented. Please report!')
+
+        dates = defaultdict(Decimal)
+        if 'values' not in recording:
+            raise ValueError("WienerNetze does not report historical data (yet)")
+        for value in recording['values']:
+            reading = Decimal(value['wert'] * factor)
+            ts = dt_util.parse_datetime(value['zeitpunktVon'])
+            ts_to = dt_util.parse_datetime(value['zeitpunktBis'])
             if ts.minute % 15 != 0 or ts.second != 0 or ts.microsecond != 0:
                 _LOGGER.warning(f"Unexpected time detected in historic data: {value}")
             if (ts_to - ts) != timedelta(minutes=15):
@@ -213,12 +255,12 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             last_ts = start
             start += timedelta(hours=24)  # Next batch. Setting this here should avoid endless loops
 
-
             # Check if this batch of data is valid and contains hourly statistics:
             if not consumption.get('optIn'):
                 # TODO: actually, we could insert zero-usage data here, to increase the start time
                 # for the next run. Otherwise, the same data is queried over and over.
-                _LOGGER.warning(f"Data starting at {start} does not contain granular data! Opt-in was not set back then. Skipping.")
+                _LOGGER.warning(
+                    f"Data starting at {start} does not contain granular data! Opt-in was not set back then. Skipping.")
                 continue
 
             # Can actually check, if the whole batch can be skipped.
@@ -229,7 +271,8 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             if 'values' not in consumption:
                 # before, this indicated an error. Since 2023-12-15 no more values means that
                 # data is not available (yet) - but could still indicate an error...
-                _LOGGER.debug(f"No more values in API response. Possibly the end of the available data is reached. Original response: {consumption}")
+                _LOGGER.debug(
+                    f"No more values in API response. Possibly the end of the available data is reached. Original response: {consumption}")
                 # We break the loop here and hope that in the next iteration, data will be collected
                 # again...
                 # TODO: has to be carefully checked if the API can return a response without values
@@ -248,7 +291,8 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                     return
                 if ts < last_ts:
                     # This should prevent any issues with ambiguous values though...
-                    _LOGGER.warning(f"Timestamp from API ({ts}) is less than previously collected timestamp ({last_ts}), ignoring value!")
+                    _LOGGER.warning(
+                        f"Timestamp from API ({ts}) is less than previously collected timestamp ({last_ts}), ignoring value!")
                     continue
                 last_ts = ts
                 if v['value'] is None:

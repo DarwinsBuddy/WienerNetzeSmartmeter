@@ -14,11 +14,13 @@ from urllib import parse
 # necessary for pytest-cov to measure coverage
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../../custom_components')
-from wnsm import api # noqa: E402
-from wnsm.api.constants import Resolution # noqa: E402
+from wnsm import api  # noqa: E402
+from wnsm.api.constants import Resolution, ValueType  # noqa: E402
+
 
 def _dt_string(datetime_string):
-        return datetime_string.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+    return datetime_string.isoformat(timespec='milliseconds') + "Z"
+
 
 PAGE_URL = "https://smartmeter-web.wienernetze.at/"
 API_URL_ALT = "https://service.wienernetze.at/sm/api/"
@@ -41,11 +43,11 @@ LOGIN_ARGS = {
 USERNAME = "margit.musterfrau@gmail.com"
 PASSWORD = "Margit1234!"
 
-RESPONSE_CODE = 'b04c44f7-55c6-4c0e-b2af-e9d9408ded2b.949e0f0d-b447-4208-bfef-273d694dc633.c514bbef-6269-48ca-9991-d7d5cd941213' # noqa: E501
+RESPONSE_CODE = 'b04c44f7-55c6-4c0e-b2af-e9d9408ded2b.949e0f0d-b447-4208-bfef-273d694dc633.c514bbef-6269-48ca-9991-d7d5cd941213'  # noqa: E501
 
-ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlBFbVQzTlI1UHV0TlVhelhaeVdlVXphcEhENzFuTW5BQVFZeU9PUWZYVk0ifQ.eyJleHAiOjE2NzczMTIxODEsImlhdCI6MTY3NzMxMTg4MSwiYXV0aF90aW1lIjoxNjc3MzExODgwLCJqdGkiOiIxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwMTIiLCJpc3MiOiJodHRwczovL2xvZy53aWVuL2F1dGgvcmVhbG1zL2xvZ3dpZW4iLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoid24tc21hcnRtZXRlciIsIm5vbmNlIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwic2Vzc2lvbl9zdGF0ZSI6IjEyMzQ1Njc4LTEyMzQtMTIzNC0xMjM0LTEyMzQ1Njc4OTAxMiIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwczovL3NtYXJ0bWV0ZXItd2ViLndpZW5lcm5ldHplLmF0IiwiaHR0cHM6Ly93d3cud2llbmVybmV0emUuYXQiLCJodHRwOi8vbG9jYWxob3N0OjQyMDAiXSwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbImRlZmF1bHQtcm9sZXMtd2xvZ2luIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJvcGVuaWQgZW1haWwgcHJvZmlsZSIsInNpZCI6IjEyMzQ1Njc4LTEyMzQtMTIzNC0xMjM0LTEyMzQ1Njc4OTAxMiIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiTWFyZ2l0IE11c3RlcmZyYXUiLCJjb21wYW55IjoiUHJpdmF0IiwicHJlZmVycmVkX3VzZXJuYW1lIjoibWFyZ2l0Lm11c3RlcmZyYXVAZ21haWwuY29tIiwic2FsdXRhdGlvbiI6IkZyYXUiLCJnaXZlbl9uYW1lIjoiTWFyZ2l0IiwibG9jYWxlIjoiZW4iLCJmYW1pbHlfbmFtZSI6Ik11c3RlcmZyYXUiLCJlbWFpbCI6Im1hcmdpdC5tdXN0ZXJmcmF1QGdtYWlsLmNvbSJ9.4x8uJ3LE8i5fnyw5qpTiZbi44hvoIM0MhQMCkmH_RUQ' # noqa: E501
-REFRESH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJkZDFhMDQ0LTgzZWUtNDUzMi1hOTk3LTBkMjI1YzcxNTYyNCJ9.eyJleHAiOjE2NzczMTM2ODEsImlhdCI6MTY3NzMxMTg4MSwianRpIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwiaXNzIjoiaHR0cHM6Ly9sb2cud2llbi9hdXRoL3JlYWxtcy9sb2d3aWVuIiwiYXVkIjoiaHR0cHM6Ly9sb2cud2llbi9hdXRoL3JlYWxtcy9sb2d3aWVuIiwic3ViIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6InduLXNtYXJ0bWV0ZXIiLCJub25jZSI6IjEyMzQ1Njc4LTEyMzQtMTIzNC0xMjM0LTEyMzQ1Njc4OTAxMiIsInNlc3Npb25fc3RhdGUiOiIxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwMTIiLCJzY29wZSI6Im9wZW5pZCBlbWFpbCBwcm9maWxlIiwic2lkIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIn0.eJ2f9hOGaLFgQmcL0WQDsyt3E92Ri9qmJ4lnhZY_W2o' # noqa: E501
-ID_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlBFbVQzTlI1UHV0TlVhelhaeVdlVXphcEhENzFuTW5BQVFZeU9PUWZYVk0ifQ.eyJleHAiOjE2NzczMTIxODEsImlhdCI6MTY3NzMxMTg4MSwiYXV0aF90aW1lIjoxNjc3MzExODgwLCJqdGkiOiIxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwMTIiLCJpc3MiOiJodHRwczovL2xvZy53aWVuL2F1dGgvcmVhbG1zL2xvZ3dpZW4iLCJhdWQiOiJ3bi1zbWFydG1ldGVyIiwic3ViIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwidHlwIjoiSUQiLCJhenAiOiJ3bi1zbWFydG1ldGVyIiwibm9uY2UiOiIxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwMTIiLCJzZXNzaW9uX3N0YXRlIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwiYXRfaGFzaCI6ImZRQmFaQU1JVC1ucGktWmxCS1JTdHciLCJzaWQiOiIxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwMTIiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibmFtZSI6Ik1hcmdpdCBNdXN0ZXJmcmF1IiwicHJlZmVycmVkX3VzZXJuYW1lIjoibWFyZ2l0Lm11c3RlcmZyYXVAZ21haWwuY29tIiwiZ2l2ZW5fbmFtZSI6Ik1hcmdpdCIsImxvY2FsZSI6ImVuIiwiZmFtaWx5X25hbWUiOiJNdXN0ZXJmcmF1IiwiZW1haWwiOiJtYXJnaXQubXVzdGVyZnJhdUBnbWFpbC5jb20ifQ.FBGAMU-bDKorGnIC-douEsKJ3VfwpNRBoeHMtytnow8' # noqa: E501
+ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlBFbVQzTlI1UHV0TlVhelhaeVdlVXphcEhENzFuTW5BQVFZeU9PUWZYVk0ifQ.eyJleHAiOjE2NzczMTIxODEsImlhdCI6MTY3NzMxMTg4MSwiYXV0aF90aW1lIjoxNjc3MzExODgwLCJqdGkiOiIxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwMTIiLCJpc3MiOiJodHRwczovL2xvZy53aWVuL2F1dGgvcmVhbG1zL2xvZ3dpZW4iLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoid24tc21hcnRtZXRlciIsIm5vbmNlIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwic2Vzc2lvbl9zdGF0ZSI6IjEyMzQ1Njc4LTEyMzQtMTIzNC0xMjM0LTEyMzQ1Njc4OTAxMiIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwczovL3NtYXJ0bWV0ZXItd2ViLndpZW5lcm5ldHplLmF0IiwiaHR0cHM6Ly93d3cud2llbmVybmV0emUuYXQiLCJodHRwOi8vbG9jYWxob3N0OjQyMDAiXSwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbImRlZmF1bHQtcm9sZXMtd2xvZ2luIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJvcGVuaWQgZW1haWwgcHJvZmlsZSIsInNpZCI6IjEyMzQ1Njc4LTEyMzQtMTIzNC0xMjM0LTEyMzQ1Njc4OTAxMiIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiTWFyZ2l0IE11c3RlcmZyYXUiLCJjb21wYW55IjoiUHJpdmF0IiwicHJlZmVycmVkX3VzZXJuYW1lIjoibWFyZ2l0Lm11c3RlcmZyYXVAZ21haWwuY29tIiwic2FsdXRhdGlvbiI6IkZyYXUiLCJnaXZlbl9uYW1lIjoiTWFyZ2l0IiwibG9jYWxlIjoiZW4iLCJmYW1pbHlfbmFtZSI6Ik11c3RlcmZyYXUiLCJlbWFpbCI6Im1hcmdpdC5tdXN0ZXJmcmF1QGdtYWlsLmNvbSJ9.4x8uJ3LE8i5fnyw5qpTiZbi44hvoIM0MhQMCkmH_RUQ'  # noqa: E501
+REFRESH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJkZDFhMDQ0LTgzZWUtNDUzMi1hOTk3LTBkMjI1YzcxNTYyNCJ9.eyJleHAiOjE2NzczMTM2ODEsImlhdCI6MTY3NzMxMTg4MSwianRpIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwiaXNzIjoiaHR0cHM6Ly9sb2cud2llbi9hdXRoL3JlYWxtcy9sb2d3aWVuIiwiYXVkIjoiaHR0cHM6Ly9sb2cud2llbi9hdXRoL3JlYWxtcy9sb2d3aWVuIiwic3ViIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6InduLXNtYXJ0bWV0ZXIiLCJub25jZSI6IjEyMzQ1Njc4LTEyMzQtMTIzNC0xMjM0LTEyMzQ1Njc4OTAxMiIsInNlc3Npb25fc3RhdGUiOiIxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwMTIiLCJzY29wZSI6Im9wZW5pZCBlbWFpbCBwcm9maWxlIiwic2lkIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIn0.eJ2f9hOGaLFgQmcL0WQDsyt3E92Ri9qmJ4lnhZY_W2o'  # noqa: E501
+ID_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlBFbVQzTlI1UHV0TlVhelhaeVdlVXphcEhENzFuTW5BQVFZeU9PUWZYVk0ifQ.eyJleHAiOjE2NzczMTIxODEsImlhdCI6MTY3NzMxMTg4MSwiYXV0aF90aW1lIjoxNjc3MzExODgwLCJqdGkiOiIxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwMTIiLCJpc3MiOiJodHRwczovL2xvZy53aWVuL2F1dGgvcmVhbG1zL2xvZ3dpZW4iLCJhdWQiOiJ3bi1zbWFydG1ldGVyIiwic3ViIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwidHlwIjoiSUQiLCJhenAiOiJ3bi1zbWFydG1ldGVyIiwibm9uY2UiOiIxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwMTIiLCJzZXNzaW9uX3N0YXRlIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5MDEyIiwiYXRfaGFzaCI6ImZRQmFaQU1JVC1ucGktWmxCS1JTdHciLCJzaWQiOiIxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwMTIiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibmFtZSI6Ik1hcmdpdCBNdXN0ZXJmcmF1IiwicHJlZmVycmVkX3VzZXJuYW1lIjoibWFyZ2l0Lm11c3RlcmZyYXVAZ21haWwuY29tIiwiZ2l2ZW5fbmFtZSI6Ik1hcmdpdCIsImxvY2FsZSI6ImVuIiwiZmFtaWx5X25hbWUiOiJNdXN0ZXJmcmF1IiwiZW1haWwiOiJtYXJnaXQubXVzdGVyZnJhdUBnbWFpbC5jb20ifQ.FBGAMU-bDKorGnIC-douEsKJ3VfwpNRBoeHMtytnow8'  # noqa: E501
 
 zp_template = {
     "zaehlpunktnummer": "AT0010000000000000001000011111111",
@@ -140,52 +142,54 @@ def zaehlpunkt_response(zps=None):
         }
     ]
 
+
 def verbrauch_raw_response():
     return {
-    "quarter-hour-opt-in":True,
-    "values":[
-        {
-            "value":5461,
-            "timestamp":"2023-04-22T22:00:00.000Z",
-            "isEstimated":False
-        },
-        {
-            "value":5513,
-            "timestamp":"2023-04-23T22:00:00.000Z",
-            "isEstimated":False
-        },
-        {
-            "value":4672,
-            "timestamp":"2023-04-24T22:00:00.000Z",
-            "isEstimated":False
-        },
-        {
-            "value":5550,
-            "timestamp":"2023-04-25T22:00:00.000Z",
-            "isEstimated":False
-        },
-        {
-            "value":3856,
-            "timestamp":"2023-04-26T22:00:00.000Z",
-            "isEstimated":False
-        },
-        {
-            "value":5137,
-            "timestamp":"2023-04-27T22:00:00.000Z",
-            "isEstimated":False
-        },
-        {
-            "value":6918,
-            "timestamp":"2023-04-28T22:00:00.000Z",
-            "isEstimated":False
+        "quarter-hour-opt-in": True,
+        "values": [
+            {
+                "value": 5461,
+                "timestamp": "2023-04-22T22:00:00.000Z",
+                "isEstimated": False
+            },
+            {
+                "value": 5513,
+                "timestamp": "2023-04-23T22:00:00.000Z",
+                "isEstimated": False
+            },
+            {
+                "value": 4672,
+                "timestamp": "2023-04-24T22:00:00.000Z",
+                "isEstimated": False
+            },
+            {
+                "value": 5550,
+                "timestamp": "2023-04-25T22:00:00.000Z",
+                "isEstimated": False
+            },
+            {
+                "value": 3856,
+                "timestamp": "2023-04-26T22:00:00.000Z",
+                "isEstimated": False
+            },
+            {
+                "value": 5137,
+                "timestamp": "2023-04-27T22:00:00.000Z",
+                "isEstimated": False
+            },
+            {
+                "value": 6918,
+                "timestamp": "2023-04-28T22:00:00.000Z",
+                "isEstimated": False
+            }
+        ],
+        "statistics": {
+            "maximum": 6918,
+            "minimum": 3856,
+            "average": 5301
         }
-    ],
-    "statistics":{
-        "maximum":6918,
-        "minimum":3856,
-        "average":5301
     }
-    }
+
 
 def history_response(zp: str):
     return [
@@ -207,6 +211,45 @@ def history_response(zp: str):
             ]
         }
     ]
+
+
+def bewegungsdaten_response(customer_id: str, zp: str, granularity: ValueType = ValueType.QUARTER_HOUR):
+    if (granularity == ValueType.QUARTER_HOUR):
+        t1 = "2022-08-07T00:00:00Z"
+        t2 = "2022-08-07T00:15:00Z"
+        t3 = "2022-08-07T00:30:00Z"
+        gran = "QH"
+        rolle = "V002"
+    else:
+        t1 = "2022-08-07T00:00:00Z"
+        t2 = "2022-08-07T01:00:00Z"
+        t3 = "2022-08-07T02:00:00Z"
+        gran = "QH"
+        rolle = "V001"
+    return {
+        "descriptor": {
+            "geschaeftspartnernummer": customer_id,
+            "zaehlpunktnummer": zp,
+            "rolle": rolle,
+            "aggregat": "NONE",
+            "granularitaet": gran,
+            "einheit": "KWH"
+        },
+        "values": [
+            {
+                "wert": 0.041,
+                "zeitpunktVon": t1,
+                "zeitpunktBis": t2,
+                "geschaetzt": False
+            },
+            {
+                "wert": 0.034,
+                "zeitpunktVon": t2,
+                "zeitpunktBis": t3,
+                "geschaetzt": False
+            }
+        ]
+    }
 
 
 def smartmeter(username=USERNAME, password=PASSWORD):
@@ -359,11 +402,13 @@ def expect_zaehlpunkte(requests_mock: Mocker, zps: list[dict]):
                       },
                       json=zaehlpunkt_response(zps))
 
+
 @pytest.mark.usefixtures("requests_mock")
-def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, response: dict, granularity ='DAY', resolution ='HOUR'):
+def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, response: dict,
+                     granularity='DAY', resolution='HOUR'):
     params = {
-        "dateFrom":     _dt_string(dateFrom),
-        "dayViewResolution":   resolution
+        "dateFrom": _dt_string(dateFrom),
+        "dayViewResolution": resolution
     }
     path = f'messdaten/{customer_id}/{zp}/verbrauch?{urlencode(params)}'
     print("MOCK: ", API_URL_B2C + path)
@@ -384,3 +429,22 @@ def expect_history(requests_mock: Mocker, zp: str):
                           "Accept": "application/json"
                       },
                       json=history_response(zp))
+
+@pytest.mark.usefixtures("requests_mock")
+def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime, granularity:ValueType = ValueType.QUARTER_HOUR):
+    params = {
+        "geschaeftspartner": customer_id,
+        "zaehlpunktnummer": zp,
+        "rolle": "V001" if granularity == ValueType.DAY else "V002",
+        "zeitpunktVon": _dt_string(dateFrom),
+        "zeitpunktBis": _dt_string(dateTo),
+        "aggregat": "NONE"
+    }
+    url = API_URL_ALT + f'user/messwerte/bewegungsdaten?{urlencode(params)}'
+    print(url)
+    requests_mock.get(url,
+                      headers={
+                          "Authorization": f"Bearer {ACCESS_TOKEN}",
+                          "Accept": "application/json"
+                      },
+                      json=bewegungsdaten_response(customer_id, zp))

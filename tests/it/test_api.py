@@ -19,7 +19,7 @@ from it import (
     USERNAME,
     mock_token,
     mock_get_api_key,
-    expect_history,
+    expect_history, expect_bewegungsdaten, zaehlpunkt_response,
 )
 from wnsm.api.errors import SmartmeterConnectionError, SmartmeterLoginError
 
@@ -173,13 +173,28 @@ def test_history(requests_mock: Mocker):
     assert 1 == len(hist['messwerte'])
     assert 'WH' == hist['einheit']
 
+
+@pytest.mark.usefixtures("requests_mock")
+def test_bewegungsdaten(requests_mock: Mocker):
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    dateFrom = dt.datetime(2023, 4, 21, 00, 00, 00, 0)
+    dateTo = dt.datetime(2023, 5, 1, 23, 59, 59, 999999)
+    zpn = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    expect_login(requests_mock)
+    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+
+    hist = smartmeter().login().bewegungsdaten(None, dateFrom, dateTo)
+
+    assert 2 == len(hist['values'])
+
+
 @pytest.mark.usefixtures("requests_mock")
 def test_verbrauch_raw(requests_mock: Mocker):
 
     dateFrom = dt.datetime(2023, 4, 21, 22, 00, 00)
-    dateTo   = dt.datetime(2023, 5,  1, 21, 59, 59)
-    zp       = "AT000000001234567890"
-    customer_id       = "123456789"
+    zp = "AT000000001234567890"
+    customer_id = "123456789"
     valid_verbrauch_raw_response = verbrauch_raw_response()
     expect_login(requests_mock)
     expect_history(requests_mock, enabled(zaehlpunkt())['zaehlpunktnummer'])

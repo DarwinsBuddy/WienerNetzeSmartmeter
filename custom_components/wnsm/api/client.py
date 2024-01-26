@@ -243,10 +243,10 @@ class Smartmeter:
         return customer_id, zp
 
     def get_zaehlpunkt(self, zaehlpunkt: str) -> (str, str):
-        zps = self.zaehlpunkte()
-        zp = [z for z in zps if z["zaehlpunktnummer"] == zaehlpunkt]
+        zps = self.zaehlpunkte()[0]
         customer_id = zps["geschaeftspartner"]
-        return customer_id, zp
+        zp = [z for z in zps["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
+        return customer_id, zp[0] if len(zp) > 0 else None
 
     def zaehlpunkte(self):
         """Returns zaehlpunkte for currently logged in user."""
@@ -460,12 +460,18 @@ class Smartmeter:
         zaehlpunktnummer: str = None,
         date_from: date = None,
         date_until: date = None,
+        valuetype: const.ValueType = const.ValueType.QUARTER_HOUR,
     ):
         """
         Query historical data in a batch
         If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
         If date_from is not given but date_until, again a three year span is assumed.
         """
+        if valuetype == const.ValueType.DAY:
+            rolle = "V001"
+        else:
+            rolle = "V002"
+
         if zaehlpunktnummer is None:
             customer_id, zaehlpunkt = self._get_first_zaehlpunkt()
         else:
@@ -480,8 +486,8 @@ class Smartmeter:
         query = {
             "geschaeftspartner": customer_id,
             "zaehlpunktnummer": zaehlpunkt,
-            "rolle": "V001",
-            "zeitpunktVon": date_from.strftime("%Y-%m-%dT00:00:00Z"),
+            "rolle": rolle,
+            "zeitpunktVon": date_from.strftime("%Y-%m-%dT00:00:00.000Z"),
             "zeitpunktBis": date_until.strftime("%Y-%m-%dT23:59:59.999Z"),
             "aggregat": "NONE"
         }
@@ -493,12 +499,11 @@ class Smartmeter:
 
         data = self._call_api(
             f"user/messwerte/bewegungsdaten",
-            base_url=const.API_URL_B2B,
+            base_url=const.API_URL_ALT,
             query=query,
             extra_headers=extra,
         )
-
-        if data["descriptor"]["zaehlpunktnummer"] != zaehlpunktnummer:
+        if data["descriptor"]["zaehlpunktnummer"] != zaehlpunkt:
             raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
         if len(data["values"]) == 0:
             raise SmartmeterQueryError("Historical data is empty")
