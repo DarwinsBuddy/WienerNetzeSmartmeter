@@ -1,4 +1,5 @@
 """Contains the Smartmeter API Client."""
+import json
 import logging
 from datetime import datetime, timedelta, date
 from urllib import parse
@@ -206,8 +207,6 @@ class Smartmeter:
         if query:
             url += ("?" if "?" not in endpoint else "&") + parse.urlencode(query)
 
-        logger.debug("REQUEST: %s" % url)
-
         headers = {
             "Authorization": f"Bearer {self._access_token}",
         }
@@ -228,6 +227,10 @@ class Smartmeter:
             method, url, headers=headers, json=data, timeout=timeout
         )
 
+        logger.debug("\nAPI Request: %s\n%s\n\nAPI Response: %s" % (
+            url, ("" if data is None else "body: "+json.dumps(data, indent=2)),
+            None if response is None or response.json() is None else json.dumps(response.json(), indent=2)))
+
         if return_response:
             return response
 
@@ -238,7 +241,6 @@ class Smartmeter:
         customer_id = zps["geschaeftspartner"]
         zp = zps["zaehlpunkte"][0]["zaehlpunktnummer"]
         return customer_id, zp
-
 
     def get_zaehlpunkt(self, zaehlpunkt: str) -> (str, str):
         zps = self.zaehlpunkte()
@@ -439,7 +441,6 @@ class Smartmeter:
             query=query,
             extra_headers=extra,
         )
-
         # Some Sanity Checks...
         if len(data) != 1 or data[0]["zaehlpunkt"] != zaehlpunkt or len(data[0]["zaehlwerke"]) != 1:
             # TODO: Is it possible to have multiple zaehlwerke in one zaehlpunkt?
@@ -453,7 +454,6 @@ class Smartmeter:
         if obis_code[0] != "1":
             logger.warning(f"The OBIS code of the meter ({obis_code}) reports that this meter does not count electrical energy!")
         return data[0]["zaehlwerke"][0]
-
 
     def bewegungsdaten(
         self,
