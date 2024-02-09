@@ -70,8 +70,6 @@ class BaseSensor(SensorEntity, ABC):
     @property
     def name(self) -> str:
         """Return the name of the entity."""
-        if "label" in self._attr_extra_state_attributes:
-            return self._attr_extra_state_attributes["label"]
         return self._name
 
     @property
