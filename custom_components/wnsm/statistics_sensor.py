@@ -128,7 +128,15 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                 start, _sum = start_off_point
                 await self._import_statistics(smartmeter, start, _sum)
 
-            self._state = 0
+            # XXX: Note that the state of this sensor must never be an integer value, such as 0!
+            # If it is set to any number, home assistant will assume that a negative consumption
+            # compensated the last statistics entry and add a negative consumption in the energy
+            # dashboard.
+            # This is a technical debt of HA, as we cannot import statistics and have states at the
+            # same time.
+            # Due to None, the sensor will always show "unkown" - but that is currently the only way
+            # how historical data can be imported without rewriting the database on our own...
+            self._state = None
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except TimeoutError as e:
             self._available = False
