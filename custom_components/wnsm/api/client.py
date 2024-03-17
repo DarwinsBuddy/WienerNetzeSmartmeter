@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, date
 from urllib import parse
 
 import requests
+from dateutil.relativedelta import relativedelta
 from lxml import html
 
 from . import constants as const
@@ -419,7 +420,7 @@ class Smartmeter:
             date_until = date.today()
 
         if date_from is None:
-            date_from = date_until.replace(year=date_until.year - 3)
+            date_from = date_until - relativedelta(years=3)
 
         query = {
             "zaehlpunkt": zaehlpunkt,
@@ -476,7 +477,7 @@ class Smartmeter:
             date_until = date.today()
 
         if date_from is None:
-            date_from = date_until.replace(year=date_until.year - 3)
+            date_from = date_until- relativedelta(years=3)
 
         query = {
             "geschaeftspartner": customer_id,
