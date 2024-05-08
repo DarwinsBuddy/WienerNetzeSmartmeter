@@ -242,10 +242,12 @@ class Smartmeter:
         customer_id = zps["geschaeftspartner"]
         if zaehlpunkt is not None:
             zp = [z for z in zps["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
+            anlage_typ = zp[0]["anlage"]["typ"] if len(zp) > 0 else None
             zp = zp[0]["zaehlpunktnummer"] if len(zp) > 0 else None
         else:
             zp = zps["zaehlpunkte"][0]["zaehlpunktnummer"]
-        return customer_id, zp
+            anlage_typ = zps["zaehlpunkte"][0]["anlage"]["typ"]
+        return customer_id, zp, anlage_typ
 
     def zaehlpunkte(self):
         """Returns zaehlpunkte for currently logged in user."""
@@ -466,12 +468,18 @@ class Smartmeter:
         If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
         If date_from is not given but date_until, again a three year span is assumed.
         """
-        if valuetype == const.ValueType.DAY:
-            rolle = "V001"
+        customer_id, zaehlpunkt,anlage_typ = self.get_zaehlpunkt(zaehlpunktnummer)
+        
+        if anlage_typ== "BEZUG":
+            if valuetype == const.ValueType.DAY:
+                rolle = "E001"
+            else:
+                rolle = "E002"
         else:
-            rolle = "V002"
-
-        customer_id, zaehlpunkt = self.get_zaehlpunkt(zaehlpunktnummer)
+            if valuetype == const.ValueType.DAY:
+                rolle = "V001"
+            else:
+                rolle = "V002"
 
         if date_until is None:
             date_until = date.today()
