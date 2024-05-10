@@ -51,6 +51,26 @@ class ValueType(enum.Enum):
         else:
             raise NotImplementedError
 
+class AnlageType(enum.Enum):
+    """Possible types for the zaehlpunkte"""
+    CONSUMING = "TAGSTROM"  #: Zaehlpunkt is consuming ("normal" power connection)
+    FEEDING = "BEZUG"  #: Zaehlpunkt is feeding (produced power from PV, etc.)
+    
+    @staticmethod
+    def from_str(label):
+        if label in ('TAGSTROM', 'tagstrom'):
+            return AnlageType.CONSUMING
+        elif label in ('BEZUG', 'bezug'):
+            return AnlageType.FEEDING
+        else:
+            raise NotImplementedError
+            
+class RoleType(enum.Enum):
+    """Possible types for the roles of bewegungsdaten - depending on the settings set in smart meter portal"""
+    DAILY_CONSUMING = "V001"  #: Consuming data is updated in daily steps
+    QUARTER_HOURLY_CONSUMING = "V002"  #: Consuming data is updated in quarter hour steps
+    DAILY_FEEDING = "E001"  #: Feeding data is updated in daily steps
+    QUARTER_HOURLY_FEEDING = "E002"  #: Feeding data is updated in quarter hour steps
 
 def build_access_token_args(**kwargs):
     """
