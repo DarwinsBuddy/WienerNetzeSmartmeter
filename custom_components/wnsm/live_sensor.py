@@ -62,7 +62,7 @@ class LiveSensor(BaseSensor, SensorEntity):
                             )
                         )
                         if yesterdays_sum > 0:
-                            self._state = yesterdays_sum
+                            self._state = yesterdays_sum/1000
                     else:
                         _LOGGER.error("Unable to load consumption")
                         _LOGGER.error(
