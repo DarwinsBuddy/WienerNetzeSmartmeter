@@ -238,15 +238,19 @@ class Smartmeter:
         return response.json()
 
     def get_zaehlpunkt(self, zaehlpunkt: str = None) -> tuple[str, str, str]:
-        zps = self.zaehlpunkte()[0]
-        customer_id = zps["geschaeftspartner"]
-        if zaehlpunkt is not None:
-            zp = [z for z in zps["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
-            anlagetype = zp[0]["anlage"]["typ"] if len(zp) > 0 else None
-            zp = zp[0]["zaehlpunktnummer"] if len(zp) > 0 else None
+        contracts = self.zaehlpunkte()
+        if zaehlpunkt is None:
+            customer_id = contracts[0]["geschaeftspartner"]
+            zp = contracts[0]["zaehlpunkte"][0]["zaehlpunktnummer"]
+            anlagetype = contracts[0]["zaehlpunkte"][0]["anlage"]["typ"]
         else:
-            zp = zps["zaehlpunkte"][0]["zaehlpunktnummer"]
-            anlagetype = zps["zaehlpunkte"][0]["anlage"]["typ"]
+            customer_id = zp = anlagetype = None
+            for contract in contracts:
+                zp = [z for z in contract["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
+                if len(zp) > 0:
+                    anlagetype = zp[0]["anlage"]["typ"]
+                    zp = zp[0]["zaehlpunktnummer"]
+                    customer_id = contract["geschaeftspartner"]
         return customer_id, zp, const.AnlageType.from_str(anlagetype)
 
     def zaehlpunkte(self):
