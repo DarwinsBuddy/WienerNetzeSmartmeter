@@ -47,38 +47,32 @@ class LiveSensor(BaseSensor, SensorEntity):
                 else:
                     # if not, we'll have to guesstimate (because api is shitty-pom-fritty)
                     # for that zaehlpunkt
-                    verbrauch_raw = await self.get_consumption_raw(
-                        smartmeter, before(before(today()))
-                    )
-                    if (
-                            "values" in verbrauch_raw
-                            and "statistics" in verbrauch_raw
-                    ):
-                        avg = safeget(verbrauch_raw, "statistics", "average")
-                        yesterdays_sum = sum(
-                            (
+                    consumption_dates = [before(today(),2), before(today(),3)]
+                    for consumption_date in consumption_dates:
+                        verbrauch_raw = await self.get_consumption_raw(smartmeter, consumption_date)
+                        if "values" in verbrauch_raw and "statistics" in verbrauch_raw:
+                            avg = safeget(verbrauch_raw, "statistics", "average")
+                            yesterdays_sum = sum(
                                 y["value"] if y["value"] is not None else avg
                                 for y in verbrauch_raw["values"]
                             )
-                        )
-                        if yesterdays_sum > 0:
-                            self._state = yesterdays_sum/1000
+                            if yesterdays_sum > 0:
+                                self._state = yesterdays_sum / 1000
+                                break
                     else:
                         _LOGGER.error("Unable to load consumption")
                         _LOGGER.error(
-                            "Please file an issue with this error and \
-                            (anonymized) payload in github %s %s %s %s",
-                            base_information,
-                            consumptions,
-                            meter_readings,
-                            verbrauch_raw,
+                            "Please file an issue with this error and (anonymized) payload in github %s %s %s %s",
+                            base_information, consumptions, meter_readings, verbrauch_raw
                         )
                         return
             self._available = True
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except TimeoutError as e:
             self._available = False
-            _LOGGER.warning("Error retrieving data from smart meter api - Timeout: %s" % e)
+            _LOGGER.warning(
+                "Error retrieving data from smart meter api - Timeout: %s" % e)
         except RuntimeError as e:
             self._available = False
-            _LOGGER.exception("Error retrieving data from smart meter api - Error: %s" % e)
+            _LOGGER.exception(
+                "Error retrieving data from smart meter api - Error: %s" % e)
