@@ -60,6 +60,8 @@ class AnlageType(enum.Enum):
     def from_str(label):
         if label in ('TAGSTROM', 'tagstrom'):
             return AnlageType.CONSUMING
+        elif label in ('WAERMEPUMPE', 'waermepumpe'):
+            return AnlageType.CONSUMING
         elif label in ('BEZUG', 'bezug'):
             return AnlageType.FEEDING
         else:
