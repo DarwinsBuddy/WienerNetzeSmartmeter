@@ -152,37 +152,22 @@ class Smartmeter:
             )
 
     def _get_api_key(self, token):
-        key_b2c = None
-        key_b2b = None
-
         self._access_valid_or_raise()
 
         headers = {"Authorization": f"Bearer {token}"}
         try:
-            result = self.session.get(const.PAGE_URL, headers=headers)
+            result = self.session.get(const.API_CONFIG_URL, headers=headers).json()
         except Exception as exception:
             raise SmartmeterConnectionError("Could not obtain API key") from exception
-        tree = html.fromstring(result.content)
-        scripts = tree.xpath("(//script/@src)")
 
-        # sort the scripts in some order to find the keys faster
-        # so far, the script was called main.XXXX.js
-        scripts = sorted(scripts, key=lambda x: "main" not in x)
+        if "b2cApiKey" not in result:
+            raise SmartmeterConnectionError("b2cApiKey not found")
+        if "b2bApiKey" not in result:
+            raise SmartmeterConnectionError("b2bApiKey not found")
 
-        for script in scripts:
-            if key_b2c is not None and key_b2b is not None:
-                break
-            try:
-                response = self.session.get(const.PAGE_URL + script)
-            except Exception as exception:
-                raise SmartmeterConnectionError(
-                    "Could not obtain API Key from scripts"
-                ) from exception
-            key_b2c = const.API_GATEWAY_TOKEN_REGEX.search(response.text)
-            key_b2b = const.API_GATEWAY_B2B_TOKEN_REGEX.search(response.text)
-        if key_b2c is None or key_b2b is None:
-            raise SmartmeterConnectionError("Could not obtain API Key - no match")
-        return key_b2c.group(1), key_b2b.group(1)
+        # TODO: The b2bApiUrl and b2cApiUrl can also be gathered from the configuration
+
+        return result["b2cApiKey"], result["b2bApiKey"]
 
     @staticmethod
     def _dt_string(datetime_string):
