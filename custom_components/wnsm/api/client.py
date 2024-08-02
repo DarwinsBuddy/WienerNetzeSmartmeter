@@ -160,14 +160,21 @@ class Smartmeter:
         except Exception as exception:
             raise SmartmeterConnectionError("Could not obtain API key") from exception
 
-        if "b2cApiKey" not in result:
-            raise SmartmeterConnectionError("b2cApiKey not found")
-        if "b2bApiKey" not in result:
-            raise SmartmeterConnectionError("b2bApiKey not found")
+        find_keys = ["b2cApiKey", "b2bApiKey"]
+        for key in find_keys:
+            if key not in result:
+                raise SmartmeterConnectionError(f"{key} not found in response!")
 
-        # TODO: The b2bApiUrl and b2cApiUrl can also be gathered from the configuration
+        # The b2bApiUrl and b2cApiUrl can also be gathered from the configuration
+        # TODO: reduce code duplication...
+        if "b2cApiUrl" in result and result["b2cApiUrl"] != const.API_URL:
+            const.API_URL = result["b2cApiUrl"]
+            logger.warning("The b2cApiUrl has changed to %s! Update API_URL!", const.API_URL)
+        if "b2bApiUrl" in result and result["b2bApiUrl"] != const.API_URL_B2B:
+            const.API_URL_B2B = result["b2bApiUrl"]
+            logger.warning("The b2bApiUrl has changed to %s! Update API_URL_B2B!", const.API_URL_B2B)
 
-        return result["b2cApiKey"], result["b2bApiKey"]
+        return (result[key] for key in find_keys)
 
     @staticmethod
     def _dt_string(datetime_string):
@@ -188,7 +195,7 @@ class Smartmeter:
 
         if base_url is None:
             base_url = const.API_URL
-        url = f"{base_url}{endpoint}"
+        url = parse.urljoin(base_url, endpoint)
 
         if query:
             url += ("?" if "?" not in endpoint else "&") + parse.urlencode(query)
@@ -198,6 +205,9 @@ class Smartmeter:
         }
 
         # For API calls to B2C or B2B, we need to add the Gateway-APIKey:
+        # TODO: This may be prone to errors if URLs are compared like this.
+        #       The Strings has to be exactly the same, but that may not be the case,
+        #       even though the URLs are the same.
         if base_url == const.API_URL:
             headers["X-Gateway-APIKey"] = self._api_gateway_token
         elif base_url == const.API_URL_B2B:

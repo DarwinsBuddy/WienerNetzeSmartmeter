@@ -7,8 +7,8 @@ PAGE_URL = "https://smartmeter-web.wienernetze.at/"
 API_CONFIG_URL = "https://smartmeter-web.wienernetze.at/assets/app-config.json"
 API_URL_ALT = "https://service.wienernetze.at/sm/api/"
 # These two URLS are also coded in the js as b2cApiUrl and b2bApiUrl
-API_URL = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2C/1.0/"
-API_URL_B2B = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/1.0/"
+API_URL = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2C/1.0"
+API_URL_B2B = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/1.0"
 REDIRECT_URI = "https://smartmeter-web.wienernetze.at/"
 API_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 AUTH_URL = "https://log.wien/auth/realms/logwien/protocol/openid-connect/"  # noqa
