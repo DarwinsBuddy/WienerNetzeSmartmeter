@@ -491,8 +491,9 @@ def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom:
 
 
 @pytest.mark.usefixtures("requests_mock")
-def expect_history(requests_mock: Mocker, zp: str):
-    requests_mock.get(parse.urljoin(API_URL_B2B, 'zaehlpunkte/messwerte'),
+def expect_history(requests_mock: Mocker, customer_id: str, zp: str):
+    path = f'zaehlpunkte/{customer_id}/{zp}/messwerte'
+    requests_mock.get(parse.urljoin(API_URL_B2B, path),
                       headers={
                           "Authorization": f"Bearer {ACCESS_TOKEN}",
                           "X-Gateway-APIKey": B2B_API_KEY,
