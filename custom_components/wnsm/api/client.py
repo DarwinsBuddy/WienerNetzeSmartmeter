@@ -42,13 +42,11 @@ class Smartmeter:
         """
         loads login page and extracts encoded login url
         """
-        login_url = const.AUTH_URL + "auth?" + \
-            parse.urlencode(const.LOGIN_ARGS)
+        login_url = const.AUTH_URL + "auth?" + parse.urlencode(const.LOGIN_ARGS)
         try:
             result = self.session.get(login_url)
         except Exception as exception:
-            raise SmartmeterConnectionError(
-                "Could not load login page") from exception
+            raise SmartmeterConnectionError("Could not load login page") from exception
         if result.status_code != 200:
             raise SmartmeterConnectionError(
                 f"Could not load login page. Error: {result.content}"
@@ -76,8 +74,7 @@ class Smartmeter:
             ) from exception
 
         if "Location" not in result.headers:
-            raise SmartmeterLoginError(
-                "Login failed. Check username/password.")
+            raise SmartmeterLoginError("Login failed. Check username/password.")
         location = result.headers["Location"]
 
         parsed_url = parse.urlparse(location)
@@ -134,14 +131,12 @@ class Smartmeter:
         # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
         self._refresh_token = tokens["refresh_token"]
         now = datetime.now()
-        self._access_token_expiration = now + \
-            timedelta(seconds=tokens["expires_in"])
+        self._access_token_expiration = now + timedelta(seconds=tokens["expires_in"])
         self._refresh_token_expiration = now + timedelta(
             seconds=tokens["refresh_expires_in"]
         )
 
-        logger.debug("Access Token valid until %s" %
-                     self._access_token_expiration)
+        logger.debug("Access Token valid until %s" % self._access_token_expiration)
 
         self._api_gateway_token, self._api_gateway_b2b_token = self._get_api_key(
             self._access_token
@@ -203,8 +198,7 @@ class Smartmeter:
         url = parse.urljoin(base_url, endpoint)
 
         if query:
-            url += ("?" if "?" not in endpoint else "&") + \
-                parse.urlencode(query)
+            url += ("?" if "?" not in endpoint else "&") + parse.urlencode(query)
 
         headers = {
             "Authorization": f"Bearer {self._access_token}",
@@ -247,8 +241,7 @@ class Smartmeter:
         else:
             customer_id = zp = anlagetype = None
             for contract in contracts:
-                zp = [z for z in contract["zaehlpunkte"]
-                      if z["zaehlpunktnummer"] == zaehlpunkt]
+                zp = [z for z in contract["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
                 if len(zp) > 0:
                     anlagetype = zp[0]["anlage"]["typ"]
                     zp = zp[0]["zaehlpunktnummer"]
@@ -422,8 +415,7 @@ class Smartmeter:
         if zaehlpunktnummer is None:
             customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt()
         else:
-            customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(
-                zaehlpunktnummer)
+            customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
 
         if date_until is None:
             date_until = date.today()
@@ -456,8 +448,7 @@ class Smartmeter:
             # The OBIS Code can code for channels, thus we would probably see that there.
             # Keep that in mind if for someone this fails.
             logger.debug("Returned data: %s" % data)
-            raise SmartmeterQueryError(
-                "Returned data does not match given zaehlpunkt!")
+            raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
         obis_code = data["zaehlwerke"][0]["obisCode"]
         if obis_code[0] != "1":
             logger.warning(f"The OBIS code of the meter ({obis_code}) reports that this meter does not count electrical energy!")
@@ -475,8 +466,7 @@ class Smartmeter:
         If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
         If date_from is not given but date_until, again a three year span is assumed.
         """
-        customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(
-            zaehlpunktnummer)
+        customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
 
         if anlagetype == const.AnlageType.FEEDING:
             if valuetype == const.ValueType.DAY:
@@ -493,7 +483,7 @@ class Smartmeter:
             date_until = date.today()
 
         if date_from is None:
-            date_from = date_until - relativedelta(years=3)
+            date_from = date_until- relativedelta(years=3)
 
         query = {
             "geschaeftspartner": customer_id,
@@ -516,8 +506,7 @@ class Smartmeter:
             extra_headers=extra,
         )
         if data["descriptor"]["zaehlpunktnummer"] != zaehlpunkt:
-            raise SmartmeterQueryError(
-                "Returned data does not match given zaehlpunkt!")
+            raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
         if len(data["values"]) == 0:
             raise SmartmeterQueryError("Historical data is empty")
         return data
