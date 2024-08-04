@@ -304,7 +304,7 @@ def test_verbrauch_raw(requests_mock: Mocker):
     customer_id = "123456789"
     valid_verbrauch_raw_response = verbrauch_raw_response()
     expect_login(requests_mock)
-    expect_history(requests_mock, enabled(zaehlpunkt())['zaehlpunktnummer'])
+    expect_history(requests_mock, customer_id, enabled(zaehlpunkt())['zaehlpunktnummer'])
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
     expect_verbrauch(requests_mock, customer_id, zp, dateFrom, valid_verbrauch_raw_response)
 
