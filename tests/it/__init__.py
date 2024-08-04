@@ -249,12 +249,10 @@ def verbrauch_raw_response():
 
 
 def history_response(zp: str):
-    return [
-        {
-            "zaehlpunkt": zp,
+    return {
             "zaehlwerke": [
                 {
-                    "obisCode": "1-1:1.9.0",
+                    "obisCode": "1-1:2.9.0",
                     "einheit": "WH",
                     "messwerte": [
                         {
@@ -265,10 +263,9 @@ def history_response(zp: str):
                         }
                     ]
                 }
-            ]
+            ],
+            "zaehlpunkt": zp
         }
-    ]
-
 
 def bewegungsdaten_response(customer_id: str, zp: str, 
                             granularity: ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlageType = AnlageType.CONSUMING,
