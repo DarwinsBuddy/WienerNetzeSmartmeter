@@ -460,8 +460,7 @@ class Smartmeter:
                 "Returned data does not match given zaehlpunkt!")
         obis_code = data["zaehlwerke"][0]["obisCode"]
         if obis_code[0] != "1":
-            logger.warning(f"The OBIS code of the meter ({
-                           obis_code}) reports that this meter does not count electrical energy!")
+            logger.warning(f"The OBIS code of the meter ({obis_code}) reports that this meter does not count electrical energy!")
         return data["zaehlwerke"][0]
 
     def bewegungsdaten(
