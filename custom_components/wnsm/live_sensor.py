@@ -30,40 +30,18 @@ class LiveSensor(BaseSensor, SensorEntity):
             self._attr_extra_state_attributes = zaehlpunkt
 
             if self.is_active(zaehlpunkt):
-                consumptions = await self.get_consumptions(smartmeter)
-                base_information = await self.get_base_information(smartmeter)
-                meter_readings = await self.get_meter_readings(smartmeter)
-                # if zaehlpunkt is coincidentally the one returned by /welcome
-                if (
-                        "zaehlpunkt" in base_information
-                        and base_information["zaehlpunkt"] == self.zaehlpunkt
-                        and "lastValue" in meter_readings
-                ):
-                    if (
-                            meter_readings["lastValue"] is None
-                            or self._state != meter_readings["lastValue"]
-                    ):
-                        self._state = meter_readings["lastValue"] / 1000
+                #Since the update is not exactly at midnight, both yesterday and the day before are tried to make sure a meter reading is returned
+                reading_dates = [before(today(),1), before(today(),2)]
+                for reading_date in reading_dates:
+                    meter_readings = await self.get_meter_reading_from_historic_data(smartmeter,reading_date)
+                    if "values" in meter_readings and len(meter_readings['values'])!=0:
+                        self._state = meter_readings['values'][-1]['messwert']/1000
+                        break
                 else:
-                    # if not, we'll have to guesstimate (because api is shitty-pom-fritty)
-                    # for that zaehlpunkt
-                    consumption_dates = [before(today(),2), before(today(),3)]
-                    for consumption_date in consumption_dates:
-                        verbrauch_raw = await self.get_consumption_raw(smartmeter, consumption_date)
-                        if "values" in verbrauch_raw and "statistics" in verbrauch_raw:
-                            avg = safeget(verbrauch_raw, "statistics", "average")
-                            yesterdays_sum = sum(
-                                y["value"] if y["value"] is not None else avg
-                                for y in verbrauch_raw["values"]
-                            )
-                            if yesterdays_sum > 0:
-                                self._state = yesterdays_sum / 1000
-                                break
-                    else:
                         _LOGGER.error("Unable to load consumption")
                         _LOGGER.error(
-                            "Please file an issue with this error and (anonymized) payload in github %s %s %s %s",
-                            base_information, consumptions, meter_readings, verbrauch_raw
+                            "Please file an issue with this error and (anonymized) payload in github %s",
+                            meter_readings
                         )
                         return
             self._available = True
