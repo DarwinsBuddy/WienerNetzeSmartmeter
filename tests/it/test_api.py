@@ -187,8 +187,11 @@ def test_zaehlpunkte(requests_mock: Mocker):
 
 @pytest.mark.usefixtures("requests_mock")
 def test_history(requests_mock: Mocker):
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
     expect_login(requests_mock)
-    expect_history(requests_mock, enabled(zaehlpunkt())['zaehlpunktnummer'])
+    expect_history(requests_mock, customer_id, zp)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
 
     hist = smartmeter().login().historical_data()
