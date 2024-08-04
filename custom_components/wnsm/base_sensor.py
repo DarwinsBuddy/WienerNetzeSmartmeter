@@ -86,16 +86,17 @@ class BaseSensor(SensorEntity, ABC):
     def state(self) -> Optional[str]:  # pylint: disable=overridden-final-method
         return self._state
 
-    def contracts2zaehlpunkte(self, contracts: dict) -> [dict]:
-        if contracts is None or len(contracts) == 0:
-            raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
-        geschaeftspartner = contracts[0]["geschaeftspartner"] if "geschaeftspartner" in contracts[0] else None
-        if contracts is not None and isinstance(contracts, list) and len(contracts) > 0 and "zaehlpunkte" in contracts[0]:
-            zaehlpunkte = [
-                {**z, "geschaeftspartner": geschaeftspartner} for z in contracts[0]["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt
-            ]
+    def contracts2zaehlpunkte(self, contracts: dict) -> list[dict]:
+        zaehlpunkte = []
+        if contracts is not None and isinstance(contracts, list) and len(contracts) > 0:
+            for contract in contracts:
+                if "zaehlpunkte" in contract:
+                    geschaeftspartner = contract["geschaeftspartner"] if "geschaeftspartner" in contract else None
+                    zaehlpunkte += [
+                        {**z, "geschaeftspartner": geschaeftspartner} for z in contract["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt
+                    ]
         else:
-            zaehlpunkte = []
+            raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
         return zaehlpunkte
 
     async def get_zaehlpunkt(self, smartmeter: Smartmeter) -> dict[str, str]:

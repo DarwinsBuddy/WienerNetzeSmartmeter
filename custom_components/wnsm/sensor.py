@@ -20,7 +20,6 @@ from homeassistant.core import DOMAIN
 from homeassistant.helpers.typing import (
     ConfigType,
     DiscoveryInfoType,
-    HomeAssistantType,
 )
 from .const import CONF_ZAEHLPUNKTE
 from .statistics_sensor import StatisticsSensor
@@ -56,7 +55,7 @@ async def async_setup_entry(
 
 
 async def async_setup_platform(
-    hass: HomeAssistantType,  # pylint: disable=unused-argument
+    hass: core.HomeAssistant,  # pylint: disable=unused-argument
     config: ConfigType,
     async_add_entities: collections.abc.Callable,
     discovery_info: Optional[
