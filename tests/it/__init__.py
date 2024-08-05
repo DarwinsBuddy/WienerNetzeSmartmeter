@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 from urllib.parse import urlencode
 
 import pytest
@@ -15,7 +16,7 @@ from urllib import parse
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../../custom_components')
 from wnsm import api  # noqa: E402
-from wnsm.api.constants import Resolution, ValueType  # noqa: E402
+from wnsm.api.constants import Resolution, ValueType, AnlageType, RoleType  # noqa: E402
 
 
 def _dt_string(datetime_string):
@@ -23,9 +24,10 @@ def _dt_string(datetime_string):
 
 
 PAGE_URL = "https://smartmeter-web.wienernetze.at/"
+API_CONFIG_URL = "https://smartmeter-web.wienernetze.at/assets/app-config.json"
 API_URL_ALT = "https://service.wienernetze.at/sm/api/"
-API_URL_B2C = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2C/1.0/"
-API_URL_B2B = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/1.0/"
+API_URL_B2C = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2C/1.0"
+API_URL_B2B = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/1.0"
 REDIRECT_URI = "https://smartmeter-web.wienernetze.at/"
 API_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 AUTH_URL = "https://log.wien/auth/realms/logwien/protocol/openid-connect"  # noqa
@@ -103,6 +105,59 @@ zp_template = {
     }
 }
 
+zp_feeding_template = {
+    "zaehlpunktnummer": "AT0010000000000000001000011111112",
+    "equipmentNumber": "1111111111",
+    "geraetNumber": "ABC1111111111111",
+    "isSmartMeter": True,
+    "isDefault": False,
+    "isActive": True,
+    "isDataDeleted": False,
+    "isSmartMeterMarketReady": True,
+    "dataDeletionTimestampUTC": None,
+    "verbrauchsstelle": {
+        "strasse": "Eine Strasse",
+        "hausnummer": "1/2/3",
+        "anlageHausnummer": "1",
+        "postleitzahl": "1010",
+        "ort": "Wien",
+        "laengengrad": "16.3738",
+        "breitengrad": "48.2082"
+    },
+    "anlage": {
+        "typ": "BEZUG"
+    },
+    "vertraege": [
+        {
+            "einzugsdatum": "2010-01-01",
+            "auszugsdatum": "2015-12-31"
+        }
+    ],
+    "idexStatus": {
+        "granularity": {
+            "status": "QUARTER_HOUR",
+            "canBeChanged": True
+        },
+        "customerInterface": {
+            "status": "active",
+            "canBeChanged": True
+        },
+        "display": {
+            "isLocked": True,
+            "canBeChanged": True
+        },
+        "displayProfile": {
+            "canBeChanged": True,
+            "displayProfile": "VERBRAUCH"
+        }
+    },
+    "optOutDetails": {
+        "isOptOut": False
+    },
+    "zpSharingInfo": {
+        "isOwner": False
+    }
+}
 
 def _set_status(zp: dict, status: bool):
     zp['isActive'] = status
@@ -132,6 +187,8 @@ def hourly(zp: dict):
 def zaehlpunkt():
     return dict(zp_template)
 
+def zaehlpunkt_feeding():
+    return dict(zp_feeding_template)
 
 def zaehlpunkt_response(zps=None):
     return [
@@ -213,29 +270,31 @@ def history_response(zp: str):
     ]
 
 
-def bewegungsdaten_response(customer_id: str, zp: str, granularity: ValueType = ValueType.QUARTER_HOUR):
+def bewegungsdaten_response(customer_id: str, zp: str, 
+                            granularity: ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlageType = AnlageType.CONSUMING,
+                            wrong_zp: bool = False, empty_values: bool = False):
     if (granularity == ValueType.QUARTER_HOUR):
         t1 = "2022-08-07T00:00:00Z"
         t2 = "2022-08-07T00:15:00Z"
         t3 = "2022-08-07T00:30:00Z"
         gran = "QH"
-        rolle = "V002"
+        if(anlagetype == AnlageType.CONSUMING):
+            rolle = "V002"
+        else:
+            rolle = "E002"
     else:
         t1 = "2022-08-07T00:00:00Z"
-        t2 = "2022-08-07T01:00:00Z"
-        t3 = "2022-08-07T02:00:00Z"
-        gran = "QH"
-        rolle = "V001"
-    return {
-        "descriptor": {
-            "geschaeftspartnernummer": customer_id,
-            "zaehlpunktnummer": zp,
-            "rolle": rolle,
-            "aggregat": "NONE",
-            "granularitaet": gran,
-            "einheit": "KWH"
-        },
-        "values": [
+        t2 = "2022-08-08T00:00:00Z"
+        t3 = "2022-08-09T00:00:00Z"
+        gran = "D"
+        if(anlagetype == AnlageType.CONSUMING):
+            rolle = "V001"
+        else:
+            rolle = "V002"
+    if wrong_zp:
+        zp = zp + "9"
+    if not empty_values:
+        values = [
             {
                 "wert": 0.041,
                 "zeitpunktVon": t1,
@@ -249,6 +308,19 @@ def bewegungsdaten_response(customer_id: str, zp: str, granularity: ValueType = 
                 "geschaetzt": False
             }
         ]
+    else:
+        values = []
+        
+    return {
+        "descriptor": {
+            "geschaeftspartnernummer": customer_id,
+            "zaehlpunktnummer": zp,
+            "rolle": rolle,
+            "aggregat": "NONE",
+            "granularitaet": gran,
+            "einheit": "KWH"
+        },
+        "values": values
     }
 
 
@@ -272,35 +344,33 @@ def mock_login_page(requests_mock: Mocker, status: int | None = 200):
 
 @pytest.mark.usefixtures("requests_mock")
 def mock_get_api_key(requests_mock: Mocker, bearer_token: str = ACCESS_TOKEN,
-                     get_page_status: int | None = 200, get_main_js_status: int | None = 200):
+                     get_config_status: int | None = 200, include_b2c_key: bool = True, include_b2b_key: bool = True,
+                     same_b2c_url: bool = True, same_b2b_url: bool = True):
     """
-    mock GET smartmeter-web.wienernetze.at to retrieve main.XXX.js which carries the b2cApiKey
+    mock GET smartmeter-web.wienernetze.at to retrieve app-config.json which carries the b2cApiKey and b2bApiKey
     """
-    if get_page_status is None:
-        requests_mock.get(url=PAGE_URL, request_headers={"Authorization": f"Bearer {bearer_token}"},
-                          exc=requests.exceptions.ConnectTimeout)
-    else:
-        requests_mock.get(url=PAGE_URL, request_headers={"Authorization": f"Bearer {bearer_token}"},
-                          status_code=get_page_status,
-                          text=files('test_resources').joinpath('smartmeter-web.wienernetze.at.html').read_text())
-        other_js_scripts = [
-            '/ruxitagentjs_ICA27NVfqrux_10257221222094147.js',
-            'assets/custom-elements.min.js',
-            'runtime.a5b80c17985e7fbd.js',
-            'polyfills.a2b46bd315684fc3.js'
-        ]
-        for irrelevant_script in other_js_scripts:
-            requests_mock.get(url=PAGE_URL + irrelevant_script, text='//some arbitrary javascript code')
-        main_js_name = 'main.8fea0d4d0a6b3710.js'
-        if get_main_js_status == 200:
-            requests_mock.get(url=PAGE_URL + main_js_name,
-                              status_code=get_main_js_status,
-                              text=files('test_resources').joinpath(main_js_name).read_text())
-        else:
-            requests_mock.get(url=PAGE_URL + main_js_name,
-                              status_code=get_main_js_status,
-                              text='// main.js without key"')
+    config_path = files('test_resources').joinpath('app-config.json')
+    config_response = config_path.read_text()
+    
+    config_data = json.loads(config_response)
+    if not include_b2c_key:
+        del config_data["b2cApiKey"]
+    if not include_b2b_key:
+        del config_data["b2bApiKey"]
 
+    if not same_b2c_url:
+        config_data["b2cApiUrl"] = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2C/2.0"
+    if not same_b2b_url:
+        config_data["b2bApiUrl"] = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/2.0"
+
+    config_response = json.dumps(config_data)
+        
+    if get_config_status is None:
+        requests_mock.get(url=API_CONFIG_URL, request_headers={"Authorization": f"Bearer {bearer_token}"},
+                          exc=requests.exceptions.ConnectTimeout)        
+    else:
+        requests_mock.get(url=API_CONFIG_URL, request_headers={"Authorization": f"Bearer {bearer_token}"},
+                          status_code=get_config_status, text=config_response)
 
 @pytest.mark.usefixtures("requests_mock")
 def mock_token(requests_mock: Mocker, code=RESPONSE_CODE, access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN,
@@ -395,7 +465,7 @@ def expect_login(requests_mock: Mocker, username=USERNAME, password=PASSWORD):
 
 @pytest.mark.usefixtures("requests_mock")
 def expect_zaehlpunkte(requests_mock: Mocker, zps: list[dict]):
-    requests_mock.get(API_URL_B2C + 'zaehlpunkte',
+    requests_mock.get(parse.urljoin(API_URL_B2C,'zaehlpunkte'),
                       headers={
                           "Authorization": f"Bearer {ACCESS_TOKEN}",
                           "X-Gateway-APIKey": B2C_API_KEY,
@@ -412,7 +482,7 @@ def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom:
     }
     path = f'messdaten/{customer_id}/{zp}/verbrauch?{urlencode(params)}'
     print("MOCK: ", API_URL_B2C + path)
-    requests_mock.get(API_URL_B2C + path,
+    requests_mock.get(parse.urljoin(API_URL_B2C,path),
                       headers={
                           "Authorization": f"Bearer {ACCESS_TOKEN}",
                           "X-Gateway-APIKey": B2C_API_KEY,
@@ -422,7 +492,7 @@ def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom:
 
 @pytest.mark.usefixtures("requests_mock")
 def expect_history(requests_mock: Mocker, zp: str):
-    requests_mock.get(API_URL_B2B + 'zaehlpunkte/messwerte',
+    requests_mock.get(parse.urljoin(API_URL_B2B, 'zaehlpunkte/messwerte'),
                       headers={
                           "Authorization": f"Bearer {ACCESS_TOKEN}",
                           "X-Gateway-APIKey": B2B_API_KEY,
@@ -431,20 +501,33 @@ def expect_history(requests_mock: Mocker, zp: str):
                       json=history_response(zp))
 
 @pytest.mark.usefixtures("requests_mock")
-def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime, granularity:ValueType = ValueType.QUARTER_HOUR):
+def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime, 
+                          granularity:ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlageType = AnlageType.CONSUMING,
+                          wrong_zp: bool = False, empty_values: bool = False):
+    if anlagetype== AnlageType.FEEDING:
+        if granularity == ValueType.DAY: 
+            rolle = RoleType.DAILY_FEEDING.value 
+        else:
+            rolle = RoleType.QUARTER_HOURLY_FEEDING.value 
+    else: 
+        if granularity == ValueType.DAY: 
+            rolle = RoleType.DAILY_CONSUMING.value 
+        else: 
+            rolle = RoleType.QUARTER_HOURLY_CONSUMING.value 
     params = {
         "geschaeftspartner": customer_id,
         "zaehlpunktnummer": zp,
-        "rolle": "V001" if granularity == ValueType.DAY else "V002",
-        "zeitpunktVon": _dt_string(dateFrom),
-        "zeitpunktBis": _dt_string(dateTo),
+        "rolle": rolle,
+        "zeitpunktVon": dateFrom.strftime("%Y-%m-%dT00:00:00.000Z"),
+        "zeitpunktBis": dateTo.strftime("%Y-%m-%dT23:59:59.999Z"),
         "aggregat": "NONE"
     }
-    url = API_URL_ALT + f'user/messwerte/bewegungsdaten?{urlencode(params)}'
+    print(params)
+    url = parse.urljoin(API_URL_ALT, f'user/messwerte/bewegungsdaten?{urlencode(params)}')
     print(url)
     requests_mock.get(url,
                       headers={
                           "Authorization": f"Bearer {ACCESS_TOKEN}",
                           "Accept": "application/json"
                       },
-                      json=bewegungsdaten_response(customer_id, zp))
+                      json=bewegungsdaten_response(customer_id, zp, granularity, anlagetype, wrong_zp, empty_values))
