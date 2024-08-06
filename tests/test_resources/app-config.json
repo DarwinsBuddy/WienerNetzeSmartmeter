@@ -1,0 +1,42 @@
+{
+    "env": "PROD",
+    "production": true,
+    "logWienUrl": "https://log.wien/",
+    "logwienprofileurl": "https://log.wien/profile",
+    "onlineServiceurl": "https://service.wienernetze.at",
+    "showBreadcrumbs": true,
+    "wnsmApiUrl": "https://service.wienernetze.at/sm/api",
+    "redirecturl": "https://www.wienernetze.at/",
+    "smurl": "https://smartmeter-web.wienernetze.at/",
+    "smb2bUrl": "https://smartmeter-business.wienernetze.at/",
+    "infoUrls": {
+      "faq": "https://www.wienernetze.at/smart-meter-faq",
+      "impressum": "https://www.wienernetze.at/impressum",
+      "datenschutz": "https://www.wienernetze.at/datenschutz",
+      "barrierefreiheit": "https://www.wienernetze.at/erkl%C3%A4rung-zur-barrierefreiheit",
+      "energiespartipps": "https://www.wienernetze.at/energiespartipps",
+      "kontakt": "https://www.wienernetze.at/kontakt"
+    },
+    "keycloak": {
+      "url": "https://log.wien/auth",
+      "realm": "logwien",
+      "clientId": "wn-smartmeter"
+    },
+    "b2bApiUrl": "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/1.0",
+    "b2bApiKey": "93d5d520-7cc8-11eb-99bc-ba811041b5f6",
+    "b2cApiUrl": "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2C/1.0",
+    "b2cApiKey": "afb0be74-6455-44f5-a34d-6994223020ba",
+    "legalWebSrcUrl": "https://cdn1.legalweb.io/afa8624d-98aa-4d51-ac05-4fd65398af46.js",
+    "legalWebCssUrl": "https://cdn1.legalweb.io/afa8624d-98aa-4d51-ac05-4fd65398af46.css",
+    "disableChatbot": true,
+    "alertMissingTranslations": false,
+    "survey": {
+      "enabled": false,
+      "surveyBaseUrl": "https://log.wien/survey/index.php/"
+    },
+    "logwienApiUrl": "https://log.wien/rest/logwien",
+    "wnos": {
+      "apiUrl": "https://service.wienernetze.at/api"
+    },
+    "customerDataUrl": "https://service.wienernetze.at/#/kundendaten"
+}

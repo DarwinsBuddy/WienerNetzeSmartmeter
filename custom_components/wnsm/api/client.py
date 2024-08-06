@@ -152,37 +152,29 @@ class Smartmeter:
             )
 
     def _get_api_key(self, token):
-        key_b2c = None
-        key_b2b = None
-
         self._access_valid_or_raise()
 
         headers = {"Authorization": f"Bearer {token}"}
         try:
-            result = self.session.get(const.PAGE_URL, headers=headers)
+            result = self.session.get(const.API_CONFIG_URL, headers=headers).json()
         except Exception as exception:
             raise SmartmeterConnectionError("Could not obtain API key") from exception
-        tree = html.fromstring(result.content)
-        scripts = tree.xpath("(//script/@src)")
 
-        # sort the scripts in some order to find the keys faster
-        # so far, the script was called main.XXXX.js
-        scripts = sorted(scripts, key=lambda x: "main" not in x)
+        find_keys = ["b2cApiKey", "b2bApiKey"]
+        for key in find_keys:
+            if key not in result:
+                raise SmartmeterConnectionError(f"{key} not found in response!")
 
-        for script in scripts:
-            if key_b2c is not None and key_b2b is not None:
-                break
-            try:
-                response = self.session.get(const.PAGE_URL + script)
-            except Exception as exception:
-                raise SmartmeterConnectionError(
-                    "Could not obtain API Key from scripts"
-                ) from exception
-            key_b2c = const.API_GATEWAY_TOKEN_REGEX.search(response.text)
-            key_b2b = const.API_GATEWAY_B2B_TOKEN_REGEX.search(response.text)
-        if key_b2c is None or key_b2b is None:
-            raise SmartmeterConnectionError("Could not obtain API Key - no match")
-        return key_b2c.group(1), key_b2b.group(1)
+        # The b2bApiUrl and b2cApiUrl can also be gathered from the configuration
+        # TODO: reduce code duplication...
+        if "b2cApiUrl" in result and result["b2cApiUrl"] != const.API_URL:
+            const.API_URL = result["b2cApiUrl"]
+            logger.warning("The b2cApiUrl has changed to %s! Update API_URL!", const.API_URL)
+        if "b2bApiUrl" in result and result["b2bApiUrl"] != const.API_URL_B2B:
+            const.API_URL_B2B = result["b2bApiUrl"]
+            logger.warning("The b2bApiUrl has changed to %s! Update API_URL_B2B!", const.API_URL_B2B)
+
+        return (result[key] for key in find_keys)
 
     @staticmethod
     def _dt_string(datetime_string):
@@ -203,7 +195,7 @@ class Smartmeter:
 
         if base_url is None:
             base_url = const.API_URL
-        url = f"{base_url}{endpoint}"
+        url = parse.urljoin(base_url, endpoint)
 
         if query:
             url += ("?" if "?" not in endpoint else "&") + parse.urlencode(query)
@@ -213,6 +205,9 @@ class Smartmeter:
         }
 
         # For API calls to B2C or B2B, we need to add the Gateway-APIKey:
+        # TODO: This may be prone to errors if URLs are compared like this.
+        #       The Strings has to be exactly the same, but that may not be the case,
+        #       even though the URLs are the same.
         if base_url == const.API_URL:
             headers["X-Gateway-APIKey"] = self._api_gateway_token
         elif base_url == const.API_URL_B2B:
