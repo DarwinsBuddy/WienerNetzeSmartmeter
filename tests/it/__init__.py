@@ -247,14 +247,17 @@ def verbrauch_raw_response():
         }
     }
 
-
-def history_response(zp: str):
-    return [
-        {
-            "zaehlpunkt": zp,
+def history_response(zp: str, wrong_zp: bool = False, wrong_obis_code: bool = False):
+    if wrong_zp:
+        zp = zp + "9"
+    if wrong_obis_code:
+        obis = "2-1:2.9.0"
+    else:
+        obis = "1-1:2.9.0"
+    return {
             "zaehlwerke": [
                 {
-                    "obisCode": "1-1:1.9.0",
+                    "obisCode": obis,
                     "einheit": "WH",
                     "messwerte": [
                         {
@@ -265,10 +268,9 @@ def history_response(zp: str):
                         }
                     ]
                 }
-            ]
+            ],
+            "zaehlpunkt": zp
         }
-    ]
-
 
 def bewegungsdaten_response(customer_id: str, zp: str, 
                             granularity: ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlageType = AnlageType.CONSUMING,
@@ -293,7 +295,9 @@ def bewegungsdaten_response(customer_id: str, zp: str,
             rolle = "V002"
     if wrong_zp:
         zp = zp + "9"
-    if not empty_values:
+    if empty_values:
+        values = []
+    else:
         values = [
             {
                 "wert": 0.041,
@@ -308,8 +312,6 @@ def bewegungsdaten_response(customer_id: str, zp: str,
                 "geschaetzt": False
             }
         ]
-    else:
-        values = []
         
     return {
         "descriptor": {
@@ -481,7 +483,6 @@ def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom:
         "dayViewResolution": resolution
     }
     path = f'messdaten/{customer_id}/{zp}/verbrauch?{urlencode(params)}'
-    print("MOCK: ", API_URL_B2C + path)
     requests_mock.get(parse.urljoin(API_URL_B2C,path),
                       headers={
                           "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -491,14 +492,16 @@ def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom:
 
 
 @pytest.mark.usefixtures("requests_mock")
-def expect_history(requests_mock: Mocker, zp: str):
-    requests_mock.get(parse.urljoin(API_URL_B2B, 'zaehlpunkte/messwerte'),
+def expect_history(requests_mock: Mocker, customer_id: str, zp: str,
+                   wrong_zp: bool = False, wrong_obis_code: bool = False):
+    path = f'zaehlpunkte/{customer_id}/{zp}/messwerte'
+    requests_mock.get(parse.urljoin(API_URL_B2B, path),
                       headers={
                           "Authorization": f"Bearer {ACCESS_TOKEN}",
                           "X-Gateway-APIKey": B2B_API_KEY,
                           "Accept": "application/json"
                       },
-                      json=history_response(zp))
+                      json=history_response(zp, wrong_zp, wrong_obis_code))
 
 @pytest.mark.usefixtures("requests_mock")
 def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime, 
@@ -522,9 +525,7 @@ def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, date
         "zeitpunktBis": dateTo.strftime("%Y-%m-%dT23:59:59.999Z"),
         "aggregat": "NONE"
     }
-    print(params)
     url = parse.urljoin(API_URL_ALT, f'user/messwerte/bewegungsdaten?{urlencode(params)}')
-    print(url)
     requests_mock.get(url,
                       headers={
                           "Authorization": f"Bearer {ACCESS_TOKEN}",

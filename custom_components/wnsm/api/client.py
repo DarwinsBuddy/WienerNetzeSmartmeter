@@ -424,7 +424,6 @@ class Smartmeter:
             date_from = date_until - relativedelta(years=3)
 
         query = {
-            "zaehlpunkt": zaehlpunkt,
             "datumVon": date_from.strftime("%Y-%m-%d"),
             "datumBis": date_until.strftime("%Y-%m-%d"),
             "wertetyp": valuetype.value,
@@ -436,13 +435,13 @@ class Smartmeter:
         }
 
         data = self._call_api(
-            "zaehlpunkte/messwerte",
+            f"zaehlpunkte/{customer_id}/{zaehlpunkt}/messwerte",
             base_url=const.API_URL_B2B,
             query=query,
             extra_headers=extra,
         )
         # Some Sanity Checks...
-        if len(data) != 1 or data[0]["zaehlpunkt"] != zaehlpunkt or len(data[0]["zaehlwerke"]) != 1:
+        if data["zaehlpunkt"] != zaehlpunkt or len(data["zaehlwerke"]) != 1:
             # TODO: Is it possible to have multiple zaehlwerke in one zaehlpunkt?
             # I guess so, otherwise it would not be a list...
             # Probably (my guess), we would see this on the OBIS Code.
@@ -450,10 +449,10 @@ class Smartmeter:
             # Keep that in mind if for someone this fails.
             logger.debug("Returned data: %s" % data)
             raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
-        obis_code = data[0]["zaehlwerke"][0]["obisCode"]
+        obis_code = data["zaehlwerke"][0]["obisCode"]
         if obis_code[0] != "1":
             logger.warning(f"The OBIS code of the meter ({obis_code}) reports that this meter does not count electrical energy!")
-        return data[0]["zaehlwerke"][0]
+        return data["zaehlwerke"][0]
 
     def bewegungsdaten(
         self,
@@ -468,8 +467,8 @@ class Smartmeter:
         If date_from is not given but date_until, again a three year span is assumed.
         """
         customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
-        
-        if anlagetype== const.AnlageType.FEEDING:
+
+        if anlagetype == const.AnlageType.FEEDING:
             if valuetype == const.ValueType.DAY:
                 rolle = const.RoleType.DAILY_FEEDING.value
             else:
