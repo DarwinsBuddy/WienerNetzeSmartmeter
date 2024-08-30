@@ -63,6 +63,7 @@ async def async_setup_platform(
     ] = None,  # pylint: disable=unused-argument
 ) -> None:
     """Set up the sensor platform by adding it into configuration.yaml"""
-    live_sensor = LiveSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID])
-    historical_sensor = StatisticsSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID])
-    async_add_entities([live_sensor, historical_sensor], update_before_add=True)
+    for zaehlpunkt in [x.strip() for x in config[CONF_DEVICE_ID].split(',')]:
+        live_sensor = LiveSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zaehlpunkt)
+        historical_sensor = StatisticsSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zaehlpunkt)
+        async_add_entities([live_sensor, historical_sensor], update_before_add=True)
