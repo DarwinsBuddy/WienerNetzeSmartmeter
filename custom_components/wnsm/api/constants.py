@@ -58,6 +58,8 @@ class AnlageType(enum.Enum):
             return AnlageType.CONSUMING
         elif label in ('WAERMEPUMPE', 'waermepumpe'):
             return AnlageType.CONSUMING
+        elif label in ('STROM', 'strom'):
+            return AnlageType.CONSUMING
         elif label in ('BEZUG', 'bezug'):
             return AnlageType.FEEDING
         else:
