@@ -1,5 +1,4 @@
 codecov:
-  token: ${{secrets.CODECOV_TOKEN}}
   require_ci_to_pass: true
   max_report_age: false
 coverage:

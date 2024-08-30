@@ -152,37 +152,29 @@ class Smartmeter:
             )
 
     def _get_api_key(self, token):
-        key_b2c = None
-        key_b2b = None
-
         self._access_valid_or_raise()
 
         headers = {"Authorization": f"Bearer {token}"}
         try:
-            result = self.session.get(const.PAGE_URL, headers=headers)
+            result = self.session.get(const.API_CONFIG_URL, headers=headers).json()
         except Exception as exception:
             raise SmartmeterConnectionError("Could not obtain API key") from exception
-        tree = html.fromstring(result.content)
-        scripts = tree.xpath("(//script/@src)")
 
-        # sort the scripts in some order to find the keys faster
-        # so far, the script was called main.XXXX.js
-        scripts = sorted(scripts, key=lambda x: "main" not in x)
+        find_keys = ["b2cApiKey", "b2bApiKey"]
+        for key in find_keys:
+            if key not in result:
+                raise SmartmeterConnectionError(f"{key} not found in response!")
 
-        for script in scripts:
-            if key_b2c is not None and key_b2b is not None:
-                break
-            try:
-                response = self.session.get(const.PAGE_URL + script)
-            except Exception as exception:
-                raise SmartmeterConnectionError(
-                    "Could not obtain API Key from scripts"
-                ) from exception
-            key_b2c = const.API_GATEWAY_TOKEN_REGEX.search(response.text)
-            key_b2b = const.API_GATEWAY_B2B_TOKEN_REGEX.search(response.text)
-        if key_b2c is None or key_b2b is None:
-            raise SmartmeterConnectionError("Could not obtain API Key - no match")
-        return key_b2c.group(1), key_b2b.group(1)
+        # The b2bApiUrl and b2cApiUrl can also be gathered from the configuration
+        # TODO: reduce code duplication...
+        if "b2cApiUrl" in result and result["b2cApiUrl"] != const.API_URL:
+            const.API_URL = result["b2cApiUrl"]
+            logger.warning("The b2cApiUrl has changed to %s! Update API_URL!", const.API_URL)
+        if "b2bApiUrl" in result and result["b2bApiUrl"] != const.API_URL_B2B:
+            const.API_URL_B2B = result["b2bApiUrl"]
+            logger.warning("The b2bApiUrl has changed to %s! Update API_URL_B2B!", const.API_URL_B2B)
+
+        return (result[key] for key in find_keys)
 
     @staticmethod
     def _dt_string(datetime_string):
@@ -203,7 +195,7 @@ class Smartmeter:
 
         if base_url is None:
             base_url = const.API_URL
-        url = f"{base_url}{endpoint}"
+        url = parse.urljoin(base_url, endpoint)
 
         if query:
             url += ("?" if "?" not in endpoint else "&") + parse.urlencode(query)
@@ -213,6 +205,9 @@ class Smartmeter:
         }
 
         # For API calls to B2C or B2B, we need to add the Gateway-APIKey:
+        # TODO: This may be prone to errors if URLs are compared like this.
+        #       The Strings has to be exactly the same, but that may not be the case,
+        #       even though the URLs are the same.
         if base_url == const.API_URL:
             headers["X-Gateway-APIKey"] = self._api_gateway_token
         elif base_url == const.API_URL_B2B:
@@ -237,15 +232,21 @@ class Smartmeter:
 
         return response.json()
 
-    def get_zaehlpunkt(self, zaehlpunkt: str = None) -> (str, str):
-        zps = self.zaehlpunkte()[0]
-        customer_id = zps["geschaeftspartner"]
-        if zaehlpunkt is not None:
-            zp = [z for z in zps["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
-            zp = zp[0]["zaehlpunktnummer"] if len(zp) > 0 else None
+    def get_zaehlpunkt(self, zaehlpunkt: str = None) -> tuple[str, str, str]:
+        contracts = self.zaehlpunkte()
+        if zaehlpunkt is None:
+            customer_id = contracts[0]["geschaeftspartner"]
+            zp = contracts[0]["zaehlpunkte"][0]["zaehlpunktnummer"]
+            anlagetype = contracts[0]["zaehlpunkte"][0]["anlage"]["typ"]
         else:
-            zp = zps["zaehlpunkte"][0]["zaehlpunktnummer"]
-        return customer_id, zp
+            customer_id = zp = anlagetype = None
+            for contract in contracts:
+                zp = [z for z in contract["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
+                if len(zp) > 0:
+                    anlagetype = zp[0]["anlage"]["typ"]
+                    zp = zp[0]["zaehlpunktnummer"]
+                    customer_id = contract["geschaeftspartner"]
+        return customer_id, zp, const.AnlageType.from_str(anlagetype)
 
     def zaehlpunkte(self):
         """Returns zaehlpunkte for currently logged in user."""
@@ -288,7 +289,7 @@ class Smartmeter:
                 'messdaten/CUSTOMER_ID/ZAEHLPUNKT/verbrauchRaw'
         """
         if zaehlpunkt is None or customer_id is None:
-            customer_id, zaehlpunkt = self.get_zaehlpunkt()
+            customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt()
         endpoint = f"messdaten/{customer_id}/{zaehlpunkt}/verbrauch"
         query = const.build_verbrauchs_args(
             # This one does not have a dateTo...
@@ -325,7 +326,7 @@ class Smartmeter:
         if date_to is None:
             date_to = datetime.now()
         if zaehlpunkt is None or customer_id is None:
-            customer_id, zaehlpunkt = self.get_zaehlpunkt()
+            customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt()
         endpoint = f"messdaten/{customer_id}/{zaehlpunkt}/verbrauchRaw"
         query = dict(
             # These are the only three fields that are used for that endpoint:
@@ -359,7 +360,7 @@ class Smartmeter:
         if date_to is None:
             date_to = datetime.now()
         if zaehlpunkt is None:
-            customer_id, zaehlpunkt = self.get_zaehlpunkt()
+            customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt()
         query = {
             "zaehlpunkt": zaehlpunkt,
             "dateFrom": self._dt_string(date_from),
@@ -412,9 +413,9 @@ class Smartmeter:
         If date_from is not given but date_until, again a three year span is assumed.
         """
         if zaehlpunktnummer is None:
-            customer_id, zaehlpunkt = self.get_zaehlpunkt()
+            customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt()
         else:
-            customer_id, zaehlpunkt = self.get_zaehlpunkt(zaehlpunktnummer)
+            customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
 
         if date_until is None:
             date_until = date.today()
@@ -466,12 +467,18 @@ class Smartmeter:
         If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
         If date_from is not given but date_until, again a three year span is assumed.
         """
-        if valuetype == const.ValueType.DAY:
-            rolle = "V001"
+        customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
+        
+        if anlagetype== const.AnlageType.FEEDING:
+            if valuetype == const.ValueType.DAY:
+                rolle = const.RoleType.DAILY_FEEDING.value
+            else:
+                rolle = const.RoleType.QUARTER_HOURLY_FEEDING.value
         else:
-            rolle = "V002"
-
-        customer_id, zaehlpunkt = self.get_zaehlpunkt(zaehlpunktnummer)
+            if valuetype == const.ValueType.DAY:
+                rolle = const.RoleType.DAILY_CONSUMING.value
+            else:
+                rolle = const.RoleType.QUARTER_HOURLY_CONSUMING.value
 
         if date_until is None:
             date_until = date.today()
