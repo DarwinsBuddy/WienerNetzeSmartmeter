@@ -236,17 +236,17 @@ class Smartmeter:
         contracts = self.zaehlpunkte()
         if zaehlpunkt is None:
             customer_id = contracts[0]["geschaeftspartner"]
-            zp = contracts[0]["zaehlpunkte"][0]["zaehlpunktnummer"]
+            zaehlp = contracts[0]["zaehlpunkte"][0]["zaehlpunktnummer"]
             anlagetype = contracts[0]["zaehlpunkte"][0]["anlage"]["typ"]
         else:
             customer_id = zp = anlagetype = None
             for contract in contracts:
-                zp = [z for z in contract["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
+                zaehlp = [z for z in contract["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt and z['isActive']]
                 if len(zp) > 0:
                     anlagetype = zp[0]["anlage"]["typ"]
-                    zp = zp[0]["zaehlpunktnummer"]
+                    zaehlp = zp[0]["zaehlpunktnummer"]
                     customer_id = contract["geschaeftspartner"]
-        return customer_id, zp, const.AnlageType.from_str(anlagetype)
+        return customer_id, zaehlp, const.AnlageType.from_str(anlagetype)
 
     def zaehlpunkte(self):
         """Returns zaehlpunkte for currently logged in user."""

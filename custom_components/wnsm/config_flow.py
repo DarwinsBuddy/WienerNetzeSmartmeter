@@ -37,7 +37,9 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
         if contracts is not None and isinstance(contracts, list) and len(contracts) > 0:
             for contract in contracts:
                 if "zaehlpunkte" in contract:
-                    zaehlpunkte+=contract["zaehlpunkte"]
+                    for zaehlpunkt in contract["zaehlpunkte"]:              
+                        if zaehlpunkt['isActive']:
+                            zaehlpunkte+=[zaehlpunkt]
         return zaehlpunkte
 
 

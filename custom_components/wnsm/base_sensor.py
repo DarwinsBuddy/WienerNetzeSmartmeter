@@ -93,7 +93,7 @@ class BaseSensor(SensorEntity, ABC):
                 if "zaehlpunkte" in contract:
                     geschaeftspartner = contract["geschaeftspartner"] if "geschaeftspartner" in contract else None
                     zaehlpunkte += [
-                        {**z, "geschaeftspartner": geschaeftspartner} for z in contract["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt
+                        {**z, "geschaeftspartner": geschaeftspartner} for z in contract["zaehlpunkte"] if z["zaehlpunktnummer"] == self.zaehlpunkt and z['isActive']
                     ]
         else:
             raise RuntimeError(f"Cannot access Zaehlpunkt {self.zaehlpunkt}")
