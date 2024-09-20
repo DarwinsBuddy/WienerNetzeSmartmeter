@@ -134,7 +134,7 @@ class BaseSensor(SensorEntity, ABC):
         if "Exception" in response:
             raise RuntimeError(f"Cannot access daily consumption: {response}")
 
-        return response
+        return translate_dict(response, ATTRS_VERBRAUCH_CALL)
 
     async def get_historic_data(self, smartmeter: Smartmeter):
         """Return three years of historic quarter-hourly data"""
