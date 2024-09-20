@@ -34,7 +34,7 @@ class LiveSensor(BaseSensor, SensorEntity):
                 reading_dates = [before(today(),1), before(today(),2)]
                 for reading_date in reading_dates:
                     meter_readings = await self.get_meter_reading_from_historic_data(smartmeter,reading_date)
-                    if "values" in meter_readings and len(meter_readings['values'])!=0:
+                    if "values" in meter_readings and all("messwert" in messwert for messwert in meter_readings['values']) and len(meter_readings['values'])>0:                        
                         self._state = meter_readings['values'][-1]['messwert']/1000
                         break
                 else:
