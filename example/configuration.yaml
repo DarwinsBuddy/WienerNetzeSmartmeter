@@ -3,4 +3,12 @@ sensor:
   - platform:  wnsm
     username:  !secret vsm_username
     password:  !secret vsm_password
-    device_id: !secret vsm_zaehlpunktnummer
+    device_id: !secret vsm_zaehlpunkt_1
+  - platform: wnsm
+    username: !secret vsm_username
+    password: !secret vsm_password
+    device_id: !secret vsm_zaehlpunkt_2
+  - platform: wnsm
+    username: !secret vsm_username
+    password: !secret vsm_password
+    device_id: !secret vsm_zaehlpunkt_3
