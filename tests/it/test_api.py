@@ -187,14 +187,56 @@ def test_zaehlpunkte(requests_mock: Mocker):
 
 @pytest.mark.usefixtures("requests_mock")
 def test_history(requests_mock: Mocker):
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
     expect_login(requests_mock)
-    expect_history(requests_mock, enabled(zaehlpunkt())['zaehlpunktnummer'])
+    expect_history(requests_mock, customer_id, zp)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
 
     hist = smartmeter().login().historical_data()
 
     assert 1 == len(hist['messwerte'])
     assert 'WH' == hist['einheit']
+ 
+@pytest.mark.usefixtures("requests_mock")
+def test_history_with_zp(requests_mock: Mocker):
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_history(requests_mock, customer_id, zp)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+
+    hist = smartmeter().login().historical_data(zp)
+
+    assert 1 == len(hist['messwerte'])
+    assert 'WH' == hist['einheit'] 
+    
+@pytest.mark.usefixtures("requests_mock")
+def test_history_wrong_zp(requests_mock: Mocker, caplog):
+    caplog.set_level(logging.DEBUG)
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_history(requests_mock, customer_id, zp, wrong_zp = True)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    with pytest.raises(SmartmeterQueryError) as exc_info:
+        smartmeter().login().historical_data()
+    assert 'Returned data: ' in caplog.text
+    assert 'Returned data does not match given zaehlpunkt!' == str(exc_info.value)
+    
+@pytest.mark.usefixtures("requests_mock")
+def test_history_wrong_obis_code(requests_mock: Mocker, caplog):
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_history(requests_mock, customer_id, zp, wrong_obis_code = True)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    smartmeter().login().historical_data()
+    assert 'reports that this meter does not count electrical energy' in caplog.text
 
 @pytest.mark.usefixtures("requests_mock")
 def test_bewegungsdaten_quarterly_hour_consuming(requests_mock: Mocker):
@@ -301,7 +343,7 @@ def test_verbrauch_raw(requests_mock: Mocker):
     customer_id = "123456789"
     valid_verbrauch_raw_response = verbrauch_raw_response()
     expect_login(requests_mock)
-    expect_history(requests_mock, enabled(zaehlpunkt())['zaehlpunktnummer'])
+    expect_history(requests_mock, customer_id, enabled(zaehlpunkt())['zaehlpunktnummer'])
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
     expect_verbrauch(requests_mock, customer_id, zp, dateFrom, valid_verbrauch_raw_response)
 

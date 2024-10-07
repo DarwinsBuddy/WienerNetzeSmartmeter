@@ -149,7 +149,21 @@ class BaseSensor(SensorEntity, ABC):
             raise RuntimeError(f"Cannot access historic data: {response}")
         _LOGGER.debug(f"Raw historical data: {response}")
         return translate_dict(response, ATTRS_HISTORIC_DATA)
-
+    
+    async def get_meter_reading_from_historic_data(self, smartmeter: Smartmeter, start_date: datetime):
+        """Return daily meter readings from the given start date until today"""
+        response = await self.hass.async_add_executor_job(
+            smartmeter.historical_data,
+            self.zaehlpunkt,
+            start_date,
+            None,
+            ValueType.from_str('METER_READ')
+        )
+        if "Exception" in response:
+            raise RuntimeError(f"Cannot access historic data: {response}")
+        _LOGGER.debug(f"Raw historical data: {response}")
+        return translate_dict(response, ATTRS_HISTORIC_DATA)
+    
     async def get_bewegungsdaten(self, smartmeter: Smartmeter):
         """Return three years of historic quarter-hourly data"""
         response = await self.hass.async_add_executor_job(
