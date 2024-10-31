@@ -241,10 +241,10 @@ class Smartmeter:
         else:
             customer_id = zp = anlagetype = None
             for contract in contracts:
-                zp = [z for z in contract["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
-                if len(zp) > 0:
-                    anlagetype = zp[0]["anlage"]["typ"]
-                    zp = zp[0]["zaehlpunktnummer"]
+                zp_details = [z for z in contract["zaehlpunkte"] if z["zaehlpunktnummer"] == zaehlpunkt]
+                if len(zp_details) > 0:
+                    anlagetype = zp_details[0]["anlage"]["typ"]
+                    zp = zp_details[0]["zaehlpunktnummer"]
                     customer_id = contract["geschaeftspartner"]
         return customer_id, zp, const.AnlageType.from_str(anlagetype)
 
