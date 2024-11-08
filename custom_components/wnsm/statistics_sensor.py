@@ -258,25 +258,12 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         _LOGGER.debug("Selecting data up to %s" % now)
         while start < now:
             _LOGGER.debug("Select 24h of Data, using sum=%.3f, start=%s" % (total_usage, start))
-            consumption = await self.get_consumption(smartmeter, start)
-            _LOGGER.debug(consumption)
+            bewegungsdaten = await self.get_bewegungsdaten(smartmeter, start)
+            _LOGGER.debug(bewegungsdaten)
             last_ts = start
             start += timedelta(hours=24)  # Next batch. Setting this here should avoid endless loops
 
-            # Check if this batch of data is valid and contains hourly statistics:
-            if not consumption.get('optIn'):
-                # TODO: actually, we could insert zero-usage data here, to increase the start time
-                # for the next run. Otherwise, the same data is queried over and over.
-                _LOGGER.warning(
-                    f"Data starting at {start} does not contain granular data! Opt-in was not set back then. Skipping.")
-                continue
-
-            # Can actually check, if the whole batch can be skipped.
-            if consumption.get('consumptionMinimum') == 0 and consumption.get('consumptionMaximum') == 0:
-                _LOGGER.debug(f"Batch of data starting at {start} does not contain any consumption, skipping")
-                continue
-
-            if 'values' not in consumption:
+            if 'values' not in bewegungsdaten:
                 # before, this indicated an error. Since 2023-12-15 no more values means that
                 # data is not available (yet) - but could still indicate an error...
                 _LOGGER.debug(
@@ -288,14 +275,20 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                 # values to turn up.
                 break
 
-            for v in consumption['values']:
+            total_consumption = sum([ v.get("wert", 0) for v in bewegungsdaten['values']])
+            # Can actually check, if the whole batch can be skipped.
+            if total_consumption == 0:
+                _LOGGER.debug(f"Batch of data starting at {start} does not contain any consumption, skipping")
+                continue
+
+            for v in bewegungsdaten['values']:
                 # Timestamp has to be aware of timezone, parse_datetime does that.
-                ts = dt_util.parse_datetime(v['timestamp'])
+                ts = datetime.strptime(v['zeitpunktVon'], "%Y-%m-%dT%H:%M:%S%z")
                 if ts.minute != 0:
                     # This usually happens if the start date minutes are != 0
                     # However, we set them to 0 in this function, thus if this happens, the API has
                     # a problem...
-                    _LOGGER.error(f"Minute of timestamp is non-zero: {ts}. This must not happen! Has the API changed?")
+                    _LOGGER.error(f"Minute of zeitpunktVon is non-zero: {ts}. This must not happen! Has the API changed?")
                     return
                 if ts < last_ts:
                     # This should prevent any issues with ambiguous values though...
@@ -311,13 +304,12 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                     # However, it is not trivial (or even impossible?) to insert statistic values
                     # in between existing values, thus we can not do much.
                     continue
-                usage = Decimal(v['value'] / 1000.0)  # Convert to kWh ...
-                total_usage += usage  # ... and accumulate
+                usage = float(v['value'])  # Convert to kWh ...
                 if v['isEstimated']:
                     # Can we do anything special here?
                     _LOGGER.debug(f"Estimated Value found for {ts}: {usage}")
 
-                statistics.append(StatisticData(start=ts, sum=total_usage, state=usage))
+                statistics.append(StatisticData(start=ts, sum=total_consumption, state=usage))
 
         _LOGGER.debug(statistics)
 
