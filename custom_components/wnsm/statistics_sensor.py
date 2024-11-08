@@ -267,7 +267,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                 # before, this indicated an error. Since 2023-12-15 no more values means that
                 # data is not available (yet) - but could still indicate an error...
                 _LOGGER.debug(
-                    f"No more values in API response. Possibly the end of the available data is reached. Original response: {consumption}")
+                    f"No more values in API response. Possibly the end of the available data is reached. Original response: {bewegungsdaten}")
                 # We break the loop here and hope that in the next iteration, data will be collected
                 # again...
                 # TODO: has to be carefully checked if the API can return a response without values
@@ -296,7 +296,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                         f"Timestamp from API ({ts}) is less than previously collected timestamp ({last_ts}), ignoring value!")
                     continue
                 last_ts = ts
-                if v['value'] is None:
+                if v['wert'] is None:
                     # Usually this means that the measurement is not yet in the WSTW database.
                     # But could also be an error? Dunno...
                     # For now, we ignore these values, possibly that means we loose hours if these
@@ -304,8 +304,8 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                     # However, it is not trivial (or even impossible?) to insert statistic values
                     # in between existing values, thus we can not do much.
                     continue
-                usage = float(v['value'])  # Convert to kWh ...
-                if v['isEstimated']:
+                usage = float(v['wert'])  # Convert to kWh ...
+                if v['geschaetzt']:
                     # Can we do anything special here?
                     _LOGGER.debug(f"Estimated Value found for {ts}: {usage}")
 
