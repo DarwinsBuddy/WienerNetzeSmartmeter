@@ -294,7 +294,8 @@ class Smartmeter:
         query = const.build_verbrauchs_args(
             # This one does not have a dateTo...
             dateFrom=self._dt_string(date_from),
-            dayViewResolution=resolution.value
+            dayViewResolution=resolution.value,
+            aggregat="SUM_PER_DAY"
         )
         return self._call_api(endpoint, query=query)
 
@@ -460,6 +461,7 @@ class Smartmeter:
         date_from: date = None,
         date_until: date = None,
         valuetype: const.ValueType = const.ValueType.QUARTER_HOUR,
+        aggregat: str = None,
     ):
         """
         Query historical data in a batch
@@ -491,7 +493,7 @@ class Smartmeter:
             "rolle": rolle,
             "zeitpunktVon": date_from.strftime("%Y-%m-%dT00:00:00.000Z"),
             "zeitpunktBis": date_until.strftime("%Y-%m-%dT23:59:59.999Z"),
-            "aggregat": "NONE"
+            "aggregat": aggregat or "NONE"
         }
 
         extra = {

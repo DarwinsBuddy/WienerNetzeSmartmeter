@@ -164,14 +164,14 @@ class BaseSensor(SensorEntity, ABC):
         _LOGGER.debug(f"Raw historical data: {response}")
         return translate_dict(response, ATTRS_HISTORIC_DATA)
     
-    async def get_bewegungsdaten(self, smartmeter: Smartmeter):
+    async def get_bewegungsdaten(self, smartmeter: Smartmeter, start: datetime = None, end: datetime = None, granularity: str = None):
         """Return three years of historic quarter-hourly data"""
         response = await self.hass.async_add_executor_job(
             smartmeter.bewegungsdaten,
             self.zaehlpunkt,
-            None,
-            None,
-            ValueType.from_str(self._attr_extra_state_attributes.get('granularity', 'QUARTER_HOUR'))
+            start,
+            end,
+            granularity or ValueType.from_str(self._attr_extra_state_attributes.get('granularity', 'QUARTER_HOUR'))
         )
         if "Exception" in response:
             raise RuntimeError(f"Cannot access bewegungsdaten: {response}")
