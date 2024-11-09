@@ -3,7 +3,6 @@ import pytest
 import time
 import logging
 from requests_mock import Mocker
-from unittest.mock import patch
 import datetime as dt
 from dateutil.relativedelta import relativedelta
 

@@ -294,8 +294,7 @@ class Smartmeter:
         query = const.build_verbrauchs_args(
             # This one does not have a dateTo...
             dateFrom=self._dt_string(date_from),
-            dayViewResolution=resolution.value,
-            aggregat="SUM_PER_DAY"
+            dayViewResolution=resolution.value
         )
         return self._call_api(endpoint, query=query)
 
@@ -485,7 +484,7 @@ class Smartmeter:
             date_until = date.today()
 
         if date_from is None:
-            date_from = date_until- relativedelta(years=3)
+            date_from = date_until - relativedelta(years=3)
 
         query = {
             "geschaeftspartner": customer_id,

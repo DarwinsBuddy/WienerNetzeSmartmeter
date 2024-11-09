@@ -1,11 +1,11 @@
 import logging
+from collections import defaultdict
+from datetime import timedelta, timezone, datetime
+from decimal import Decimal
+from operator import itemgetter
+from zoneinfo import ZoneInfo
 
 from homeassistant.components.recorder import get_instance
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
-
-from .api import Smartmeter
-from .base_sensor import BaseSensor
-
 from homeassistant.components.recorder.models import (
     StatisticData,
     StatisticMetaData,
@@ -13,11 +13,11 @@ from homeassistant.components.recorder.models import (
 from homeassistant.components.recorder.statistics import (
     async_import_statistics, get_last_statistics,
 )
-from decimal import Decimal
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.util import dt as dt_util
-from datetime import timedelta, timezone, datetime
-from operator import itemgetter
-from collections import defaultdict
+
+from .api import Smartmeter
+from .base_sensor import BaseSensor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         # XXX: since HA core 2023.03, we get a float and not a datetime...
         start = last_inserted_stat[self._id][0]["end"]
         if isinstance(start, (int, float)):
-            start = dt_util.utc_from_timestamp(start)
+            start = dt_util.utc_from_timestamp(start).astimezone(ZoneInfo("Europe/Vienna"))
         if isinstance(start, str):
             start = dt_util.parse_datetime(start)
 
@@ -283,7 +283,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
 
             for v in bewegungsdaten['values']:
                 # Timestamp has to be aware of timezone, parse_datetime does that.
-                ts = datetime.strptime(v['zeitpunktVon'], "%Y-%m-%dT%H:%M:%S%z")
+                ts = dt_util.parse_datetime(v['zeitpunktVon'])
                 if ts.minute != 0:
                     # This usually happens if the start date minutes are != 0
                     # However, we set them to 0 in this function, thus if this happens, the API has
