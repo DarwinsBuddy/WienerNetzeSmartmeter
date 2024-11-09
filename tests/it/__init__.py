@@ -516,7 +516,7 @@ def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, date
         if granularity == ValueType.DAY: 
             rolle = RoleType.DAILY_CONSUMING.value 
         else: 
-            rolle = RoleType.QUARTER_HOURLY_CONSUMING.value 
+            rolle = RoleType.QUARTER_HOURLY_CONSUMING.value
     params = {
         "geschaeftspartner": customer_id,
         "zaehlpunktnummer": zp,
