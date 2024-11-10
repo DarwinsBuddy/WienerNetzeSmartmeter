@@ -508,6 +508,4 @@ class Smartmeter:
         )
         if data["descriptor"]["zaehlpunktnummer"] != zaehlpunkt:
             raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
-        if len(data["values"]) == 0:
-            raise SmartmeterQueryError("Historical data is empty")
         return data
