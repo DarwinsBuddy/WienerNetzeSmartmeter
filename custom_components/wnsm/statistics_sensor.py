@@ -61,7 +61,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         # XXX: since HA core 2023.03, we get a float and not a datetime...
         start = last_inserted_stat[self._id][0]["end"]
         if isinstance(start, (int, float)):
-            start = dt_util.utc_from_timestamp(start).astimezone(ZoneInfo("Europe/Vienna"))
+            start = dt_util.utc_from_timestamp(start)
         if isinstance(start, str):
             start = dt_util.parse_datetime(start)
 
@@ -233,6 +233,26 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
         async_import_statistics(self.hass, metadata, statistics)
 
+    def reduce_to_hourly(self, bewegungsdaten):
+        hourly_data = defaultdict(float)
+        for entry in bewegungsdaten['values']:
+            ts = dt_util.parse_datetime(entry['zeitpunktVon'])
+            hour_start = ts.replace(minute=0, second=0, microsecond=0)
+            hourly_data[hour_start] += entry['wert']
+
+        hourly_values = []
+        for hour_start, total_value in hourly_data.items():
+            hour_end = hour_start + timedelta(hours=1)
+            hourly_values.append({
+                'zeitpunktVon': hour_start.isoformat(),
+                'zeitpunktBis': hour_end.isoformat(),
+                'wert': total_value,
+                'geschaetzt': False  # Assuming the values are not estimated
+            })
+
+        bewegungsdaten['values'] = hourly_values
+        return bewegungsdaten
+
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, total_usage: Decimal):
         """Import hourly consumption data into the statistics module, using start date and sum"""
         # Have to be sure that the start datetime is aware of timezone, because we need to compare
@@ -257,7 +277,7 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
         _LOGGER.debug("Selecting data up to %s" % now)
         while start < now:
-            _LOGGER.debug("Select 24h of Data, using sum=%.3f, start=%s" % (total_usage, start))
+            _LOGGER.debug(f"Select 24h of Data, using sum={total_usage:.3f}, start={start}")
             bewegungsdaten = await self.get_bewegungsdaten(smartmeter, start)
             _LOGGER.debug(bewegungsdaten)
             last_ts = start
@@ -280,6 +300,11 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             if total_consumption == 0:
                 _LOGGER.debug(f"Batch of data starting at {start} does not contain any consumption, skipping")
                 continue
+
+            # reduce values into buckets of one hour, since bewegungsdaten cannot be queried
+            # in case of quarter-hourly opt-in from the API in hourly format
+            # this call should be idempotent (in case someone did not opt-in)
+            bewegungsdaten = self.reduce_to_hourly(bewegungsdaten)
 
             for v in bewegungsdaten['values']:
                 # Timestamp has to be aware of timezone, parse_datetime does that.
@@ -305,11 +330,12 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                     # in between existing values, thus we can not do much.
                     continue
                 usage = float(v['wert'])  # Convert to kWh ...
+                total_usage += usage
                 if v['geschaetzt']:
                     # Can we do anything special here?
                     _LOGGER.debug(f"Estimated Value found for {ts}: {usage}")
 
-                statistics.append(StatisticData(start=ts, sum=total_consumption, state=usage))
+                statistics.append(StatisticData(start=ts, sum=total_usage, state=usage))
 
         _LOGGER.debug(statistics)
 

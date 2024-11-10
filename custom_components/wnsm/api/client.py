@@ -490,7 +490,7 @@ class Smartmeter:
             "geschaeftspartner": customer_id,
             "zaehlpunktnummer": zaehlpunkt,
             "rolle": rolle,
-            "zeitpunktVon": date_from.strftime("%Y-%m-%dT00:00:00.000Z"),
+            "zeitpunktVon": date_from.strftime("%Y-%m-%dT%H:%M:00.000Z"), # we catch up from the exact date of the last import to compensate for time shift
             "zeitpunktBis": date_until.strftime("%Y-%m-%dT23:59:59.999Z"),
             "aggregat": aggregat or "NONE"
         }
