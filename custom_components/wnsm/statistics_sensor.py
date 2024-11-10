@@ -233,7 +233,8 @@ class StatisticsSensor(BaseSensor, SensorEntity):
             _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
         async_import_statistics(self.hass, metadata, statistics)
 
-    def reduce_to_hourly(self, bewegungsdaten):
+    @staticmethod
+    def reduce_to_hourly(bewegungsdaten):
         hourly_data = defaultdict(float)
         for entry in bewegungsdaten['values']:
             ts = dt_util.parse_datetime(entry['zeitpunktVon'])
@@ -329,13 +330,13 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                     # However, it is not trivial (or even impossible?) to insert statistic values
                     # in between existing values, thus we can not do much.
                     continue
-                usage = float(v['wert'])  # Convert to kWh ...
+                usage = Decimal(v['wert'])  # Convert to kWh ...
                 total_usage += usage
                 if v['geschaetzt']:
                     # Can we do anything special here?
                     _LOGGER.debug(f"Estimated Value found for {ts}: {usage}")
 
-                statistics.append(StatisticData(start=ts, sum=total_usage, state=usage))
+                statistics.append(StatisticData(start=ts, sum=total_usage, state=float(usage)))
 
         _LOGGER.debug(statistics)
 
