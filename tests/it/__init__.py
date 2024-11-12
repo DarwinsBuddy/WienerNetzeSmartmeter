@@ -1,22 +1,24 @@
-import os
-import sys
+import datetime as dt
 import json
+import os
+import random
+import sys
+from datetime import datetime, timedelta
+from importlib.resources import files
+from urllib import parse
 from urllib.parse import urlencode
 
 import pytest
 import requests
 from requests_mock import Mocker
-import urllib3
+
 from test_resources import post_data_matcher
-from importlib.resources import files
-import datetime as dt
-from urllib import parse
 
 # necessary for pytest-cov to measure coverage
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../../custom_components')
 from wnsm import api  # noqa: E402
-from wnsm.api.constants import Resolution, ValueType, AnlageType, RoleType  # noqa: E402
+from wnsm.api.constants import ValueType, AnlageType, RoleType  # noqa: E402
 
 
 def _dt_string(datetime_string):
@@ -272,22 +274,38 @@ def history_response(zp: str, wrong_zp: bool = False, wrong_obis_code: bool = Fa
             "zaehlpunkt": zp
         }
 
+def delta(i: str, n: int=0) -> timedelta:
+    return {
+        "h":  timedelta(hours=n),
+        "d": timedelta(days=n),
+        "qh": timedelta(minutes=15 * n)
+    }[i.lower()]
+
+def bewegungsdaten_value(ts: datetime, interval: str, i: int = 0) -> dict:
+    t = ts.replace(minute=0, second=0, microsecond=0)
+    return {
+      "wert": round(random.gauss(0.045,0.015), 3),
+      "zeitpunktVon": (t + delta(interval, i)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+      "zeitpunktBis": (t + delta(interval, i+1)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+      "geschaetzt": False
+    }
+
+def bewegungsdaten(count=24, timestamp=None, interval='h'):
+    if timestamp is None:
+        timestamp = datetime.now().replace(minute=0, second=0, microsecond=0)
+    return [bewegungsdaten_value(timestamp, interval, i) for i in list(range(0,count))]
+
+
 def bewegungsdaten_response(customer_id: str, zp: str, 
                             granularity: ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlageType = AnlageType.CONSUMING,
-                            wrong_zp: bool = False, empty_values: bool = False):
+                            wrong_zp: bool = False, values_count: int = 10):
     if (granularity == ValueType.QUARTER_HOUR):
-        t1 = "2022-08-07T00:00:00Z"
-        t2 = "2022-08-07T00:15:00Z"
-        t3 = "2022-08-07T00:30:00Z"
         gran = "QH"
         if(anlagetype == AnlageType.CONSUMING):
             rolle = "V002"
         else:
             rolle = "E002"
     else:
-        t1 = "2022-08-07T00:00:00Z"
-        t2 = "2022-08-08T00:00:00Z"
-        t3 = "2022-08-09T00:00:00Z"
         gran = "D"
         if(anlagetype == AnlageType.CONSUMING):
             rolle = "V001"
@@ -295,24 +313,9 @@ def bewegungsdaten_response(customer_id: str, zp: str,
             rolle = "V002"
     if wrong_zp:
         zp = zp + "9"
-    if empty_values:
-        values = []
-    else:
-        values = [
-            {
-                "wert": 0.041,
-                "zeitpunktVon": t1,
-                "zeitpunktBis": t2,
-                "geschaetzt": False
-            },
-            {
-                "wert": 0.034,
-                "zeitpunktVon": t2,
-                "zeitpunktBis": t3,
-                "geschaetzt": False
-            }
-        ]
-        
+
+    values = [] if values_count == 0 else bewegungsdaten(count=values_count, timestamp=datetime(2022,8,7,0,0,0), interval=gran)
+
     return {
         "descriptor": {
             "geschaeftspartnernummer": customer_id,
@@ -506,7 +509,7 @@ def expect_history(requests_mock: Mocker, customer_id: str, zp: str,
 @pytest.mark.usefixtures("requests_mock")
 def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime, 
                           granularity:ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlageType = AnlageType.CONSUMING,
-                          wrong_zp: bool = False, empty_values: bool = False):
+                          wrong_zp: bool = False, values_count=10):
     if anlagetype== AnlageType.FEEDING:
         if granularity == ValueType.DAY: 
             rolle = RoleType.DAILY_FEEDING.value 
@@ -531,4 +534,4 @@ def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, date
                           "Authorization": f"Bearer {ACCESS_TOKEN}",
                           "Accept": "application/json"
                       },
-                      json=bewegungsdaten_response(customer_id, zp, granularity, anlagetype, wrong_zp, empty_values))
+                      json=bewegungsdaten_response(customer_id, zp, granularity, anlagetype, wrong_zp, values_count))

@@ -27,6 +27,8 @@ from it import (
 from wnsm.api.errors import SmartmeterConnectionError, SmartmeterLoginError, SmartmeterQueryError
 import wnsm.api.constants as const
 
+COUNT = 10
+
 logger = logging.getLogger(__name__)
 
 @pytest.mark.usefixtures("requests_mock")
@@ -244,12 +246,12 @@ def test_bewegungsdaten_quarterly_hour_consuming(requests_mock: Mocker):
     dateTo = dt.datetime(2023, 5, 1, 23, 59, 59, 999999)
     zpn = z["zaehlpunkte"][0]['zaehlpunktnummer']
     expect_login(requests_mock)
-    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.QUARTER_HOUR)
+    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.QUARTER_HOUR, values_count=COUNT)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
 
     hist = smartmeter().login().bewegungsdaten(None, dateFrom, dateTo)
 
-    assert 2 == len(hist['values'])
+    assert 10 == len(hist['values'])
 
 @pytest.mark.usefixtures("requests_mock")
 def test_bewegungsdaten_daily_consuming(requests_mock: Mocker):
@@ -258,12 +260,12 @@ def test_bewegungsdaten_daily_consuming(requests_mock: Mocker):
     dateTo = dt.datetime(2023, 5, 1, 23, 59, 59, 999999)
     zpn = z["zaehlpunkte"][0]['zaehlpunktnummer']
     expect_login(requests_mock)
-    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.DAY)
+    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.DAY, values_count=COUNT)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
 
     hist = smartmeter().login().bewegungsdaten(None, dateFrom, dateTo, const.ValueType.DAY)
 
-    assert 2 == len(hist['values'])
+    assert 10 == len(hist['values'])
   
 @pytest.mark.usefixtures("requests_mock")
 def test_bewegungsdaten_quarterly_hour_feeding(requests_mock: Mocker):
@@ -272,12 +274,12 @@ def test_bewegungsdaten_quarterly_hour_feeding(requests_mock: Mocker):
     dateTo = dt.datetime(2023, 5, 1, 23, 59, 59, 999999)
     zpn = z["zaehlpunkte"][0]['zaehlpunktnummer']
     expect_login(requests_mock)
-    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.QUARTER_HOUR, const.AnlageType.FEEDING)
+    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.QUARTER_HOUR, const.AnlageType.FEEDING, values_count=COUNT)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt_feeding())])
 
     hist = smartmeter().login().bewegungsdaten(None, dateFrom, dateTo)
 
-    assert 2 == len(hist['values'])  
+    assert 10 == len(hist['values'])
     
 @pytest.mark.usefixtures("requests_mock")
 def test_bewegungsdaten_daily_feeding(requests_mock: Mocker):
@@ -286,12 +288,12 @@ def test_bewegungsdaten_daily_feeding(requests_mock: Mocker):
     dateTo = dt.datetime(2023, 5, 1, 23, 59, 59, 999999)
     zpn = z["zaehlpunkte"][0]['zaehlpunktnummer']
     expect_login(requests_mock)
-    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.DAY, const.AnlageType.FEEDING)
+    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.DAY, const.AnlageType.FEEDING, values_count=COUNT)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt_feeding())])
 
     hist = smartmeter().login().bewegungsdaten(None, dateFrom, dateTo, const.ValueType.DAY)
 
-    assert 2 == len(hist['values'])
+    assert 10 == len(hist['values'])
     
 @pytest.mark.usefixtures("requests_mock")
 def test_bewegungsdaten_no_dates_given(requests_mock: Mocker):
@@ -300,12 +302,12 @@ def test_bewegungsdaten_no_dates_given(requests_mock: Mocker):
     dateFrom = dateTo - relativedelta(years=3)
     zpn = z["zaehlpunkte"][0]['zaehlpunktnummer']
     expect_login(requests_mock)
-    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo)
+    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, values_count=COUNT)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
 
     hist = smartmeter().login().bewegungsdaten()
 
-    assert 2 == len(hist['values'])
+    assert 10 == len(hist['values'])
     
 @pytest.mark.usefixtures("requests_mock")
 def test_bewegungsdaten_wrong_zp(requests_mock: Mocker):
@@ -314,7 +316,7 @@ def test_bewegungsdaten_wrong_zp(requests_mock: Mocker):
     dateTo = dt.datetime(2023, 5, 1, 23, 59, 59, 999999)
     zpn = z["zaehlpunkte"][0]['zaehlpunktnummer']
     expect_login(requests_mock)
-    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, wrong_zp = True)
+    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, wrong_zp = True, values_count=COUNT)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
     with pytest.raises(SmartmeterQueryError) as exc_info:
         smartmeter().login().bewegungsdaten(None, dateFrom, dateTo)
