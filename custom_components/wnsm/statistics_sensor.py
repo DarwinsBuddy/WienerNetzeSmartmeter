@@ -3,7 +3,6 @@ from collections import defaultdict
 from datetime import timedelta, timezone, datetime
 from decimal import Decimal
 from operator import itemgetter
-from zoneinfo import ZoneInfo
 
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.models import (
