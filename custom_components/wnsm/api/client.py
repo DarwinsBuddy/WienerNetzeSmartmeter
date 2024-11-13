@@ -441,18 +441,34 @@ class Smartmeter:
             extra_headers=extra,
         )
         # Some Sanity Checks...
-        if data["zaehlpunkt"] != zaehlpunkt or len(data["zaehlwerke"]) != 1:
-            # TODO: Is it possible to have multiple zaehlwerke in one zaehlpunkt?
-            # I guess so, otherwise it would not be a list...
-            # Probably (my guess), we would see this on the OBIS Code.
-            # The OBIS Code can code for channels, thus we would probably see that there.
-            # Keep that in mind if for someone this fails.
+        if data["zaehlpunkt"] != zaehlpunkt:
             logger.debug("Returned data: %s" % data)
             raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
-        obis_code = data["zaehlwerke"][0]["obisCode"]
-        if obis_code[0] != "1":
-            logger.warning(f"The OBIS code of the meter ({obis_code}) reports that this meter does not count electrical energy!")
-        return data["zaehlwerke"][0]
+        
+        if "zaehlwerke" not in data or len(data["zaehlwerke"]) < 1:
+            logger.debug("Returned data: %s" % data)
+            raise SmartmeterQueryError("Returned data does not contain any zaehlwerke!")
+        
+        valid_data = []
+        found_valid_obis = []
+        
+        #Check for data from valid OBIS-codes
+        for zaehlwerk in data["zaehlwerke"]:
+            obis_code = zaehlwerk.get("obisCode")
+            if obis_code in const.VALID_OBIS_CODES:
+                valid_data.append(zaehlwerk)
+                found_valid_obis.append(obis_code)
+        
+        #OBIS checks        
+        if not valid_data:
+            # No valid OBIS-codes found
+            all_obis_codes = [zaehlwerk.get("obisCode") for zaehlwerk in data["zaehlwerke"]] 
+            raise SmartmeterQueryError(f"No valid OBIS-code found. OBIS-codes in data: {all_obis_codes}")
+        elif len(found_valid_obis)>1:
+            # More than one valid OBIS-code in one zaehlpunkt. Return the first entry, but raises a warning to allow for further investigation
+            logger.warning(f"Multiple valid OBIS codes found ({found_valid_obis}).")
+
+        return valid_data[0]
 
     def bewegungsdaten(
         self,

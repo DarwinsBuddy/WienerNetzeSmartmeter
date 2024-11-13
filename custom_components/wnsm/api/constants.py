@@ -23,6 +23,12 @@ LOGIN_ARGS = {
     "nonce": "",
 }
 
+VALID_OBIS_CODES = {
+    "1-1:1.8.0", #: Sum of consumption in kWh - used by Wiener Netze as default
+    "1-1:1.9.0", #: Sum of consumption in kWh - used by Wiener Netze for heat pumps - per standard this should be the default
+    "1-1:2.8.0", #: Sum of production in kWh - used by Wiener Netzte as default
+    "1-1:2.9.0" #: Sum of production in kWh - currently unused - per standard this should be the default
+}
 
 class Resolution(enum.Enum):
     """Possible resolution for consumption data of one day"""
