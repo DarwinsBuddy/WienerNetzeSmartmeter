@@ -3,6 +3,7 @@ import json
 import logging
 from datetime import datetime, timedelta, date
 from urllib import parse
+from typing import List, Dict, Any
 
 import requests
 from dateutil.relativedelta import relativedelta
@@ -400,6 +401,24 @@ class Smartmeter:
         """Deletes ereignis."""
         return self._call_api(f"user/ereignis/{ereignis_id}", method="DELETE")
 
+    def find_valid_obis_data(zaehlwerke: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Find and validate data with valid OBIS codes from a list of zaehlwerke.
+        """
+        valid_data = [
+            zaehlwerk for zaehlwerk in zaehlwerke
+            if zaehlwerk.get("obisCode") in const.VALID_OBIS_CODES and "messwerte" in zaehlwerk
+        ]
+        
+        if not valid_data:
+            all_obis_codes = [zaehlwerk.get("obisCode") for zaehlwerk in zaehlwerke]
+            raise SmartmeterQueryError(f"No valid OBIS code found. OBIS codes in data: {all_obis_codes}")
+        if len(valid_data) > 1:
+            found_valid_obis = [zaehlwerk["obisCode"] for zaehlwerk in valid_data]
+            logger.warning(f"Multiple valid OBIS codes found: {found_valid_obis}. Using the first one.")
+
+        return valid_data[0]
+
     def historical_data(
         self,
         zaehlpunktnummer: str = None,
@@ -412,63 +431,52 @@ class Smartmeter:
         If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
         If date_from is not given but date_until, again a three year span is assumed.
         """
+        # Resolve Zählpunkt
         if zaehlpunktnummer is None:
             customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt()
         else:
             customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
 
+        # Set date range defaults
         if date_until is None:
             date_until = date.today()
-
+            
         if date_from is None:
             date_from = date_until - relativedelta(years=3)
 
+        # Query parameters
         query = {
             "datumVon": date_from.strftime("%Y-%m-%d"),
             "datumBis": date_until.strftime("%Y-%m-%d"),
             "wertetyp": valuetype.value,
         }
-
+        
         extra = {
             # For this API Call, requesting json is important!
             "Accept": "application/json"
         }
 
+        # API Call
         data = self._call_api(
             f"zaehlpunkte/{customer_id}/{zaehlpunkt}/messwerte",
             base_url=const.API_URL_B2B,
             query=query,
             extra_headers=extra,
         )
-        # Some Sanity Checks...
-        if data["zaehlpunkt"] != zaehlpunkt:
-            logger.debug("Returned data: %s" % data)
-            raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
-        
-        if "zaehlwerke" not in data or len(data["zaehlwerke"]) < 1:
-            logger.debug("Returned data: %s" % data)
-            raise SmartmeterQueryError("Returned data does not contain any zaehlwerke!")
-        
-        valid_data = []
-        found_valid_obis = []
-        
-        #Check for data from valid OBIS-codes
-        for zaehlwerk in data["zaehlwerke"]:
-            obis_code = zaehlwerk.get("obisCode")
-            if obis_code in const.VALID_OBIS_CODES:
-                valid_data.append(zaehlwerk)
-                found_valid_obis.append(obis_code)
-        
-        #OBIS checks        
-        if not valid_data:
-            # No valid OBIS-codes found
-            all_obis_codes = [zaehlwerk.get("obisCode") for zaehlwerk in data["zaehlwerke"]] 
-            raise SmartmeterQueryError(f"No valid OBIS-code found. OBIS-codes in data: {all_obis_codes}")
-        elif len(found_valid_obis)>1:
-            # More than one valid OBIS-code in one zaehlpunkt. Return the first entry, but raises a warning to allow for further investigation
-            logger.warning(f"Multiple valid OBIS codes found ({found_valid_obis}).")
 
-        return valid_data[0]
+        # Sanity check: Validate returned zaehlpunkt
+        if data.get("zaehlpunkt") != zaehlpunkt:
+            logger.debug("Returned data: %s", data)
+            raise SmartmeterQueryError("Returned data does not match the given Zählpunkt.")
+
+        # Validate and extract valid OBIS data
+        zaehlwerke = data.get("zaehlwerke")
+        if not zaehlwerke:
+            logger.debug("Returned data: %s", data)
+            raise SmartmeterQueryError("Returned data does not contain any Zählwerke or is empty.")
+
+        valid_obis_data = self.find_valid_obis_data(zaehlwerke)
+        return valid_obis_data
 
     def bewegungsdaten(
         self,
