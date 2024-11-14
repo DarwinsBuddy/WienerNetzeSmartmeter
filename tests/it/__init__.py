@@ -248,32 +248,62 @@ def verbrauch_raw_response():
             "average": 5301
         }
     }
+    
+def history_response(
+    zp: str,
+    zaehlwerk_amount: int = 1,
+    wrong_zp: bool = False,
+    all_invalid_obis: bool = False,
+    all_valid_obis: bool = False,
+    empty_messwerte: bool = False,
+    no_zaehlwerke: bool = False,
+    empty_zaehlwerke: bool = False,
+    no_obis_code: bool = False,
+):
+    """
+    Generates test data for history response based on specified conditions.
+    """
+    valid_obis_codes = ["1-1:1.8.0", "1-1:1.9.0", "1-1:2.8.0", "1-1:2.9.0"]
+    invalid_obis_code = "9-9:9.9.9"
 
-def history_response(zp: str, wrong_zp: bool = False, wrong_obis_code: bool = False):
+    # Modify zp if wrong_zp is True
     if wrong_zp:
-        zp = zp + "9"
-    if wrong_obis_code:
-        obis = "2-1:2.9.0"
-    else:
-        obis = "1-1:2.9.0"
-    return {
-            "zaehlwerke": [
-                {
-                    "obisCode": obis,
-                    "einheit": "WH",
-                    "messwerte": [
-                        {
-                            "messwert": 42.0,
-                            "zeitVon": "2023-04-01T22:00:00.000Z",
-                            "zeitBis": "2023-04-01T22:15:00.000Z",
-                            "qualitaet": "VAL",
-                        }
-                    ]
-                }
-            ],
-            "zaehlpunkt": zp
-        }
+        zp = zp[:-1] + "9"
 
+    # Handle no_zaehlwerke case
+    if no_zaehlwerke:
+        return {"zaehlpunkt": zp}
+
+    # Handle empty zaehlwerke case
+    if empty_zaehlwerke:
+        return {"zaehlwerke": [], "zaehlpunkt": zp}
+
+    # Prepare messwerte
+    messwerte = [] if empty_messwerte else [
+        {
+            "messwert": 7256686,
+            "zeitVon": "2024-11-11T23:00:00.000Z",
+            "zeitBis": "2024-11-12T23:00:00.000Z",
+            "qualitaet": "VAL",
+        }
+    ]
+
+    # Generate zaehlwerke
+    zaehlwerke = []
+    for i in range(zaehlwerk_amount):
+        if no_obis_code:
+            zaehlwerke.append({"einheit": "WH", "messwerte": messwerte})
+        else:
+            if all_invalid_obis:
+                obis = invalid_obis_code
+            elif all_valid_obis or i == 0: # First one valid, or all valid if multiple_valid_obis is True
+                obis = valid_obis_codes[i % len(valid_obis_codes)]
+            else:  # Default: first valid, rest invalid
+                obis = invalid_obis_code        
+            zaehlwerke.append({"obisCode": obis, "einheit": "WH", "messwerte": messwerte})
+
+    return {"zaehlwerke": zaehlwerke, "zaehlpunkt": zp}
+    
 def delta(i: str, n: int=0) -> timedelta:
     return {
         "h":  timedelta(hours=n),
@@ -495,8 +525,19 @@ def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom:
 
 
 @pytest.mark.usefixtures("requests_mock")
-def expect_history(requests_mock: Mocker, customer_id: str, zp: str,
-                   wrong_zp: bool = False, wrong_obis_code: bool = False):
+def expect_history(
+    requests_mock: Mocker, 
+    customer_id: str, 
+    zp: str,
+    zaehlwerk_amount: int = 1,
+    wrong_zp: bool = False,
+    all_invalid_obis: bool = False,
+    all_valid_obis: bool = False,
+    empty_messwerte: bool = False,
+    no_zaehlwerke: bool = False,
+    empty_zaehlwerke: bool = False,
+    no_obis_code: bool = False
+):
     path = f'zaehlpunkte/{customer_id}/{zp}/messwerte'
     requests_mock.get(parse.urljoin(API_URL_B2B, path),
                       headers={
@@ -504,7 +545,18 @@ def expect_history(requests_mock: Mocker, customer_id: str, zp: str,
                           "X-Gateway-APIKey": B2B_API_KEY,
                           "Accept": "application/json"
                       },
-                      json=history_response(zp, wrong_zp, wrong_obis_code))
+                      json=history_response(
+                          zp, 
+                          zaehlwerk_amount, 
+                          wrong_zp, 
+                          all_invalid_obis, 
+                          all_valid_obis, 
+                          empty_messwerte, 
+                          no_zaehlwerke, 
+                          empty_zaehlwerke,
+                          no_obis_code
+                        )
+                      )
 
 @pytest.mark.usefixtures("requests_mock")
 def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime, 
