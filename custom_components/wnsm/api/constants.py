@@ -24,10 +24,10 @@ LOGIN_ARGS = {
 }
 
 VALID_OBIS_CODES = {
-    "1-1:1.8.0", #: Sum of consumption in kWh - used by Wiener Netze as default
-    "1-1:1.9.0", #: Sum of consumption in kWh - used by Wiener Netze for heat pumps - per standard this should be the default
-    "1-1:2.8.0", #: Sum of production in kWh - used by Wiener Netzte as default
-    "1-1:2.9.0" #: Sum of production in kWh - currently unused - per standard this should be the default
+    "1-1:1.8.0", #: Total Meter reading of consumption in Wh on selected day(s)- updated daily - used by Wiener Netze as default for meter reading ("Zählerstand")
+    "1-1:1.9.0", #: Measured value of consumption in Wh in quarter hour or daily steps - updated daily - also used by Wiener Netze for meter readings of heat pumps
+    "1-1:2.8.0", #: Total Meter reading of production/feeding on selected day(s) in Wh - used by Wiener Netze as default for meter reading ("Zählerstand")
+    "1-1:2.9.0" #: Measured value of production/feeding in Wh in quarter hour or daily steps - updated daily - currently unused by Wiener Netze but accesible via API (call to zaehlpunkte/{customer_id}/{zaehlpunkt}/messwerte with ValueType DAY or QUARTER_HOUR)
 }
 
 class Resolution(enum.Enum):
