@@ -405,14 +405,28 @@ class Smartmeter:
         """
         Find and validate data with valid OBIS codes from a list of zaehlwerke.
         """
+        
+        # Check if any OBIS codes exist
+        all_obis_codes = [zaehlwerk.get("obisCode") for zaehlwerk in zaehlwerke]
+        if not any(all_obis_codes):
+            raise SmartmeterQueryError("No OBIS codes found in the provided data.")
+        
+        # Filter data for valid OBIS codes
         valid_data = [
             zaehlwerk for zaehlwerk in zaehlwerke
-            if zaehlwerk.get("obisCode") in const.VALID_OBIS_CODES and "messwerte" in zaehlwerk
+            if zaehlwerk.get("obisCode") in const.VALID_OBIS_CODES
         ]
         
         if not valid_data:
-            all_obis_codes = [zaehlwerk.get("obisCode") for zaehlwerk in zaehlwerke]
             raise SmartmeterQueryError(f"No valid OBIS code found. OBIS codes in data: {all_obis_codes}")
+        
+        # Check for empty or missing messwerte
+        for zaehlwerk in valid_data:
+            if not zaehlwerk.get("messwerte"):
+                obis = zaehlwerk.get("obisCode")
+                logger.warning(f"Valid OBIS code '{obis}' has empty or missing messwerte.")
+                
+        # Log a warning if multiple valid OBIS codes are found        
         if len(valid_data) > 1:
             found_valid_obis = [zaehlwerk["obisCode"] for zaehlwerk in valid_data]
             logger.warning(f"Multiple valid OBIS codes found: {found_valid_obis}. Using the first one.")
