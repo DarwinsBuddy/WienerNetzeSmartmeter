@@ -401,7 +401,7 @@ class Smartmeter:
         """Deletes ereignis."""
         return self._call_api(f"user/ereignis/{ereignis_id}", method="DELETE")
 
-    def find_valid_obis_data(zaehlwerke: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def find_valid_obis_data(self, zaehlwerke: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Find and validate data with valid OBIS codes from a list of zaehlwerke.
         """
