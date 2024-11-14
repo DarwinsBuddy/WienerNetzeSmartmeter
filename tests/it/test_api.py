@@ -194,11 +194,10 @@ def test_history(requests_mock: Mocker):
     expect_login(requests_mock)
     expect_history(requests_mock, customer_id, zp)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
-
     hist = smartmeter().login().historical_data()
-
     assert 1 == len(hist['messwerte'])
     assert 'WH' == hist['einheit']
+    assert '1-1:1.8.0' == hist['obisCode']
  
 @pytest.mark.usefixtures("requests_mock")
 def test_history_with_zp(requests_mock: Mocker):
@@ -208,11 +207,10 @@ def test_history_with_zp(requests_mock: Mocker):
     expect_login(requests_mock)
     expect_history(requests_mock, customer_id, zp)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
-
     hist = smartmeter().login().historical_data(zp)
-
     assert 1 == len(hist['messwerte'])
-    assert 'WH' == hist['einheit'] 
+    assert 'WH' == hist['einheit']
+    assert '1-1:1.8.0' == hist['obisCode']
     
 @pytest.mark.usefixtures("requests_mock")
 def test_history_wrong_zp(requests_mock: Mocker, caplog):
@@ -229,15 +227,114 @@ def test_history_wrong_zp(requests_mock: Mocker, caplog):
     assert 'Returned data does not match given zaehlpunkt!' == str(exc_info.value)
     
 @pytest.mark.usefixtures("requests_mock")
-def test_history_wrong_obis_code(requests_mock: Mocker, caplog):
+def test_history_invalid_obis_code(requests_mock: Mocker):
     z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
     zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
     customer_id = z["geschaeftspartner"]
     expect_login(requests_mock)
-    expect_history(requests_mock, customer_id, zp, wrong_obis_code = True)
+    expect_history(requests_mock, customer_id, zp, all_invalid_obis = True)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
-    smartmeter().login().historical_data()
-    assert 'reports that this meter does not count electrical energy' in caplog.text
+    with pytest.raises(SmartmeterQueryError) as exc_info:
+        smartmeter().login().historical_data()
+    assert "No valid OBIS code found. OBIS codes in data: ['9-9:9.9.9']" == str(exc_info.value)
+
+@pytest.mark.usefixtures("requests_mock")
+def test_history_multiple_zaehlwerke_one_valid(requests_mock: Mocker):
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_history(requests_mock, customer_id, zp, zaehlwerk_amount = 3)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    hist = smartmeter().login().historical_data()
+    assert 1 == len(hist['messwerte'])
+    assert 'WH' == hist['einheit']
+    assert '1-1:1.8.0' == hist['obisCode']
+    
+@pytest.mark.usefixtures("requests_mock")
+def test_history_multiple_zaehlwerke_all_valid(requests_mock: Mocker, caplog):
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_history(requests_mock, customer_id, zp, zaehlwerk_amount = 3, all_valid_obis = True)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    hist = smartmeter().login().historical_data()
+    assert 1 == len(hist['messwerte'])
+    assert 'WH' == hist['einheit']
+    assert '1-1:1.8.0' == hist['obisCode']
+    assert "Multiple valid OBIS codes found: ['1-1:1.8.0', '1-1:1.9.0', '1-1:2.8.0']. Using the first one." in caplog.text
+
+@pytest.mark.usefixtures("requests_mock")
+def test_history_multiple_zaehlwerke_all_invalid(requests_mock: Mocker, caplog):
+    caplog.set_level(logging.DEBUG)
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_history(requests_mock, customer_id, zp, zaehlwerk_amount = 3, all_invalid_obis = True)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    with pytest.raises(SmartmeterQueryError) as exc_info:
+        smartmeter().login().historical_data()
+    assert 'Returned zaehlwerke: ' in caplog.text
+    assert "No valid OBIS code found. OBIS codes in data: ['9-9:9.9.9', '9-9:9.9.9', '9-9:9.9.9']" == str(exc_info.value)
+    
+@pytest.mark.usefixtures("requests_mock")
+def test_history_empty_messwerte(requests_mock: Mocker, caplog):
+    caplog.set_level(logging.DEBUG)
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_history(requests_mock, customer_id, zp, empty_messwerte = True)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    hist=smartmeter().login().historical_data()
+    assert 0 == len(hist['messwerte'])
+    assert 'WH' == hist['einheit']
+    assert '1-1:1.8.0' == hist['obisCode']
+    assert "Valid OBIS code '1-1:1.8.0' has empty or missing messwerte." in caplog.text
+
+@pytest.mark.usefixtures("requests_mock")
+def test_history_no_zaehlwerke(requests_mock: Mocker, caplog):
+    caplog.set_level(logging.DEBUG)
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_history(requests_mock, customer_id, zp, no_zaehlwerke = True)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    with pytest.raises(SmartmeterQueryError) as exc_info:
+        smartmeter().login().historical_data()
+    assert 'Returned data: ' in caplog.text
+    assert 'Returned data does not contain any zaehlwerke or is empty.' == str(exc_info.value)
+
+@pytest.mark.usefixtures("requests_mock")
+def test_history_empty_zaehlwerke(requests_mock: Mocker, caplog):
+    caplog.set_level(logging.DEBUG)
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_history(requests_mock, customer_id, zp, empty_zaehlwerke = True)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    with pytest.raises(SmartmeterQueryError) as exc_info:
+        smartmeter().login().historical_data()
+    assert 'Returned data: ' in caplog.text
+    assert 'Returned data does not contain any zaehlwerke or is empty.' == str(exc_info.value)
+    
+@pytest.mark.usefixtures("requests_mock")
+def test_history_no_obis_code(requests_mock: Mocker, caplog):
+    caplog.set_level(logging.DEBUG)
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_history(requests_mock, customer_id, zp, no_obis_code = True)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    with pytest.raises(SmartmeterQueryError) as exc_info:
+        smartmeter().login().historical_data()
+    assert 'Returned zaehlwerke: ' in caplog.text
+    assert 'No OBIS codes found in the provided data.' == str(exc_info.value)
 
 @pytest.mark.usefixtures("requests_mock")
 def test_bewegungsdaten_quarterly_hour_consuming(requests_mock: Mocker):
