@@ -409,6 +409,7 @@ class Smartmeter:
         # Check if any OBIS codes exist
         all_obis_codes = [zaehlwerk.get("obisCode") for zaehlwerk in zaehlwerke]
         if not any(all_obis_codes):
+            logger.debug("Returned zaehlwerke: %s", zaehlwerke)
             raise SmartmeterQueryError("No OBIS codes found in the provided data.")
         
         # Filter data for valid OBIS codes
@@ -418,13 +419,14 @@ class Smartmeter:
         ]
         
         if not valid_data:
+            logger.debug("Returned zaehlwerke: %s", zaehlwerke)
             raise SmartmeterQueryError(f"No valid OBIS code found. OBIS codes in data: {all_obis_codes}")
         
         # Check for empty or missing messwerte
         for zaehlwerk in valid_data:
             if not zaehlwerk.get("messwerte"):
                 obis = zaehlwerk.get("obisCode")
-                logger.warning(f"Valid OBIS code '{obis}' has empty or missing messwerte.")
+                logger.debug(f"Valid OBIS code '{obis}' has empty or missing messwerte. Data is probably not available yet.")
                 
         # Log a warning if multiple valid OBIS codes are found        
         if len(valid_data) > 1:
@@ -438,7 +440,7 @@ class Smartmeter:
         zaehlpunktnummer: str = None,
         date_from: date = None,
         date_until: date = None,
-        valuetype: const.ValueType = const.ValueType.QUARTER_HOUR,
+        valuetype: const.ValueType = const.ValueType.METER_READ
     ):
         """
         Query historical data in a batch
@@ -481,13 +483,13 @@ class Smartmeter:
         # Sanity check: Validate returned zaehlpunkt
         if data.get("zaehlpunkt") != zaehlpunkt:
             logger.debug("Returned data: %s", data)
-            raise SmartmeterQueryError("Returned data does not match the given Zählpunkt.")
+            raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
 
         # Validate and extract valid OBIS data
         zaehlwerke = data.get("zaehlwerke")
         if not zaehlwerke:
             logger.debug("Returned data: %s", data)
-            raise SmartmeterQueryError("Returned data does not contain any Zählwerke or is empty.")
+            raise SmartmeterQueryError("Returned data does not contain any zaehlwerke or is empty.")
 
         valid_obis_data = self.find_valid_obis_data(zaehlwerke)
         return valid_obis_data
