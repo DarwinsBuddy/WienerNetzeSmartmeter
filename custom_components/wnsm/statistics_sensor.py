@@ -227,31 +227,10 @@ class StatisticsSensor(BaseSensor, SensorEntity):
         total_usage = Decimal(0)
         for ts, usage in sorted(dates.items(), key=itemgetter(0)):
             total_usage += usage
-            statistics.append(StatisticData(start=ts, sum=total_usage, state=usage))
+            statistics.append(StatisticData(start=ts, sum=total_usage, state=float(usage)))
         if len(statistics) > 0:
             _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
         async_import_statistics(self.hass, metadata, statistics)
-
-    @staticmethod
-    def reduce_to_hourly(bewegungsdaten):
-        hourly_data = defaultdict(float)
-        for entry in bewegungsdaten['values']:
-            ts = dt_util.parse_datetime(entry['zeitpunktVon'])
-            hour_start = ts.replace(minute=0, second=0, microsecond=0)
-            hourly_data[hour_start] += entry['wert']
-
-        hourly_values = []
-        for hour_start, total_value in hourly_data.items():
-            hour_end = hour_start + timedelta(hours=1)
-            hourly_values.append({
-                'zeitpunktVon': hour_start.isoformat(),
-                'zeitpunktBis': hour_end.isoformat(),
-                'wert': total_value,
-                'geschaetzt': False  # Assuming the values are not estimated
-            })
-
-        bewegungsdaten['values'] = hourly_values
-        return bewegungsdaten
 
     async def _import_statistics(self, smartmeter: Smartmeter, start: datetime, total_usage: Decimal):
         """Import hourly consumption data into the statistics module, using start date and sum"""
@@ -301,20 +280,9 @@ class StatisticsSensor(BaseSensor, SensorEntity):
                 _LOGGER.debug(f"Batch of data starting at {start} does not contain any consumption, skipping")
                 continue
 
-            # reduce values into buckets of one hour, since bewegungsdaten cannot be queried
-            # in case of quarter-hourly opt-in from the API in hourly format
-            # this call should be idempotent (in case someone did not opt-in)
-            bewegungsdaten = self.reduce_to_hourly(bewegungsdaten)
-
             for v in bewegungsdaten['values']:
                 # Timestamp has to be aware of timezone, parse_datetime does that.
                 ts = dt_util.parse_datetime(v['zeitpunktVon'])
-                if ts.minute != 0:
-                    # This usually happens if the start date minutes are != 0
-                    # However, we set them to 0 in this function, thus if this happens, the API has
-                    # a problem...
-                    _LOGGER.error(f"Minute of zeitpunktVon is non-zero: {ts}. This must not happen! Has the API changed?")
-                    return
                 if ts < last_ts:
                     # This should prevent any issues with ambiguous values though...
                     _LOGGER.warning(
