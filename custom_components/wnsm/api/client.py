@@ -458,7 +458,7 @@ class Smartmeter:
         If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
         If date_from is not given but date_until, again a three year span is assumed.
         """
-        # Resolve Zählpunkt
+        # Resolve Zaehlpunkt
         if zaehlpunktnummer is None:
             customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt()
         else:

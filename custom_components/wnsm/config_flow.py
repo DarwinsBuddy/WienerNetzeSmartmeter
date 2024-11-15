@@ -44,6 +44,7 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
     async def async_step_user(self, user_input: Optional[dict[str, Any]] = None):
         """Invoked when a user initiates a flow via the user interface."""
         errors: dict[str, str] = {}
+        zps = []
         if user_input is not None:
             try:
                 zps = await self.validate_auth(
