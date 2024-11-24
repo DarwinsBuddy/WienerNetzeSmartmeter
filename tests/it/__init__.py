@@ -18,7 +18,7 @@ from test_resources import post_data_matcher
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../../custom_components')
 from wnsm import api  # noqa: E402
-from wnsm.api.constants import ValueType, AnlageType, RoleType  # noqa: E402
+from wnsm.api.constants import ValueType, AnlagenType, RoleType  # noqa: E402
 
 
 def _dt_string(datetime_string):
@@ -326,18 +326,18 @@ def bewegungsdaten(count=24, timestamp=None, interval='h'):
     return [bewegungsdaten_value(timestamp, interval, i) for i in list(range(0,count))]
 
 
-def bewegungsdaten_response(customer_id: str, zp: str, 
-                            granularity: ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlageType = AnlageType.CONSUMING,
+def bewegungsdaten_response(customer_id: str, zp: str,
+                            granularity: ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlagenType = AnlagenType.CONSUMING,
                             wrong_zp: bool = False, values_count: int = 10):
     if (granularity == ValueType.QUARTER_HOUR):
         gran = "QH"
-        if(anlagetype == AnlageType.CONSUMING):
+        if(anlagetype == AnlagenType.CONSUMING):
             rolle = "V002"
         else:
             rolle = "E002"
     else:
         gran = "D"
-        if(anlagetype == AnlageType.CONSUMING):
+        if(anlagetype == AnlagenType.CONSUMING):
             rolle = "V001"
         else:
             rolle = "V002"
@@ -559,10 +559,10 @@ def expect_history(
                       )
 
 @pytest.mark.usefixtures("requests_mock")
-def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime, 
-                          granularity:ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlageType = AnlageType.CONSUMING,
+def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime,
+                          granularity:ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlagenType = AnlagenType.CONSUMING,
                           wrong_zp: bool = False, values_count=10):
-    if anlagetype== AnlageType.FEEDING:
+    if anlagetype== AnlagenType.FEEDING:
         if granularity == ValueType.DAY: 
             rolle = RoleType.DAILY_FEEDING.value 
         else:

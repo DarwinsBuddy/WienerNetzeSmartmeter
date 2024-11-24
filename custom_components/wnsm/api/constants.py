@@ -53,23 +53,20 @@ class ValueType(enum.Enum):
         else:
             raise NotImplementedError
 
-class AnlageType(enum.Enum):
+class AnlagenType(enum.Enum):
     """Possible types for the zaehlpunkte"""
     CONSUMING = "TAGSTROM"  #: Zaehlpunkt is consuming ("normal" power connection)
     FEEDING = "BEZUG"  #: Zaehlpunkt is feeding (produced power from PV, etc.)
     
     @staticmethod
     def from_str(label):
-        if label in ('TAGSTROM', 'tagstrom'):
-            return AnlageType.CONSUMING
-        elif label in ('WAERMEPUMPE', 'waermepumpe'):
-            return AnlageType.CONSUMING
-        elif label in ('STROM', 'strom'):
-            return AnlageType.CONSUMING
-        elif label in ('BEZUG', 'bezug'):
-            return AnlageType.FEEDING
-        else:
-            raise NotImplementedError
+        match label.upper():
+            case 'TAGSTROM' | 'NACHTSTROM' | 'WAERMEPUMPE' | 'STROM':
+                return AnlagenType.CONSUMING
+            case 'BEZUG':
+                return AnlagenType.FEEDING
+            case _:
+                raise NotImplementedError(f"AnlageType {label} not implemented")
             
 class RoleType(enum.Enum):
     """Possible types for the roles of bewegungsdaten - depending on the settings set in smart meter portal"""

@@ -371,7 +371,7 @@ def test_bewegungsdaten_quarterly_hour_feeding(requests_mock: Mocker):
     dateTo = dt.datetime(2023, 5, 1, 23, 59, 59, 999999)
     zpn = z["zaehlpunkte"][0]['zaehlpunktnummer']
     expect_login(requests_mock)
-    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.QUARTER_HOUR, const.AnlageType.FEEDING, values_count=COUNT)
+    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.QUARTER_HOUR, const.AnlagenType.FEEDING, values_count=COUNT)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt_feeding())])
 
     hist = smartmeter().login().bewegungsdaten(None, dateFrom, dateTo)
@@ -385,7 +385,7 @@ def test_bewegungsdaten_daily_feeding(requests_mock: Mocker):
     dateTo = dt.datetime(2023, 5, 1, 23, 59, 59, 999999)
     zpn = z["zaehlpunkte"][0]['zaehlpunktnummer']
     expect_login(requests_mock)
-    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.DAY, const.AnlageType.FEEDING, values_count=COUNT)
+    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, const.ValueType.DAY, const.AnlagenType.FEEDING, values_count=COUNT)
     expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt_feeding())])
 
     hist = smartmeter().login().bewegungsdaten(None, dateFrom, dateTo, const.ValueType.DAY)

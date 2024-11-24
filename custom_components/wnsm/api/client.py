@@ -247,7 +247,7 @@ class Smartmeter:
                     anlagetype = zp_details[0]["anlage"]["typ"]
                     zp = zp_details[0]["zaehlpunktnummer"]
                     customer_id = contract["geschaeftspartner"]
-        return customer_id, zp, const.AnlageType.from_str(anlagetype)
+        return customer_id, zp, const.AnlagenType.from_str(anlagetype)
 
     def zaehlpunkte(self):
         """Returns zaehlpunkte for currently logged in user."""
@@ -509,7 +509,7 @@ class Smartmeter:
         """
         customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
 
-        if anlagetype == const.AnlageType.FEEDING:
+        if anlagetype == const.AnlagenType.FEEDING:
             if valuetype == const.ValueType.DAY:
                 rolle = const.RoleType.DAILY_FEEDING.value
             else:
