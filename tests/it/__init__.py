@@ -459,6 +459,12 @@ def mock_authenticate(requests_mock: Mocker, username, password, code=RESPONSE_C
     }
     authenticate_url = f'https://log.wien/auth/realms/logwien/login-actions/authenticate?{parse.urlencode(authenticate_query_params)}'
 
+    # for some weird reason we have to perform this call before. maybe to create a login session. idk
+    requests_mock.post(authenticate_url, status_code=status,
+                       additional_matcher=post_data_matcher({"username": username, "login": " "}),
+                       text=files('test_resources').joinpath('auth.html').read_text()
+                       )
+
     if status == 302:
         redirect_url = f'{REDIRECT_URI}/#state=cb142d1b-d8b4-4bf3-8a3e-92544790c5c4' \
                        '&session_state=949e0f0d-b447-4208-bfef-273d694dc633' \
