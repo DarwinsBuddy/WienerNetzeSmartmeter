@@ -39,6 +39,21 @@ class Smartmeter:
         self._refresh_token_expiration = None
         self._api_gateway_b2b_token = None
 
+    def reset(self):
+        self.session = requests.Session()
+        self._access_token = None
+        self._refresh_token = None
+        self._api_gateway_token = None
+        self._access_token_expiration = None
+        self._refresh_token_expiration = None
+        self._api_gateway_b2b_token = None
+
+    def is_login_expired(self):
+        return self._access_token_expiration is not None and datetime.now() >= self._access_token_expiration
+
+    def is_logged_in(self):
+        return self._access_token is not None and not self.is_login_expired()
+
     def load_login_page(self):
         """
         loads login page and extracts encoded login url
@@ -135,24 +150,25 @@ class Smartmeter:
         """
         login with credentials specified in ctor
         """
-        url = self.load_login_page()
-        code = self.credentials_login(url)
-        tokens = self.load_tokens(code)
+        if self.is_login_expired():
+            self.reset()
+        if not self.is_logged_in():
+            url = self.load_login_page()
+            code = self.credentials_login(url)
+            tokens = self.load_tokens(code)
+            self._access_token = tokens["access_token"]
+            self._refresh_token = tokens["refresh_token"]
+            now = datetime.now()
+            self._access_token_expiration = now + timedelta(seconds=tokens["expires_in"])
+            self._refresh_token_expiration = now + timedelta(
+                seconds=tokens["refresh_expires_in"]
+            )
 
-        self._access_token = tokens["access_token"]
-        # TODO: use this to refresh the token of this session instead of re-login. may be nicer for the API
-        self._refresh_token = tokens["refresh_token"]
-        now = datetime.now()
-        self._access_token_expiration = now + timedelta(seconds=tokens["expires_in"])
-        self._refresh_token_expiration = now + timedelta(
-            seconds=tokens["refresh_expires_in"]
-        )
+            logger.debug("Access Token valid until %s" % self._access_token_expiration)
 
-        logger.debug("Access Token valid until %s" % self._access_token_expiration)
-
-        self._api_gateway_token, self._api_gateway_b2b_token = self._get_api_key(
-            self._access_token
-        )
+            self._api_gateway_token, self._api_gateway_b2b_token = self._get_api_key(
+                self._access_token
+            )
         return self
 
     def _access_valid_or_raise(self):
