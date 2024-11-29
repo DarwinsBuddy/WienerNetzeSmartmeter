@@ -329,15 +329,15 @@ def bewegungsdaten(count=24, timestamp=None, interval='h'):
 def bewegungsdaten_response(customer_id: str, zp: str,
                             granularity: ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlagenType = AnlagenType.CONSUMING,
                             wrong_zp: bool = False, values_count: int = 10):
-    if (granularity == ValueType.QUARTER_HOUR):
+    if granularity == ValueType.QUARTER_HOUR:
         gran = "QH"
-        if(anlagetype == AnlagenType.CONSUMING):
+        if anlagetype == AnlagenType.CONSUMING:
             rolle = "V002"
         else:
             rolle = "E002"
     else:
         gran = "D"
-        if(anlagetype == AnlagenType.CONSUMING):
+        if anlagetype == AnlagenType.CONSUMING:
             rolle = "V001"
         else:
             rolle = "V002"

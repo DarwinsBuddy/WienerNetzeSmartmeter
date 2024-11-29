@@ -23,13 +23,13 @@ _LOGGER = logging.getLogger(__name__)
 
 class Importer:
 
-    def __init__(self, hass: HomeAssistant, username: str, password: str, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR):
+    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR):
         self.id = f'{DOMAIN}:{zaehlpunkt.lower()}'
         self.zaehlpunkt = zaehlpunkt
         self.granularity = granularity
         self.unit_of_measurement = unit_of_measurement
         self.hass = hass
-        self.async_smartmeter = AsyncSmartmeter(hass, username, password)
+        self.async_smartmeter = async_smartmeter
 
     def is_last_inserted_stat_valid(self, last_inserted_stat):
         return len(last_inserted_stat) == 1 and len(last_inserted_stat[self.id]) == 1 and \

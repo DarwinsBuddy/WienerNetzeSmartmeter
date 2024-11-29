@@ -83,7 +83,8 @@ class WNSMSensor(SensorEntity):
         update sensor
         """
         try:
-            async_smartmeter = AsyncSmartmeter(self.hass, self.username, self.password)
+            smartmeter = Smartmeter(username=self.username, password=self.password)
+            async_smartmeter = AsyncSmartmeter(self.hass, smartmeter)
             await async_smartmeter.login()
             zaehlpunkt_response = await async_smartmeter.get_zaehlpunkt(self.zaehlpunkt)
             self._attr_extra_state_attributes = zaehlpunkt_response
@@ -94,7 +95,7 @@ class WNSMSensor(SensorEntity):
                 for reading_date in reading_dates:
                     meter_reading = await async_smartmeter.get_meter_reading_from_historic_data(self.zaehlpunkt, reading_date, datetime.now())
                     self._attr_native_value = meter_reading
-                importer = Importer(self.hass, self.username, self.password, self.zaehlpunkt, self.unit_of_measurement, self.granularity())
+                importer = Importer(self.hass, async_smartmeter, self.zaehlpunkt, self.unit_of_measurement, self.granularity())
                 await importer.async_import()
             self._available = True
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")

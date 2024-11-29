@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from asyncio import Future
 from datetime import datetime
@@ -13,12 +14,14 @@ _LOGGER = logging.getLogger(__name__)
 
 class AsyncSmartmeter:
 
-    def __init__(self, hass: HomeAssistant, username: str, password: str):
+    def __init__(self, hass: HomeAssistant, smartmeter: Smartmeter = None):
         self.hass = hass
-        self.smartmeter = Smartmeter(username=username, password=password)
+        self.smartmeter = smartmeter
+        self.login_lock = asyncio.Lock()
 
     async def login(self) -> Future:
-        return await self.hass.async_add_executor_job(self.smartmeter.login)
+        async with self.login_lock:
+            return await self.hass.async_add_executor_job(self.smartmeter.login)
 
     async def get_meter_readings(self) -> dict[str, any]:
         """
