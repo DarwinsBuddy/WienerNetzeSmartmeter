@@ -57,5 +57,5 @@ async def async_setup_platform(
     ] = None,  # pylint: disable=unused-argument
 ) -> None:
     """Set up the sensor platform by adding it into configuration.yaml"""
-    live_sensor = WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID])
-    async_add_entities([live_sensor], update_before_add=True)
+    wnsm_sensor = WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID])
+    async_add_entities([wnsm_sensor], update_before_add=True)

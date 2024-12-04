@@ -132,9 +132,9 @@ class AsyncSmartmeter:
         returns active status of smartmeter, according to zaehlpunkt response
         """
         return (
-                not ("active" in zaehlpunkt_response) or zaehlpunkt_response["active"]
+                "active" not in zaehlpunkt_response or zaehlpunkt_response["active"]
         ) or (
-                not ("smartMeterReady" in zaehlpunkt_response)
+                "smartMeterReady" not in zaehlpunkt_response
                 or zaehlpunkt_response["smartMeterReady"]
         )
 
