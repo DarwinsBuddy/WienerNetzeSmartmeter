@@ -6,6 +6,8 @@
 * [DarwinsBuddy](https://github.com/DarwinsBuddy)
 * [reox](https://github.com/reox)
 * [TheRealVira](https://github.com/TheRealVira)
+* [tschoerk](https://github.com/tschoerk)
+* [W-M-B](https://github.com/W-M-B)
 
 ### Former contributors
 * [platysma](https://github.com/platysma)
