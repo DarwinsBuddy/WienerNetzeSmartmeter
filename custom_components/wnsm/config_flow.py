@@ -37,7 +37,7 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
         if contracts is not None and isinstance(contracts, list) and len(contracts) > 0:
             for contract in contracts:
                 if "zaehlpunkte" in contract:
-                    zaehlpunkte+=contract["zaehlpunkte"]
+                    zaehlpunkte.extend(contract["zaehlpunkte"])
         return zaehlpunkte
 
 
@@ -59,6 +59,7 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
                 self.data = user_input
                 self.data[CONF_ZAEHLPUNKTE] = [
                     translate_dict(zp, ATTRS_ZAEHLPUNKTE_CALL) for zp in zps
+                    if zp["isActive"] # only create active zaehlpunkte, as inactive ones can appear in old contracts
                 ]
                 # User is done authenticating, create entry
                 return self.async_create_entry(
