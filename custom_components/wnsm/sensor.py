@@ -24,7 +24,7 @@ from homeassistant.helpers.typing import (
 from .const import CONF_ZAEHLPUNKTE
 from .wnsm_sensor import WNSMSensor
 # Time between updating data from Wiener Netze
-SCAN_INTERVAL = timedelta(minutes=60)
+SCAN_INTERVAL = timedelta(minutes=60 * 6)
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_USERNAME): cv.string,
