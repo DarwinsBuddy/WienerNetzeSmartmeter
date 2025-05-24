@@ -12,7 +12,7 @@ API_URL_B2B = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/1.0"
 REDIRECT_URI = "https://smartmeter-web.wienernetze.at/"
 API_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 AUTH_URL = "https://log.wien/auth/realms/logwien/protocol/openid-connect/"  # noqa
-
+CODE_VERIFIER = "" #placeholder variable for the code_verifier
 
 LOGIN_ARGS = {
     "client_id": "wn-smartmeter",
@@ -21,6 +21,8 @@ LOGIN_ARGS = {
     "response_type": "code",
     "scope": "openid",
     "nonce": "",
+    "code_challenge": "",
+    "code_challenge_method": "S256"
 }
 
 VALID_OBIS_CODES = {

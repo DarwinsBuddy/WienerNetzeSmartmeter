@@ -9,6 +9,10 @@ import requests
 from dateutil.relativedelta import relativedelta
 from lxml import html
 
+import base64
+import hashlib
+import os
+
 from . import constants as const
 from .errors import (
     SmartmeterConnectionError,
@@ -54,10 +58,36 @@ class Smartmeter:
     def is_logged_in(self):
         return self._access_token is not None and not self.is_login_expired()
 
+    def generate_code_verifier(self):
+        """
+        generate a code verifier
+        """
+        return base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
+    
+     def generate_code_challenge(self, code_verifier):
+        """
+        generate a code challenge from the code verifier
+        """
+        code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
+        return base64.urlsafe_b64encode(code_challenge).decode('utf-8').rstrip('=')
+
     def load_login_page(self):
         """
         loads login page and extracts encoded login url
         """
+        
+        #generate a code verifier, which serves as a secure random value
+        code_verifier = self.generate_code_verifier()
+        
+        #add code verifier to constant variables
+        const.CODE_VERIFIER = code_verifier
+        
+        #generate a code challenge from the code verifier to enhance security
+        code_challenge = self.generate_code_challenge(code_verifier)
+        
+        #add the code challenge to the login variables
+        const.LOGIN_ARGS["code_challenge"] = code_challenge
+                
         login_url = const.AUTH_URL + "auth?" + parse.urlencode(const.LOGIN_ARGS)
         try:
             result = self.session.get(login_url)
@@ -68,7 +98,12 @@ class Smartmeter:
                 f"Could not load login page. Error: {result.content}"
             )
         tree = html.fromstring(result.content)
-        action = tree.xpath("(//form/@action)")[0]
+        forms = tree.xpath("(//form/@action)")
+        
+        if not forms:
+            raise SmartmeterConnectionError("No form found on the login page.")
+        
+        action = forms[0]
         return action
 
     def credentials_login(self, url):
