@@ -64,7 +64,7 @@ class Smartmeter:
         """
         return base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
     
-     def generate_code_challenge(self, code_verifier):
+    def generate_code_challenge(self, code_verifier):
         """
         generate a code challenge from the code verifier
         """
