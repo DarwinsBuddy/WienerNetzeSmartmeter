@@ -31,7 +31,7 @@ class Smartmeter:
 
         Args:
             username (str): Username used for API Login.
-            password (str): Username used for API Login.
+            password (str): Password used for API Login.
         """
         self.username = username
         self.password = password
