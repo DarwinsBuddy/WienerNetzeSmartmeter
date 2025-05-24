@@ -85,6 +85,7 @@ def build_access_token_args(**kwargs):
         "grant_type": "authorization_code",
         "client_id": "wn-smartmeter",
         "redirect_uri": REDIRECT_URI,
+        "code_verifier": CODE_VERIFIER
     }
     args.update(**kwargs)
     return args
