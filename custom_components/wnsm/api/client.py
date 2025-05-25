@@ -12,6 +12,7 @@ from lxml import html
 import base64
 import hashlib
 import os
+import copy
 
 from . import constants as const
 from .errors import (
@@ -42,6 +43,8 @@ class Smartmeter:
         self._access_token_expiration = None
         self._refresh_token_expiration = None
         self._api_gateway_b2b_token = None
+        self._code_verifier = None
+        self._code_challenge = None
 
     def reset(self):
         self.session = requests.Session()
@@ -77,18 +80,20 @@ class Smartmeter:
         """
         
         #generate a code verifier, which serves as a secure random value
-        code_verifier = self.generate_code_verifier()
-        
-        #add code verifier to constant variables
-        const.CODE_VERIFIER = code_verifier
+        if not hasattr(self, '_code_verifier') or self._code_verifier is None:
+           #only generate if it does not exist 
+           self._code_verifier = self.generate_code_verifier()
         
         #generate a code challenge from the code verifier to enhance security
-        code_challenge = self.generate_code_challenge(code_verifier)
+        self._code_challenge = self.generate_code_challenge(self._code_verifier)
         
-        #add the code challenge to the login variables
-        const.LOGIN_ARGS["code_challenge"] = code_challenge
-                
-        login_url = const.AUTH_URL + "auth?" + parse.urlencode(const.LOGIN_ARGS)
+        #copy const.LOGIN_ARGS
+        self._local_login_args = copy.deepcopy(const.LOGIN_ARGS)
+        
+        #add code_challenge in self._local_login_args
+        self._local_login_args["code_challenge"] = self._code_challenge
+        
+        login_url = const.AUTH_URL + "auth?" + parse.urlencode(self._local_login_args)
         try:
             result = self.session.get(login_url)
         except Exception as exception:
@@ -163,7 +168,7 @@ class Smartmeter:
         try:
             result = self.session.post(
                 const.AUTH_URL + "token",
-                data=const.build_access_token_args(code=code),
+                data=const.build_access_token_args(code=code , code_verifier=self._code_verifier)
             )
         except Exception as exception:
             raise SmartmeterConnectionError(
