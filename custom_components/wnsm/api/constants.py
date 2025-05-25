@@ -12,7 +12,6 @@ API_URL_B2B = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/1.0"
 REDIRECT_URI = "https://smartmeter-web.wienernetze.at/"
 API_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 AUTH_URL = "https://log.wien/auth/realms/logwien/protocol/openid-connect/"  # noqa
-CODE_VERIFIER = "" #placeholder variable for the code_verifier
 
 LOGIN_ARGS = {
     "client_id": "wn-smartmeter",
@@ -84,8 +83,7 @@ def build_access_token_args(**kwargs):
     args = {
         "grant_type": "authorization_code",
         "client_id": "wn-smartmeter",
-        "redirect_uri": REDIRECT_URI,
-        "code_verifier": CODE_VERIFIER
+        "redirect_uri": REDIRECT_URI
     }
     args.update(**kwargs)
     return args
