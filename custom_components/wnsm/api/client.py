@@ -45,6 +45,7 @@ class Smartmeter:
         self._api_gateway_b2b_token = None
         self._code_verifier = None
         self._code_challenge = None
+        self._local_login_args = None
 
     def reset(self):
         self.session = requests.Session()
@@ -54,6 +55,9 @@ class Smartmeter:
         self._access_token_expiration = None
         self._refresh_token_expiration = None
         self._api_gateway_b2b_token = None
+        self._code_verifier = None
+        self._code_challenge = None
+        self._local_login_args = None
 
     def is_login_expired(self):
         return self._access_token_expiration is not None and datetime.now() >= self._access_token_expiration
