@@ -13,6 +13,7 @@ import base64
 import hashlib
 import os
 import copy
+import re
 
 from . import constants as const
 from .errors import (
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 class Smartmeter:
     """Smartmeter client."""
 
-    def __init__(self, username, password):
+    def __init__(self, username, password, input_code_verifier=None):
         """Access the Smartmeter API.
 
         Args:
@@ -43,7 +44,12 @@ class Smartmeter:
         self._access_token_expiration = None
         self._refresh_token_expiration = None
         self._api_gateway_b2b_token = None
+        
         self._code_verifier = None
+        if input_code_verifier is not None:
+            if self.is_valid_code_verifier(input_code_verifier):
+                self._code_verifier = input_code_verifier
+        
         self._code_challenge = None
         self._local_login_args = None
 
@@ -78,6 +84,16 @@ class Smartmeter:
         code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
         return base64.urlsafe_b64encode(code_challenge).decode('utf-8').rstrip('=')
 
+    def is_valid_code_verifier(self, code_verifier):
+        if not (43 <= len(code_verifier) <= 128):
+            return False
+
+        pattern = r'^[A-Za-z0-9\-._~]+$'
+        if not re.match(pattern, code_verifier):
+            return False
+        
+        return True
+    
     def load_login_page(self):
         """
         loads login page and extracts encoded login url
