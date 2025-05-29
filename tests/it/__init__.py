@@ -24,6 +24,8 @@ from wnsm.api.constants import ValueType, AnlagenType, RoleType  # noqa: E402
 def _dt_string(datetime_string):
     return datetime_string.isoformat(timespec='milliseconds') + "Z"
 
+CODE_VERIFIER = "30VayZvGKqlW9eImS9ksvvjRePhfox2qSYda-tLE6hc"
+CODE_CHALLENGE = "K3kc5ihkd-TB4ZmZT1Vo4-5vX5FNJvhNDSxYjkLkFOU"
 
 PAGE_URL = "https://smartmeter-web.wienernetze.at/"
 API_CONFIG_URL = "https://smartmeter-web.wienernetze.at/assets/app-config.json"
@@ -42,6 +44,8 @@ LOGIN_ARGS = {
     "response_type": "code",
     "scope": "openid",
     "nonce": "",
+    "code_challenge": CODE_CHALLENGE,
+    "code_challenge_method": "S256"
 }
 
 USERNAME = "margit.musterfrau@gmail.com"
@@ -359,8 +363,8 @@ def bewegungsdaten_response(customer_id: str, zp: str,
     }
 
 
-def smartmeter(username=USERNAME, password=PASSWORD):
-    return api.client.Smartmeter(username=username, password=password)
+def smartmeter(username=USERNAME, password=PASSWORD, code_verifier=CODE_VERIFIER):
+    return api.client.Smartmeter(username=username, password=password, input_code_verifier=code_verifier)
 
 
 @pytest.mark.usefixtures("requests_mock")
@@ -408,7 +412,7 @@ def mock_get_api_key(requests_mock: Mocker, bearer_token: str = ACCESS_TOKEN,
                           status_code=get_config_status, text=config_response)
 
 @pytest.mark.usefixtures("requests_mock")
-def mock_token(requests_mock: Mocker, code=RESPONSE_CODE, access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN,
+def mock_token(requests_mock: Mocker, code=RESPONSE_CODE, access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN, code_verifier=CODE_VERIFIER, 
                id_token=ID_TOKEN, status: int | None = 200,
                expires: int = 300,
                token_type: str = "Bearer"):
@@ -428,21 +432,24 @@ def mock_token(requests_mock: Mocker, code=RESPONSE_CODE, access_token=ACCESS_TO
             "grant_type": "authorization_code",
             "client_id": "wn-smartmeter",
             "redirect_uri": REDIRECT_URI,
-            "code": code
+            "code": code,
+            "code_verifier": code_verifier
         }), json=response, status_code=status)
     elif status is None:
         requests_mock.post(f'{AUTH_URL}/token', additional_matcher=post_data_matcher({
             "grant_type": "authorization_code",
             "client_id": "wn-smartmeter",
             "redirect_uri": REDIRECT_URI,
-            "code": code
+            "code": code,
+            "code_verifier": code_verifier
         }), exc=requests.exceptions.ConnectTimeout)
     else:
         requests_mock.post(f'{AUTH_URL}/token', additional_matcher=post_data_matcher({
             "grant_type": "authorization_code",
             "client_id": "wn-smartmeter",
             "redirect_uri": REDIRECT_URI,
-            "code": code
+            "code": code,
+            "code_verifier": code_verifier
         }), json={}, status_code=status)
 
 

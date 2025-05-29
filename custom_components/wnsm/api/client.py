@@ -9,6 +9,12 @@ import requests
 from dateutil.relativedelta import relativedelta
 from lxml import html
 
+import base64
+import hashlib
+import os
+import copy
+import re
+
 from . import constants as const
 from .errors import (
     SmartmeterConnectionError,
@@ -22,12 +28,12 @@ logger = logging.getLogger(__name__)
 class Smartmeter:
     """Smartmeter client."""
 
-    def __init__(self, username, password):
+    def __init__(self, username, password, input_code_verifier=None):
         """Access the Smartmeter API.
 
         Args:
             username (str): Username used for API Login.
-            password (str): Username used for API Login.
+            password (str): Password used for API Login.
         """
         self.username = username
         self.password = password
@@ -38,6 +44,14 @@ class Smartmeter:
         self._access_token_expiration = None
         self._refresh_token_expiration = None
         self._api_gateway_b2b_token = None
+        
+        self._code_verifier = None
+        if input_code_verifier is not None:
+            if self.is_valid_code_verifier(input_code_verifier):
+                self._code_verifier = input_code_verifier
+        
+        self._code_challenge = None
+        self._local_login_args = None
 
     def reset(self):
         self.session = requests.Session()
@@ -47,6 +61,9 @@ class Smartmeter:
         self._access_token_expiration = None
         self._refresh_token_expiration = None
         self._api_gateway_b2b_token = None
+        self._code_verifier = None
+        self._code_challenge = None
+        self._local_login_args = None
 
     def is_login_expired(self):
         return self._access_token_expiration is not None and datetime.now() >= self._access_token_expiration
@@ -54,11 +71,49 @@ class Smartmeter:
     def is_logged_in(self):
         return self._access_token is not None and not self.is_login_expired()
 
+    def generate_code_verifier(self):
+        """
+        generate a code verifier
+        """
+        return base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
+    
+    def generate_code_challenge(self, code_verifier):
+        """
+        generate a code challenge from the code verifier
+        """
+        code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
+        return base64.urlsafe_b64encode(code_challenge).decode('utf-8').rstrip('=')
+
+    def is_valid_code_verifier(self, code_verifier):
+        if not (43 <= len(code_verifier) <= 128):
+            return False
+
+        pattern = r'^[A-Za-z0-9\-._~]+$'
+        if not re.match(pattern, code_verifier):
+            return False
+        
+        return True
+    
     def load_login_page(self):
         """
         loads login page and extracts encoded login url
         """
-        login_url = const.AUTH_URL + "auth?" + parse.urlencode(const.LOGIN_ARGS)
+        
+        #generate a code verifier, which serves as a secure random value
+        if not hasattr(self, '_code_verifier') or self._code_verifier is None:
+           #only generate if it does not exist 
+           self._code_verifier = self.generate_code_verifier()
+        
+        #generate a code challenge from the code verifier to enhance security
+        self._code_challenge = self.generate_code_challenge(self._code_verifier)
+        
+        #copy const.LOGIN_ARGS
+        self._local_login_args = copy.deepcopy(const.LOGIN_ARGS)
+        
+        #add code_challenge in self._local_login_args
+        self._local_login_args["code_challenge"] = self._code_challenge
+        
+        login_url = const.AUTH_URL + "auth?" + parse.urlencode(self._local_login_args)
         try:
             result = self.session.get(login_url)
         except Exception as exception:
@@ -68,7 +123,12 @@ class Smartmeter:
                 f"Could not load login page. Error: {result.content}"
             )
         tree = html.fromstring(result.content)
-        action = tree.xpath("(//form/@action)")[0]
+        forms = tree.xpath("(//form/@action)")
+        
+        if not forms:
+            raise SmartmeterConnectionError("No form found on the login page.")
+        
+        action = forms[0]
         return action
 
     def credentials_login(self, url):
@@ -128,7 +188,7 @@ class Smartmeter:
         try:
             result = self.session.post(
                 const.AUTH_URL + "token",
-                data=const.build_access_token_args(code=code),
+                data=const.build_access_token_args(code=code , code_verifier=self._code_verifier)
             )
         except Exception as exception:
             raise SmartmeterConnectionError(
