@@ -130,7 +130,7 @@ class Importer:
             statistic_id=self.id,
             name=self.zaehlpunkt,
             unit_of_measurement=self.unit_of_measurement,
-            has_mean=False,
+            mean_type=0,
             has_sum=True,
         )
 
