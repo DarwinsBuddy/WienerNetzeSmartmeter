@@ -150,6 +150,9 @@ class AsyncSmartmeter:
         if "Exception" in response:
             raise RuntimeError(f"Cannot access bewegungsdaten: {response}")
         _LOGGER.debug(f"Raw bewegungsdaten: {response}")
+        if response.get('descriptor', {}).get('einheit') is None:
+            _LOGGER.debug(f"The value for the key 'descriptor.einheit' in bewegungsdaten is 'null'. Setting it to an empty value.")
+            response['descriptor']['einheit'] = ''
         return translate_dict(response, ATTRS_BEWEGUNGSDATEN)
 
     async def get_consumptions(self) -> dict[str, str]:
