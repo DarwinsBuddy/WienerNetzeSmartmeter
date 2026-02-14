@@ -34,12 +34,15 @@ For each active **Zählpunkt**, the integration creates the following Home Assis
 | Sensor entity | `METER_READ` | METER_READ reading-date timestamp sensor | Effective reading date for the latest METER_READ value | `unique_id: <zaehlpunkt>_meter_read_reading_date` |
 | Recorder statistics (long-term) | Main importer (`METER_READ`/default granularity path) | Long-term statistics series for the main sensor | Imported into recorder statistics for Energy/History usage, timestamped by the effective METER_READ reading date | `statistic_id: wnsm:<zaehlpunkt-lowercase>` |
 | Recorder statistics (long-term) | `METER_READ` (snapshot) | Main daily snapshot long-term statistics series | Imported with `start == reading_date` (`state = meter_read_kWh`, `sum = None`) | `statistic_id: wnsm:<slugified-zaehlpunkt>_main_daily_snapshot_v2` |
+| Recorder statistics (long-term) | `METER_READ` (snapshot sum companion) | Cumulative companion for statistics cards | Imported as cumulative snapshot stream (`has_sum=True`) | `statistic_id: wnsm:<slugified-zaehlpunkt>_main_daily_snapshot_sum_v1` |
 | Recorder statistics (long-term, optional) | `DAY` | Additional DAY long-term statistics series (enabled via option) | One statistic point per day (`state = day kWh`, `sum = None`) | `statistic_id: wnsm:<slugified-zaehlpunkt>_day_v2` |
+| Recorder statistics (long-term, optional) | `DAY` (sum companion) | Cumulative companion for statistics cards | Imported as cumulative DAY stream (`has_sum=True`) | `statistic_id: wnsm:<slugified-zaehlpunkt>_day_sum_v1` |
 
 #### Important notes
 
 - Enabling **DAY statistics import** does **not** create extra entities. It adds an extra recorder/long-term statistics series for DAY values.
 - DAY and snapshot long-term statistics use versioned IDs (`_day_v2`, `_main_daily_snapshot_v2`) so new installs/upgrades get clean metadata without reusing stale recorder entries.
+- Additional cumulative companion IDs (`_day_sum_v1`, `_main_daily_snapshot_sum_v1`) are provided for statistics-card compatibility when `has_sum=True` series are required.
 - With **2 Zählpunkte**, you will usually see **10 entities** (5 per Zählpunkt). If DAY stats import is enabled, you also get **2 extra long-term statistics series** (one per Zählpunkt) in addition to the main and main-snapshot statistics series.
 
 ## FAQs

@@ -1,14 +1,16 @@
 import logging
+from decimal import Decimal
 from typing import Any
 
+from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
-from homeassistant.components.recorder.statistics import async_add_external_statistics
+from homeassistant.components.recorder.statistics import async_add_external_statistics, get_last_statistics
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
 from .const import DOMAIN
-from .statistics_utils import as_utc, get_last_stats_timestamp
+from .statistics_utils import as_utc, get_last_stats_timestamp, parse_stats_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,6 +22,7 @@ class MainDailySnapshotStatisticsImporter:
         self.hass = hass
         self.zaehlpunkt = zaehlpunkt
         self.id = f"{DOMAIN}:{slugify(zaehlpunkt)}_main_daily_snapshot_v2"
+        self.sum_id = f"{DOMAIN}:{slugify(zaehlpunkt)}_main_daily_snapshot_sum_v1"
 
     def get_statistics_metadata(self) -> StatisticMetaData:
         return StatisticMetaData(
@@ -29,6 +32,16 @@ class MainDailySnapshotStatisticsImporter:
             unit_of_measurement="kWh",
             has_mean=True,
             has_sum=False,
+        )
+
+    def get_sum_statistics_metadata(self) -> StatisticMetaData:
+        return StatisticMetaData(
+            source=DOMAIN,
+            statistic_id=self.sum_id,
+            name=f"{self.zaehlpunkt} Main Daily Snapshot Sum",
+            unit_of_measurement="kWh",
+            has_mean=False,
+            has_sum=True,
         )
 
     def _extract_points_from_attributes(
@@ -60,7 +73,28 @@ class MainDailySnapshotStatisticsImporter:
 
         last_start = await get_last_stats_timestamp(self.hass, self.id, "start")
 
-        stats = []
+        last_sum = Decimal(0)
+        last_sum_end = None
+        last_sum_state = None
+        last_sum_stat = await get_instance(self.hass).async_add_executor_job(
+            get_last_statistics,
+            self.hass,
+            1,
+            self.sum_id,
+            True,
+            {"sum", "state", "end"},
+        )
+        if self.sum_id in last_sum_stat and len(last_sum_stat[self.sum_id]) == 1:
+            row = last_sum_stat[self.sum_id][0]
+            if row.get("sum") is not None:
+                last_sum = Decimal(str(row.get("sum")))
+            if row.get("state") is not None:
+                last_sum_state = Decimal(str(row.get("state")))
+            last_sum_end = parse_stats_timestamp(row.get("end"))
+
+        state_stats = []
+        sum_stats = []
+
         for reading_date, meter_reading in reversed(points):
             start = as_utc(dt_util.parse_datetime(reading_date))
             if start is None:
@@ -70,10 +104,29 @@ class MainDailySnapshotStatisticsImporter:
                     reading_date,
                 )
                 continue
-            if last_start is not None and start <= last_start:
-                continue
-            stats.append(StatisticData(start=start, state=float(meter_reading), sum=None))
 
-        if stats:
-            metadata = self.get_statistics_metadata()
-            async_add_external_statistics(self.hass, metadata, stats)
+            current_reading = Decimal(str(meter_reading))
+
+            if last_start is None or start > last_start:
+                state_stats.append(StatisticData(start=start, state=float(current_reading), sum=None))
+
+            if last_sum_end is None or start > last_sum_end:
+                usage = Decimal(0)
+                if last_sum_state is not None:
+                    usage = current_reading - last_sum_state
+                    if usage < 0:
+                        _LOGGER.warning(
+                            "Detected decreasing snapshot meter read for %s (previous=%s, current=%s). Ignoring delta.",
+                            self.zaehlpunkt,
+                            last_sum_state,
+                            current_reading,
+                        )
+                        usage = Decimal(0)
+                last_sum += usage
+                sum_stats.append(StatisticData(start=start, state=float(current_reading), sum=last_sum))
+                last_sum_state = current_reading
+
+        if state_stats:
+            async_add_external_statistics(self.hass, self.get_statistics_metadata(), state_stats)
+        if sum_stats:
+            async_add_external_statistics(self.hass, self.get_sum_statistics_metadata(), sum_stats)
