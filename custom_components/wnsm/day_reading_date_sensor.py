@@ -1,34 +1,31 @@
 import logging
 from datetime import datetime, timedelta
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass
 
-from .AsyncSmartmeter import AsyncSmartmeter
-from .api import Smartmeter
 from .api.constants import ValueType
-from .day_processing import latest_day_point
+from .base_sensor import WNSMBaseSensor
 from .const import DEFAULT_SCAN_INTERVAL_MINUTES
-from .utils import before, today, build_reading_date_attributes
+from .day_processing import latest_two_day_points
+from .measurement_attributes import set_messwert_attributes
+from .utils import before, build_reading_date_attributes, today
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class WNSMDayReadingDateSensor(SensorEntity):
+class WNSMDayReadingDateSensor(WNSMBaseSensor):
     """Expose DAY reading_date as dedicated timestamp sensor."""
 
     def __init__(
         self,
-        async_smartmeter: AsyncSmartmeter | None,
+        async_smartmeter,
         username: str,
         password: str,
         zaehlpunkt: str,
         scan_interval: timedelta = timedelta(minutes=DEFAULT_SCAN_INTERVAL_MINUTES),
     ) -> None:
-        super().__init__()
-        self.username = username
-        self.password = password
+        super().__init__(async_smartmeter, username, password)
         self.zaehlpunkt = zaehlpunkt
-        self._async_smartmeter = async_smartmeter
 
         self._attr_name = f"{zaehlpunkt} Day Reading Date"
         self._attr_icon = "mdi:calendar-clock"
@@ -49,20 +46,13 @@ class WNSMDayReadingDateSensor(SensorEntity):
         """Return True if entity is available."""
         return self._available
 
-    def _get_async_smartmeter(self) -> AsyncSmartmeter:
-        """Return shared async smartmeter client, fallback to per-entity one."""
-        if self._async_smartmeter is None:
-            smartmeter = Smartmeter(username=self.username, password=self.password)
-            self._async_smartmeter = AsyncSmartmeter(self.hass, smartmeter)
-        return self._async_smartmeter
-
     async def async_update(self):
         """Update sensor."""
         try:
             async_smartmeter = self._get_async_smartmeter()
             await async_smartmeter.login()
             zaehlpunkt_response = await async_smartmeter.get_zaehlpunkt(self.zaehlpunkt)
-            reading_dates, self._attr_extra_state_attributes = build_reading_date_attributes(
+            _, self._attr_extra_state_attributes = build_reading_date_attributes(
                 zaehlpunkt_response
             )
 
@@ -75,7 +65,14 @@ class WNSMDayReadingDateSensor(SensorEntity):
                     end,
                     ValueType.DAY,
                 )
-                latest = latest_day_point(messwerte)
+
+                latest_two_points = latest_two_day_points(messwerte)
+                set_messwert_attributes(
+                    self._attr_extra_state_attributes,
+                    [point.value_kwh for point in latest_two_points],
+                )
+
+                latest = latest_two_points[0] if latest_two_points else None
                 if latest is not None:
                     self._attr_native_value = latest.source_timestamp
                     self._attr_extra_state_attributes["reading_date"] = latest.reading_date
