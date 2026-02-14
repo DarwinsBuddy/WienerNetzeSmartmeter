@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta
 
 from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.util import dt as dt_util
 
 from .api.constants import ValueType
 from .base_sensor import WNSMBaseSensor
@@ -74,8 +75,15 @@ class WNSMDayReadingDateSensor(WNSMBaseSensor):
 
                 latest = latest_two_points[0] if latest_two_points else None
                 if latest is not None:
-                    self._attr_native_value = latest.source_timestamp
-                    self._attr_extra_state_attributes["reading_date"] = latest.reading_date
+                    normalized_reading_date = latest.source_timestamp
+                    if normalized_reading_date.tzinfo is None:
+                        normalized_reading_date = normalized_reading_date.replace(
+                            tzinfo=dt_util.UTC
+                        )
+                    self._attr_native_value = normalized_reading_date
+                    self._attr_extra_state_attributes["reading_date"] = (
+                        normalized_reading_date.isoformat()
+                    )
                 else:
                     _LOGGER.debug("No usable DAY reading_date returned for %s", self.zaehlpunkt)
 
