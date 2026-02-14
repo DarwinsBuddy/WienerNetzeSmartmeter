@@ -2,9 +2,8 @@ import logging
 from datetime import datetime
 from decimal import Decimal
 
-from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
-from homeassistant.components.recorder.statistics import async_add_external_statistics, get_last_statistics
+from homeassistant.components.recorder.statistics import async_add_external_statistics
 from homeassistant.core import HomeAssistant
 from homeassistant.util import slugify
 
