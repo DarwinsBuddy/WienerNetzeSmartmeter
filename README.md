@@ -44,6 +44,16 @@ Copy `<project-dir>/custom_components/wnsm` into `<home-assistant-root>/config/c
 
 Configure the integration via the Home Assistant UI and select your Zählpunkte during setup.
 
+### Authentication flow (redesigned to reduce blocking risk)
+
+To reduce the risk of Wiener Netze login/session blocking, the integration uses a redesigned auth flow:
+
+- A shared Smartmeter client instance is reused per config entry to avoid unnecessary repeated full logins.
+- Login calls are serialized with a lock, so parallel sensor updates do not trigger concurrent login storms.
+- API calls use automatic re-authentication/retry on connection/session failures (for example expired/unauthorized responses).
+
+This keeps request patterns more stable while preserving the same sensor/statistics behavior.
+
 ### Setup behavior (current implementation)
 
 - The integration currently creates **3 entities per active Zählpunkt**:
