@@ -50,9 +50,19 @@ def extract_day_points(messwerte: dict[str, Any]) -> list[DayValuePoint]:
     return points
 
 
+def latest_two_day_points(messwerte: dict[str, Any]) -> list[DayValuePoint]:
+    """Return up to two latest normalized DAY points (newest first)."""
+    points = sorted(
+        extract_day_points(messwerte),
+        key=lambda point: point.source_timestamp,
+        reverse=True,
+    )
+    return points[:2]
+
+
 def latest_day_point(messwerte: dict[str, Any]) -> DayValuePoint | None:
     """Return latest normalized DAY point, if any."""
-    points = extract_day_points(messwerte)
-    if not points:
+    latest_points = latest_two_day_points(messwerte)
+    if not latest_points:
         return None
-    return max(points, key=lambda point: point.source_timestamp)
+    return latest_points[0]
