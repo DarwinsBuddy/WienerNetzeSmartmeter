@@ -30,7 +30,7 @@ class WNSMMainDailySnapshotSensor(WNSMBaseSensor):
         self._attr_native_value: int | float | None = None
         self._attr_name = f"{zaehlpunkt} Main Daily Snapshot"
         self._attr_icon = "mdi:flash"
-        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_extra_state_attributes = {}
