@@ -30,7 +30,7 @@ async def async_setup_entry(
     """Set up platform from a ConfigEntry."""
     config = {**entry.data, **entry.options}
     config.setdefault(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_MINUTES)
-    config.setdefault(CONF_ENABLE_DAY_STATISTICS_IMPORT, False)
+    config.setdefault(CONF_ENABLE_DAY_STATISTICS_IMPORT, True)
 
     smartmeter = Smartmeter(
         username=config[CONF_USERNAME],
