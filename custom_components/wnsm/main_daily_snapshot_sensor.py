@@ -64,9 +64,8 @@ class WNSMMainDailySnapshotSensor(WNSMBaseSensor):
                 )
                 if meter_reading is not None:
                     self._attr_native_value = meter_reading
-                    reading_date = self._attr_extra_state_attributes.get("reading_date")
                     importer = MainDailySnapshotStatisticsImporter(self.hass, self.zaehlpunkt)
-                    await importer.async_import(reading_date, meter_reading)
+                    await importer.async_import_from_payload(self._attr_extra_state_attributes)
             self._available = True
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except TimeoutError as e:

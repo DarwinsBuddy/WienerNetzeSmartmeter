@@ -39,6 +39,7 @@ For each active **Zählpunkt**, the integration creates the following Home Assis
 #### Important notes
 
 - Enabling **DAY statistics import** does **not** create extra entities. It adds an extra recorder/long-term statistics series for DAY values.
+- If you upgrade from older integration versions and statistics cards still show empty series, refresh/recreate the corresponding statistic IDs in Home Assistant so updated metadata capabilities are applied.
 - With **2 Zählpunkte**, you will usually see **10 entities** (5 per Zählpunkt). If DAY stats import is enabled, you also get **2 extra long-term statistics series** (one per Zählpunkt) in addition to the main and main-snapshot statistics series.
 
 ## FAQs

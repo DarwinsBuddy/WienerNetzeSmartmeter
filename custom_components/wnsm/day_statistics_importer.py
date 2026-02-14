@@ -30,7 +30,7 @@ class DayStatisticsImporter:
             statistic_id=self.id,
             name=f"{self.zaehlpunkt} Day",
             unit_of_measurement="kWh",
-            has_mean=False,
+            has_mean=True,
             has_sum=False,
         )
 
