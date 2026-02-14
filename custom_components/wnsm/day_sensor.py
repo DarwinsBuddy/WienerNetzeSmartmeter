@@ -93,7 +93,14 @@ class WNSMDailySensor(WNSMBaseSensor):
 
                 if self._enable_day_statistics_import:
                     importer = DayStatisticsImporter(self.hass, async_smartmeter, self.zaehlpunkt)
-                    await importer.async_import(start, end)
+                    try:
+                        await importer.async_import(start, end)
+                    except Exception as e:  # pylint: disable=broad-except
+                        _LOGGER.exception(
+                            "Error importing day statistics for %s - Error: %s",
+                            self.zaehlpunkt,
+                            e,
+                        )
             self._available = True
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except TimeoutError as e:

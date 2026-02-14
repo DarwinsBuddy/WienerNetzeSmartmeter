@@ -86,7 +86,7 @@ class DayStatisticsImporter:
 
             if last_sum_end is None or ts > last_sum_end:
                 last_sum += value
-                sum_stats.append(StatisticData(start=ts, state=float(value), sum=last_sum))
+                sum_stats.append(StatisticData(start=ts, state=float(value), sum=float(last_sum)))
 
         if state_stats:
             _LOGGER.debug("Importing %s DAY statistics for %s", len(state_stats), self.zaehlpunkt)

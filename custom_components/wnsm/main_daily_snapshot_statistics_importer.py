@@ -123,7 +123,7 @@ class MainDailySnapshotStatisticsImporter:
                         )
                         usage = Decimal(0)
                 last_sum += usage
-                sum_stats.append(StatisticData(start=start, state=float(current_reading), sum=last_sum))
+                sum_stats.append(StatisticData(start=start, state=float(current_reading), sum=float(last_sum)))
                 last_sum_state = current_reading
 
         if state_stats:
