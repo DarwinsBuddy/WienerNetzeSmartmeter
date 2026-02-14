@@ -16,7 +16,7 @@
           "username": "Username",
           "password": "Password",
           "scan_interval": "Scan interval (minutes)",
-          "enable_day_statistics_import": "Enable DAY statistics import"
+          "enable_day_statistics_import": "Enable DAY statistics import to long-term recorder"
         }
       }
     }
@@ -27,7 +27,7 @@
         "title": "Wiener Netze Smartmeter options",
         "data": {
           "scan_interval": "Scan interval (minutes)",
-          "enable_day_statistics_import": "Enable DAY statistics import"
+          "enable_day_statistics_import": "Enable DAY statistics import to long-term recorder"
         }        
       }
     }
