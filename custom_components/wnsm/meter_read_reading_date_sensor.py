@@ -1,32 +1,29 @@
 import logging
 from datetime import datetime, timedelta
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.util import dt as dt_util
 
-from .AsyncSmartmeter import AsyncSmartmeter
-from .api import Smartmeter
+from .base_sensor import WNSMBaseSensor
 from .const import DEFAULT_SCAN_INTERVAL_MINUTES
-from .utils import build_reading_date_attributes
+from .meter_read_logic import async_get_latest_meter_read_payload
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class WNSMMeterReadReadingDateSensor(SensorEntity):
+class WNSMMeterReadReadingDateSensor(WNSMBaseSensor):
     """Expose METER_READ reading_date as dedicated timestamp sensor."""
 
     def __init__(
         self,
-        async_smartmeter: AsyncSmartmeter | None,
+        async_smartmeter,
         username: str,
         password: str,
         zaehlpunkt: str,
         scan_interval: timedelta = timedelta(minutes=DEFAULT_SCAN_INTERVAL_MINUTES),
     ) -> None:
-        super().__init__()
-        self.username = username
-        self.password = password
+        super().__init__(async_smartmeter, username, password)
         self.zaehlpunkt = zaehlpunkt
-        self._async_smartmeter = async_smartmeter
 
         self._attr_name = f"{zaehlpunkt} Meter Read Reading Date"
         self._attr_icon = "mdi:calendar-clock"
@@ -47,32 +44,35 @@ class WNSMMeterReadReadingDateSensor(SensorEntity):
         """Return True if entity is available."""
         return self._available
 
-    def _get_async_smartmeter(self) -> AsyncSmartmeter:
-        """Return shared async smartmeter client, fallback to per-entity one."""
-        if self._async_smartmeter is None:
-            smartmeter = Smartmeter(username=self.username, password=self.password)
-            self._async_smartmeter = AsyncSmartmeter(self.hass, smartmeter)
-        return self._async_smartmeter
-
     async def async_update(self):
         """Update sensor."""
         try:
             async_smartmeter = self._get_async_smartmeter()
             await async_smartmeter.login()
             zaehlpunkt_response = await async_smartmeter.get_zaehlpunkt(self.zaehlpunkt)
-            reading_dates, self._attr_extra_state_attributes = build_reading_date_attributes(
-                zaehlpunkt_response
-            )
 
             if async_smartmeter.is_active(zaehlpunkt_response):
-                for reading_date in reading_dates:
-                    meter_reading = await async_smartmeter.get_meter_reading_from_historic_data(
-                        self.zaehlpunkt, reading_date, datetime.now()
-                    )
-                    if meter_reading is not None:
-                        self._attr_native_value = reading_date
-                        self._attr_extra_state_attributes["reading_date"] = reading_date.isoformat()
-                        break
+                meter_reading, payload_attributes = await async_get_latest_meter_read_payload(
+                    async_smartmeter,
+                    self.zaehlpunkt,
+                    zaehlpunkt_response,
+                )
+                self._attr_extra_state_attributes = payload_attributes
+
+                reading_date_iso = payload_attributes.get("reading_date")
+                if reading_date_iso is not None and meter_reading is not None:
+                    normalized_reading_date = dt_util.parse_datetime(reading_date_iso)
+                    if normalized_reading_date is None:
+                        _LOGGER.debug(
+                            "Could not parse METER_READ reading_date for %s: %s",
+                            self.zaehlpunkt,
+                            reading_date_iso,
+                        )
+                    else:
+                        if normalized_reading_date.tzinfo is None:
+                            normalized_reading_date = normalized_reading_date.replace(tzinfo=dt_util.UTC)
+                        self._attr_native_value = normalized_reading_date
+                        self._attr_extra_state_attributes["reading_date"] = normalized_reading_date.isoformat()
                 else:
                     _LOGGER.debug(
                         "No usable METER_READ reading_date returned for %s", self.zaehlpunkt
