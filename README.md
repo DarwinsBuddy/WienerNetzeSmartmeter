@@ -15,7 +15,7 @@ providing information about a registered [WienerNetze Smartmeter](https://www.wi
 ## Sensors
 
 The integration exposes one main energy sensor per Zählpunkt (total increasing meter reading), an
-additional main daily snapshot sensor (measurement-style, reading-date aligned), a daily
+additional main daily snapshot sensor (total-increasing, reading-date aligned), a daily
 consumption sensor that reports the latest DAY value, a companion DAY reading-date timestamp sensor,
 and a companion METER_READ reading-date timestamp sensor for clean UI display of effective dates.
 
@@ -82,7 +82,25 @@ Configure the integration via the Home Assistant UI and select your Zählpunkte 
 - Main sensor long-term statistics (`wnsm:<zaehlpunkt-lowercase>`) are imported using the effective `METER_READ` reading date timestamp.
 - DAY long-term statistics are optional and imported as daily points (`state=day kWh`, `sum=None`).
 - Main daily snapshot long-term statistics are imported as cumulative totals (`has_sum=True`) while preserving source `reading_date` timestamps.
-- Use the main/snapshot statistics for cumulative tracking, and DAY for day-level comparison.
+- For the **Energy Dashboard (grid consumption)**, prefer `wnsm:<slugified-zaehlpunkt>_main_daily_snapshot_v3` as the consumption statistic source.
+
+### Recommended Statistics Graph card settings
+
+Use one series per card (do not mix DAY and snapshot in the same statistics-graph card).
+
+- **Daily values (DAY):**
+  - Statistic: `wnsm:<slugified-zaehlpunkt>_day_v2`
+  - Period: `day`
+  - Stat type: `max`
+  - Chart type: `bar`
+
+- **Total consumption trend (snapshot cumulative):**
+  - Statistic: `wnsm:<slugified-zaehlpunkt>_main_daily_snapshot_v3`
+  - Period: `day`
+  - Stat type: `change`
+  - Chart type: `bar` (or `line`)
+
+These settings match the current statistics semantics and avoid empty charts caused by mixing incompatible statistic types in a single card.
 
 ### UI
 <img src="./doc/wnsm1.png" alt="Settings" width="500"/>
