@@ -36,16 +36,22 @@ async def async_setup_entry(
     scan_interval_minutes = config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_MINUTES)
     scan_interval = timedelta(minutes=scan_interval_minutes)
 
-    wnsm_sensors = [
-        WNSMSensor(
-            async_smartmeter,
-            config["username"],
-            config["password"],
-            zp["zaehlpunktnummer"],
-            scan_interval,
-        )
-        for zp in config[CONF_ZAEHLPUNKTE]
-    ]
+    wnsm_sensors = []
+
+    # NOTE: Temporarily disabled to reduce sensor count per Zählpunkt.
+    # Keep this block for quick rollback if we want the legacy main sensor back.
+    # wnsm_sensors.extend(
+    #     [
+    #         WNSMSensor(
+    #             async_smartmeter,
+    #             config["username"],
+    #             config["password"],
+    #             zp["zaehlpunktnummer"],
+    #             scan_interval,
+    #         )
+    #         for zp in config[CONF_ZAEHLPUNKTE]
+    #     ]
+    # )
     wnsm_sensors.extend(
         [
             WNSMMainDailySnapshotSensor(
@@ -71,18 +77,20 @@ async def async_setup_entry(
             for zp in config[CONF_ZAEHLPUNKTE]
         ]
     )
-    wnsm_sensors.extend(
-        [
-            WNSMDayReadingDateSensor(
-                async_smartmeter,
-                config["username"],
-                config["password"],
-                zp["zaehlpunktnummer"],
-                scan_interval,
-            )
-            for zp in config[CONF_ZAEHLPUNKTE]
-        ]
-    )
+    # NOTE: Temporarily disabled to reduce sensor count per Zählpunkt.
+    # Keep this block for quick rollback if users need the dedicated DAY timestamp entity again.
+    # wnsm_sensors.extend(
+    #     [
+    #         WNSMDayReadingDateSensor(
+    #             async_smartmeter,
+    #             config["username"],
+    #             config["password"],
+    #             zp["zaehlpunktnummer"],
+    #             scan_interval,
+    #         )
+    #         for zp in config[CONF_ZAEHLPUNKTE]
+    #     ]
+    # )
     wnsm_sensors.extend(
         [
             WNSMMeterReadReadingDateSensor(
