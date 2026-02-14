@@ -19,7 +19,7 @@ class MainDailySnapshotStatisticsImporter:
     def __init__(self, hass: HomeAssistant, zaehlpunkt: str):
         self.hass = hass
         self.zaehlpunkt = zaehlpunkt
-        self.id = f"{DOMAIN}:{slugify(zaehlpunkt)}_main_daily_snapshot"
+        self.id = f"{DOMAIN}:{slugify(zaehlpunkt)}_main_daily_snapshot_v2"
 
     def get_statistics_metadata(self) -> StatisticMetaData:
         return StatisticMetaData(

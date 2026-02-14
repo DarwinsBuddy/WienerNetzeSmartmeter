@@ -22,7 +22,7 @@ class DayStatisticsImporter:
         self.hass = hass
         self.async_smartmeter = async_smartmeter
         self.zaehlpunkt = zaehlpunkt
-        self.id = f"{DOMAIN}:{slugify(zaehlpunkt)}_day"
+        self.id = f"{DOMAIN}:{slugify(zaehlpunkt)}_day_v2"
 
     def get_statistics_metadata(self) -> StatisticMetaData:
         return StatisticMetaData(
