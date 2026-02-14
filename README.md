@@ -43,6 +43,8 @@ Copy `<project-dir>/custom_components/wnsm` into `<home-assistant-root>/config/c
 ## Configuration
 
 Configure the integration via the Home Assistant UI and select your Zählpunkte during setup.
+<img width="679" height="733" alt="grafik" src="https://github.com/user-attachments/assets/bc0a75b4-23d8-41fb-9205-3db182f2ae77" />
+
 
 ### Authentication flow (redesigned to reduce blocking risk)
 
