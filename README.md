@@ -91,6 +91,7 @@ All rights regarding the API are reserved by [Wiener Netze](https://www.wienerne
 
 Special thanks to [platrysma](https://github.com/platysma)
 for providing me a starting point [vienna-smartmeter](https://github.com/platysma/vienna-smartmeter),
-[klabir](https://github.com/klabir/WienerNetzeSmartmeter) for inspiration and additional starting-point work,
 and especially [florianL21](https://github.com/florianL21/)
 for his [fork](https://github.com/florianL21/vienna-smartmeter/network).
+
+Project repository: https://github.com/DarwinsBuddy/WienerNetzeSmartmeter
