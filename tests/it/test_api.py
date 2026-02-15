@@ -4,6 +4,7 @@ import time
 import logging
 from requests_mock import Mocker
 import datetime as dt
+from urllib import parse
 from dateutil.relativedelta import relativedelta
 
 from it import (
@@ -26,6 +27,7 @@ from it import (
 )
 from wnsm.api.errors import SmartmeterConnectionError, SmartmeterLoginError, SmartmeterQueryError
 import wnsm.api.constants as const
+from wnsm.AsyncSmartmeter import AsyncSmartmeter
 
 COUNT = 10
 
@@ -435,3 +437,64 @@ def test_verbrauch_raw(requests_mock: Mocker):
     verbrauch = smartmeter().login().verbrauch(customer_id, zp, dateFrom)
 
     assert 7 == len(verbrauch['values'])
+
+
+@pytest.mark.usefixtures("requests_mock")
+def test_call_api_raises_on_http_error_with_non_json_payload(requests_mock: Mocker):
+    expect_login(requests_mock)
+    requests_mock.get(
+        parse.urljoin(const.API_URL, "zaehlpunkte"),
+        status_code=502,
+        text="upstream unavailable",
+    )
+
+    with pytest.raises(SmartmeterConnectionError) as exc_info:
+        smartmeter().login().zaehlpunkte()
+
+    assert "HTTP 502" in str(exc_info.value)
+    assert "upstream unavailable" in str(exc_info.value)
+
+
+@pytest.mark.usefixtures("requests_mock")
+def test_call_api_raises_on_success_without_json_payload(requests_mock: Mocker):
+    expect_login(requests_mock)
+    requests_mock.get(
+        parse.urljoin(const.API_URL, "zaehlpunkte"),
+        status_code=200,
+        text="<html>ok but not json</html>",
+    )
+
+    with pytest.raises(SmartmeterConnectionError) as exc_info:
+        smartmeter().login().zaehlpunkte()
+
+    assert "did not return JSON" in str(exc_info.value)
+
+
+def test_async_smartmeter_is_active_requires_both_flags():
+    assert AsyncSmartmeter.is_active({"active": True, "smartMeterReady": True})
+    assert not AsyncSmartmeter.is_active({"active": False, "smartMeterReady": True})
+    assert not AsyncSmartmeter.is_active({"active": True, "smartMeterReady": False})
+
+
+def test_get_zaehlpunkt_raises_clear_error_when_not_found(monkeypatch):
+    sm = smartmeter()
+
+    def fake_zaehlpunkte():
+        return [
+            {
+                "geschaeftspartner": "123",
+                "zaehlpunkte": [
+                    {
+                        "zaehlpunktnummer": "other",
+                        "anlage": {"typ": "VERBRAUCH"},
+                    }
+                ],
+            }
+        ]
+
+    monkeypatch.setattr(sm, "zaehlpunkte", fake_zaehlpunkte)
+
+    with pytest.raises(SmartmeterQueryError) as exc_info:
+        sm.get_zaehlpunkt("missing")
+
+    assert "Zaehlpunkt 'missing' not found" in str(exc_info.value)

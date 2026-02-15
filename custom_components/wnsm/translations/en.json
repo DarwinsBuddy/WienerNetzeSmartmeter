@@ -1,5 +1,8 @@
 {
   "config": {
+    "abort": {
+      "already_configured": "This account is already configured"
+    },
     "error": {
       "auth": "Username/password invalid",
       "connection_error": "Unable to connect"
@@ -11,8 +14,23 @@
         "description": "Enter your Wiener Netze Smartmeter credentials",
         "data": {
           "username": "Username",
-          "password": "Password"
-        }        
+          "password": "Password",
+          "scan_interval": "Scan interval (minutes)",
+          "enable_day_reading_date_sensor": "For Debugging only: Enable DAY reading-date timestamp sensor entity",
+          "enable_meter_read_reading_date_sensor": "For Debugging only: Enable METER_READ reading-date timestamp sensor entity"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Wiener Netze Smartmeter options",
+        "data": {
+          "scan_interval": "Scan interval (minutes)",
+          "enable_day_reading_date_sensor": "For Debugging only: Enable DAY reading-date timestamp sensor entity",
+          "enable_meter_read_reading_date_sensor": "For Debugging only: Enable METER_READ reading-date timestamp sensor entity"
+        }
       }
     }
   }

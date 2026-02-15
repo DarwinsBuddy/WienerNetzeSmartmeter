@@ -1,37 +1,24 @@
-"""
-WienerNetze Smartmeter sensor platform
-"""
-import collections.abc
-from datetime import timedelta
-from typing import Optional
+"""WienerNetze Smartmeter sensor platform."""
 
-import homeassistant.helpers.config_validation as cv
-import voluptuous as vol
-from homeassistant import core, config_entries
-from homeassistant.components.sensor import (
-    PLATFORM_SCHEMA
+from datetime import timedelta
+
+from homeassistant import config_entries, core
+from homeassistant.const import CONF_SCAN_INTERVAL
+
+from .const import (
+    CONF_ENABLE_DAY_READING_DATE_SENSOR,
+    CONF_ENABLE_METER_READ_READING_DATE_SENSOR,
+    CONF_ZAEHLPUNKTE,
+    DEFAULT_ENABLE_DAY_READING_DATE_SENSOR,
+    DEFAULT_ENABLE_METER_READ_READING_DATE_SENSOR,
+    DEFAULT_SCAN_INTERVAL_MINUTES,
+    DOMAIN,
 )
-from homeassistant.const import (
-    CONF_USERNAME,
-    CONF_PASSWORD,
-    CONF_DEVICE_ID
-)
-from homeassistant.core import DOMAIN
-from homeassistant.helpers.typing import (
-    ConfigType,
-    DiscoveryInfoType,
-)
-from .const import CONF_ZAEHLPUNKTE
+from .day_sensor import WNSMDailySensor
+from .day_reading_date_sensor import WNSMDayReadingDateSensor
+from .meter_read_reading_date_sensor import WNSMMeterReadReadingDateSensor
+from .main_daily_snapshot_sensor import WNSMMainDailySnapshotSensor
 from .wnsm_sensor import WNSMSensor
-# Time between updating data from Wiener Netze
-SCAN_INTERVAL = timedelta(minutes=60 * 6)
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_USERNAME): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
-        vol.Required(CONF_DEVICE_ID): cv.string,
-    }
-)
 
 
 async def async_setup_entry(
@@ -40,22 +27,84 @@ async def async_setup_entry(
     async_add_entities,
 ):
     """Setup sensors from a config entry created in the integrations UI."""
-    config = hass.data[DOMAIN][config_entry.entry_id]
-    wnsm_sensors = [
-        WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"])
-        for zp in config[CONF_ZAEHLPUNKTE]
-    ]
+    runtime_data = config_entry.runtime_data
+    if runtime_data is not None and hasattr(runtime_data, "config"):
+        config = runtime_data.config
+        async_smartmeter = runtime_data.async_smartmeter
+    else:
+        # Backward compatibility fallback.
+        config = hass.data[DOMAIN][config_entry.entry_id]
+        async_smartmeter = None
+
+    scan_interval_minutes = config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_MINUTES)
+    scan_interval = timedelta(minutes=scan_interval_minutes)
+
+    wnsm_sensors = []
+
+    # Backward compatibility: keep the legacy main sensor per Zählpunkt.
+    wnsm_sensors.extend(
+        [
+            WNSMSensor(
+                async_smartmeter,
+                config["username"],
+                config["password"],
+                zp["zaehlpunktnummer"],
+                scan_interval,
+            )
+            for zp in config[CONF_ZAEHLPUNKTE]
+        ]
+    )
+    wnsm_sensors.extend(
+        [
+            WNSMMainDailySnapshotSensor(
+                async_smartmeter,
+                config["username"],
+                config["password"],
+                zp["zaehlpunktnummer"],
+                scan_interval,
+            )
+            for zp in config[CONF_ZAEHLPUNKTE]
+        ]
+    )
+    wnsm_sensors.extend(
+        [
+            WNSMDailySensor(
+                async_smartmeter,
+                config["username"],
+                config["password"],
+                zp["zaehlpunktnummer"],
+                scan_interval,
+            )
+            for zp in config[CONF_ZAEHLPUNKTE]
+        ]
+    )
+    if config.get(CONF_ENABLE_DAY_READING_DATE_SENSOR, DEFAULT_ENABLE_DAY_READING_DATE_SENSOR):
+        wnsm_sensors.extend(
+            [
+                WNSMDayReadingDateSensor(
+                    async_smartmeter,
+                    config["username"],
+                    config["password"],
+                    zp["zaehlpunktnummer"],
+                    scan_interval,
+                )
+                for zp in config[CONF_ZAEHLPUNKTE]
+            ]
+        )
+    if config.get(
+        CONF_ENABLE_METER_READ_READING_DATE_SENSOR,
+        DEFAULT_ENABLE_METER_READ_READING_DATE_SENSOR,
+    ):
+        wnsm_sensors.extend(
+            [
+                WNSMMeterReadReadingDateSensor(
+                    async_smartmeter,
+                    config["username"],
+                    config["password"],
+                    zp["zaehlpunktnummer"],
+                    scan_interval,
+                )
+                for zp in config[CONF_ZAEHLPUNKTE]
+            ]
+        )
     async_add_entities(wnsm_sensors, update_before_add=True)
-
-
-async def async_setup_platform(
-    hass: core.HomeAssistant,  # pylint: disable=unused-argument
-    config: ConfigType,
-    async_add_entities: collections.abc.Callable,
-    discovery_info: Optional[
-        DiscoveryInfoType
-    ] = None,  # pylint: disable=unused-argument
-) -> None:
-    """Set up the sensor platform by adding it into configuration.yaml"""
-    wnsm_sensor = WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID])
-    async_add_entities([wnsm_sensor], update_before_add=True)

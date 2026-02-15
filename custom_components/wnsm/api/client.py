@@ -311,14 +311,31 @@ class Smartmeter:
             method, url, headers=headers, json=data, timeout=timeout
         )
 
+        response_payload = None
+        try:
+            response_payload = response.json()
+        except ValueError:
+            response_payload = None
+
+        if response.status_code >= 400:
+            response_text = response.text.strip() if response.text else ""
+            error_payload = response_payload if response_payload is not None else response_text
+            raise SmartmeterConnectionError(
+                f"API request failed with HTTP {response.status_code}: {error_payload}"
+            )
+
         logger.debug("\nAPI Request: %s\n%s\n\nAPI Response: %s" % (
             url, ("" if data is None else "body: "+json.dumps(data, indent=2)),
-            None if response is None or response.json() is None else json.dumps(response.json(), indent=2)))
+            None if response_payload is None else json.dumps(response_payload, indent=2)))
 
         if return_response:
             return response
 
-        return response.json()
+        if response_payload is None:
+            raise SmartmeterConnectionError(
+                f"API request did not return JSON for endpoint '{endpoint}'"
+            )
+        return response_payload
 
     def get_zaehlpunkt(self, zaehlpunkt: str = None) -> tuple[str, str, str]:
         contracts = self.zaehlpunkte()
@@ -334,6 +351,10 @@ class Smartmeter:
                     anlagetype = zp_details[0]["anlage"]["typ"]
                     zp = zp_details[0]["zaehlpunktnummer"]
                     customer_id = contract["geschaeftspartner"]
+
+        if customer_id is None or zp is None or anlagetype is None:
+            raise SmartmeterQueryError(f"Zaehlpunkt '{zaehlpunkt}' not found")
+
         return customer_id, zp, const.AnlagenType.from_str(anlagetype)
 
     def zaehlpunkte(self):
