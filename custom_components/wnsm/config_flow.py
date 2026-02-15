@@ -50,7 +50,7 @@ def _user_schema() -> vol.Schema:
             vol.Optional(
                 CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL_MINUTES
             ): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),
-            vol.Optional(CONF_ENABLE_DAY_STATISTICS_IMPORT, default=False): cv.boolean,
+            vol.Optional(CONF_ENABLE_DAY_STATISTICS_IMPORT, default=True): cv.boolean,
         }
     )
 
@@ -101,7 +101,7 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
                         CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_MINUTES
                     ),
                     CONF_ENABLE_DAY_STATISTICS_IMPORT: user_input.get(
-                        CONF_ENABLE_DAY_STATISTICS_IMPORT, False
+                        CONF_ENABLE_DAY_STATISTICS_IMPORT, True
                     ),
                 }
                 return self.async_create_entry(title="Wiener Netze Smartmeter", data=data)
@@ -131,7 +131,7 @@ class WienerNetzeSmartMeterOptionsFlow(config_entries.OptionsFlow):
         )
         current_day_stats_import = self._config_entry.options.get(
             CONF_ENABLE_DAY_STATISTICS_IMPORT,
-            self._config_entry.data.get(CONF_ENABLE_DAY_STATISTICS_IMPORT, False),
+            self._config_entry.data.get(CONF_ENABLE_DAY_STATISTICS_IMPORT, True),
         )
 
         return self.async_show_form(
