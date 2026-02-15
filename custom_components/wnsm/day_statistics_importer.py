@@ -34,6 +34,16 @@ class DayStatisticsImporter:
             has_sum=False,
         )
 
+    def get_sum_statistics_metadata(self) -> StatisticMetaData:
+        return StatisticMetaData(
+            source=DOMAIN,
+            statistic_id=self.sum_id,
+            name=f"{self.zaehlpunkt} Day Sum",
+            unit_of_measurement="kWh",
+            has_mean=False,
+            has_sum=True,
+        )
+
     async def async_import(self, date_from: datetime, date_to: datetime) -> None:
         """Import statistics newer than the latest imported sample."""
         last_start = await get_last_stats_timestamp(self.hass, self.id, "start")
@@ -46,7 +56,9 @@ class DayStatisticsImporter:
         )
         points = extract_day_points(raw)
 
-        stats = []
+        state_stats = []
+        sum_stats = []
+
         for point in sorted(points, key=lambda p: p.source_timestamp):
             ts = as_utc(point.source_timestamp)
             if last_start is None or ts > last_start:
