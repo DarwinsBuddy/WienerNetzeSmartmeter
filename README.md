@@ -7,11 +7,12 @@ providing information about a registered [WienerNetze Smartmeter](https://www.wi
 
 ## Sensors
 
-Current default setup (with temporary cleanup enabled) exposes **3 sensors per Zählpunkt**:
+Current default setup exposes **4 sensors per Zählpunkt**:
 
-1. Main daily snapshot sensor (`METER_READ`, total increasing)
-2. Daily consumption sensor (`DAY`, measurement)
-3. METER_READ reading-date timestamp sensor
+1. Main energy sensor (`METER_READ`, total increasing, legacy-compatible)
+2. Main daily snapshot sensor (`METER_READ`, total increasing)
+3. Daily consumption sensor (`DAY`, measurement)
+4. METER_READ reading-date timestamp sensor
 
 Configuration options in the UI include scan interval (minutes) and optional DAY statistics import.
 
@@ -21,6 +22,7 @@ For each active **Zählpunkt**, the integration currently creates the following 
 
 | Area | Wertetyp source | What gets created | Value shown in HA | Unique/statistic ID pattern |
 |---|---|---|---|---|
+| Sensor entity | `METER_READ` | Main energy sensor (legacy-compatible) | Latest METER_READ total value (kWh), total-increasing | `unique_id: <zaehlpunkt>` |
 | Sensor entity | `METER_READ` | Main daily snapshot sensor | Latest METER_READ value (kWh), total-increasing snapshot value | `unique_id: <zaehlpunkt>_main_daily_snapshot` |
 | Sensor entity | `DAY` | Daily consumption sensor | Latest daily consumption (kWh) | `unique_id: <zaehlpunkt>_day` |
 | Sensor entity | `METER_READ` | METER_READ reading-date timestamp sensor | Effective reading date for the latest METER_READ value | `unique_id: <zaehlpunkt>_meter_read_reading_date` |
@@ -31,8 +33,8 @@ For each active **Zählpunkt**, the integration currently creates the following 
 
 - Enabling **DAY statistics import** does **not** create extra entities. It adds an extra recorder/long-term statistics series for DAY values.
 - DAY and snapshot long-term statistics use versioned IDs (`_day_v2`, `_main_daily_snapshot_v3`) so new installs/upgrades get clean metadata without reusing stale recorder entries.
-- With **2 Zählpunkte**, you will usually see **6 entities** (3 per Zählpunkt). If DAY stats import is enabled, you also get **2 extra long-term statistics series** (one per Zählpunkt).
-- Legacy entities (`<zaehlpunkt>` main sensor and `<zaehlpunkt>_day_reading_date`) are currently commented out in setup for cleanup and can be re-enabled later.
+- With **2 Zählpunkte**, you will usually see **8 entities** (4 per Zählpunkt). If DAY stats import is enabled, you also get **2 extra long-term statistics series** (one per Zählpunkt).
+- The optional DAY reading-date entity (`<zaehlpunkt>_day_reading_date`) remains commented out in setup for cleanup and can be re-enabled later.
 
 ## Installation
 
@@ -43,8 +45,6 @@ Copy `<project-dir>/custom_components/wnsm` into `<home-assistant-root>/config/c
 ## Configuration
 
 Configure the integration via the Home Assistant UI and select your Zählpunkte during setup.
-<img width="679" height="733" alt="grafik" src="https://github.com/user-attachments/assets/bc0a75b4-23d8-41fb-9205-3db182f2ae77" />
-
 
 ### Authentication flow (redesigned to reduce blocking risk)
 
@@ -58,12 +58,13 @@ This keeps request patterns more stable while preserving the same sensor/statist
 
 ### Setup behavior (current implementation)
 
-- The integration currently creates **3 entities per active Zählpunkt**:
-  1. Main daily snapshot sensor (`METER_READ`, total increasing)
-  2. Daily consumption sensor (`DAY`, measurement)
-  3. METER_READ reading-date timestamp sensor
-- With 2 Zählpunkte, this results in **6 entities**.
-- Legacy main and DAY-reading-date entities are intentionally disabled in setup and can be brought back quickly.
+- The integration currently creates **4 entities per active Zählpunkt**:
+  1. Main energy sensor (`METER_READ`, total increasing, legacy-compatible)
+  2. Main daily snapshot sensor (`METER_READ`, total increasing)
+  3. Daily consumption sensor (`DAY`, measurement)
+  4. METER_READ reading-date timestamp sensor
+- With 2 Zählpunkte, this results in **8 entities**.
+- The DAY-reading-date entity is intentionally disabled in setup and can be brought back quickly if needed.
 
 ### Options
 
@@ -73,7 +74,7 @@ This keeps request patterns more stable while preserving the same sensor/statist
 
 ### Long-term statistics and Energy Dashboard
 
-- Legacy main sensor long-term statistics (`wnsm:<zaehlpunkt-lowercase>`) exist only when the legacy main entity is re-enabled.
+- Main sensor long-term statistics (`wnsm:<zaehlpunkt-lowercase>`) are active for backward compatibility.
 - DAY long-term statistics are optional and imported as daily points (`state=day kWh`, `sum=None`).
 - Main daily snapshot long-term statistics are imported as cumulative totals (`has_sum=True`) while preserving source `reading_date` timestamps.
 - For the **Energy Dashboard (grid consumption)**, prefer `wnsm:<slugified-zaehlpunkt>_main_daily_snapshot_v3` as the consumption statistic source.

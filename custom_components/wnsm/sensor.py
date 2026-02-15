@@ -38,20 +38,19 @@ async def async_setup_entry(
 
     wnsm_sensors = []
 
-    # NOTE: Temporarily disabled to reduce sensor count per Zählpunkt.
-    # Keep this block for quick rollback if we want the legacy main sensor back.
-    # wnsm_sensors.extend(
-    #     [
-    #         WNSMSensor(
-    #             async_smartmeter,
-    #             config["username"],
-    #             config["password"],
-    #             zp["zaehlpunktnummer"],
-    #             scan_interval,
-    #         )
-    #         for zp in config[CONF_ZAEHLPUNKTE]
-    #     ]
-    # )
+    # Backward compatibility: keep the legacy main sensor per Zählpunkt.
+    wnsm_sensors.extend(
+        [
+            WNSMSensor(
+                async_smartmeter,
+                config["username"],
+                config["password"],
+                zp["zaehlpunktnummer"],
+                scan_interval,
+            )
+            for zp in config[CONF_ZAEHLPUNKTE]
+        ]
+    )
     wnsm_sensors.extend(
         [
             WNSMMainDailySnapshotSensor(
