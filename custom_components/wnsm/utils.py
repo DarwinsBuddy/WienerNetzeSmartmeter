@@ -3,15 +3,23 @@ Utility functions and convenience methods to avoid boilerplate
 """
 from __future__ import annotations
 from functools import reduce
-from datetime import timezone, timedelta, datetime
+from datetime import tzinfo, timezone, timedelta, datetime
 import logging
 from typing import Any
 
+from homeassistant.util import dt as dt_util
 
-def today(tz: None | timezone = None) -> datetime:
+
+def today(tz: None | tzinfo = None) -> datetime:
     """
     today's timestamp (start of day)
     """
+    if tz is None:
+        default_tz = dt_util.DEFAULT_TIME_ZONE
+        if isinstance(default_tz, str):
+            tz = dt_util.get_time_zone(default_tz) or dt_util.UTC
+        else:
+            tz = default_tz or dt_util.UTC
     return datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
