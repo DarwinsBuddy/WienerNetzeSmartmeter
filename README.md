@@ -64,9 +64,9 @@ For the **Energy Dashboard (grid consumption)**, prefer `wnsm:<slugified-zaehlpu
 Use one series per card (do not mix DAY and snapshot in the same statistics-graph card).
 
 - **Daily values (DAY):**
-  - Statistic: `wnsm:<slugified-zaehlpunkt>_day_v2`
+  - Statistic: `wnsm:<slugified-zaehlpunkt>`
   - Period: `day`
-  - Stat type: `max`
+  - Stat type: `change`
   - Chart type: `bar`
 
 - **Total consumption trend (snapshot cumulative):**
