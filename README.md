@@ -36,6 +36,13 @@ For each active **Zählpunkt**, the integration currently creates the following 
 - With **2 Zählpunkte**, you will usually see **8 entities** (4 per Zählpunkt). If DAY stats import is enabled, you also get **2 extra long-term statistics series** (one per Zählpunkt).
 - The optional DAY reading-date entity (`<zaehlpunkt>_day_reading_date`) remains commented out in setup for cleanup and can be re-enabled later.
 
+### Sensor attributes (current)
+
+- **Main energy sensor** (`<zaehlpunkt>`): includes raw API context and METER_READ helper attributes such as `reading_date`, `reading_dates`, `yesterday`, `day_before_yesterday`, `granularity`, `active`, `smartMeterReady`, and `messwert1` / `messwert2`.
+- **Main daily snapshot sensor** (`<zaehlpunkt>_main_daily_snapshot`): same METER_READ-oriented helper attributes as above, especially `reading_date`, `reading_dates`, `messwert1`, `messwert2`.
+- **DAY sensor** (`<zaehlpunkt>_day`): includes DAY-oriented helper attributes with `reading_date`, `reading_dates`, and `messwert1` / `messwert2` derived from the latest normalized DAY points.
+- **METER_READ reading-date sensor** (`<zaehlpunkt>_meter_read_reading_date`): exposes timestamp state plus payload attributes (including `reading_date`, `reading_dates`, `messwert1`, `messwert2`) for debugging/validation.
+
 ## Installation
 
 ### Manual
