@@ -15,14 +15,6 @@ Copy `<project-dir>/custom_components/wnsm` into `<home-assistant-root>/config/c
 
 Configure the integration via the Home Assistant UI and select your Zählpunkte during setup.
 
-### Authentication flow (redesigned to reduce blocking risk)
-
-To reduce the risk of Wiener Netze login/session blocking, the integration uses a redesigned auth flow:
-
-- A shared Smartmeter client instance is reused per config entry to avoid unnecessary repeated full logins.
-- Login calls are serialized with a lock, so parallel sensor updates do not trigger concurrent login storms.
-- API calls use automatic re-authentication/retry on connection/session failures (for example expired/unauthorized responses).
-
 ### Sensors, attributes, and statistics overview
 
 Current default setup exposes **4 sensors per Zählpunkt**:
@@ -56,7 +48,6 @@ For each active **Zählpunkt**, the integration currently creates the following 
 - Enabling **DAY statistics import** does **not** create extra entities. It adds an extra recorder/long-term statistics series for DAY values.
 - DAY and snapshot long-term statistics use versioned IDs (`_day_v2`, `_main_daily_snapshot_v3`) so new installs/upgrades get clean metadata without reusing stale recorder entries.
 - With **2 Zählpunkte**, you will usually see **8 entities** (4 per Zählpunkt). If DAY stats import is enabled, you also get **2 extra long-term statistics series** (one per Zählpunkt).
-- The optional DAY reading-date entity (`<zaehlpunkt>_day_reading_date`) remains commented out in setup for cleanup and can be re-enabled later.
 
 ### Options
 
