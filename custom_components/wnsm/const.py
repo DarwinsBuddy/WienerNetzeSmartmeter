@@ -4,6 +4,11 @@
 DOMAIN = "wnsm"
 
 CONF_ZAEHLPUNKTE = "zaehlpunkte"
+DEFAULT_SCAN_INTERVAL_MINUTES = 60 * 6
+CONF_ENABLE_DAY_READING_DATE_SENSOR = "enable_day_reading_date_sensor"
+CONF_ENABLE_METER_READ_READING_DATE_SENSOR = "enable_meter_read_reading_date_sensor"
+DEFAULT_ENABLE_DAY_READING_DATE_SENSOR = False
+DEFAULT_ENABLE_METER_READ_READING_DATE_SENSOR = False
 
 ATTRS_ZAEHLPUNKT_CALL = [
     ("zaehlpunktnummer", "zaehlpunktnummer"),
