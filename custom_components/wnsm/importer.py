@@ -160,16 +160,19 @@ class Importer:
         if 'unitOfMeasurement' not in bewegungsdaten:
             _LOGGER.debug("unitOfMeasurement does not exist. Aborting import!")
             return
-        elif bewegungsdaten['unitOfMeasurement'] == 'WH':
+
+        if bewegungsdaten['unitOfMeasurement'] == '':
+            _LOGGER.debug("WienerNetze API response does not contain a unit of measurement. Aborting import!")
+            return
+
+        if 'values' not in bewegungsdaten or bewegungsdaten['values'] is None or len(bewegungsdaten['values']) == 0:
+            _LOGGER.warning(f"Malformed bewegungsdaten {bewegungsdaten}. Aborting import!")
+            return
+
+        if bewegungsdaten['unitOfMeasurement'] == 'WH':
             factor = 1e-3
         elif bewegungsdaten['unitOfMeasurement'] == 'KWH':
             factor = 1.0
-        elif bewegungsdaten['unitOfMeasurement'] == '':
-            _LOGGER.debug(f"WienerNetze API response does not contain a unit of measurement. Aborting import!")
-            return
-        elif 'values' not in bewegungsdaten or bewegungsdaten['values'] is None or len(bewegungsdaten['values']) == 0:
-            _LOGGER.warn(f"Malformed bewegungsdaten {bewegungsdaten}. Aborting import!")
-            return
         else:
             raise NotImplementedError(f'Unit {bewegungsdaten["unitOfMeasurement"]} is not yet implemented. Please report!')
 
