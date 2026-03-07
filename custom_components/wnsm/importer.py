@@ -131,6 +131,7 @@ class Importer:
             name=self.zaehlpunkt,
             unit_of_measurement=self.unit_of_measurement,
             has_mean=False,
+            unit_class="energy",
             has_sum=True,
         )
 
