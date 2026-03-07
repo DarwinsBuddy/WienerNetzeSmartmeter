@@ -156,6 +156,22 @@ class Importer:
 
         bewegungsdaten = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, self.granularity)
         _LOGGER.debug(f"Mapped historical data: {bewegungsdaten}")
+        
+        if 'unitOfMeasurement' not in bewegungsdaten:
+            _LOGGER.debug("unitOfMeasurement does not exist. Aborting import!")
+            return
+        elif bewegungsdaten['unitOfMeasurement'] == 'WH':
+            factor = 1e-3
+        elif bewegungsdaten['unitOfMeasurement'] == 'KWH':
+            factor = 1.0
+        elif bewegungsdaten['unitOfMeasurement'] == '':
+            _LOGGER.debug(f"WienerNetze API response does not contain a unit of measurement. Aborting import!")
+            return
+        elif 'values' not in bewegungsdaten or bewegungsdaten['values'] is None or len(bewegungsdaten['values']) == 0:
+            _LOGGER.warn(f"Malformed bewegungsdaten {bewegungsdaten}. Aborting import!")
+            return
+        else:
+            raise NotImplementedError(f'Unit {bewegungsdaten["unitOfMeasurement"]} is not yet implemented. Please report!')
 
         dates = defaultdict(Decimal)
         if 'values' not in bewegungsdaten:
@@ -165,16 +181,6 @@ class Importer:
         if total_consumption == 0:
             _LOGGER.debug(f"Batch of data starting at {start} does not contain any bewegungsdaten. Seems there is nothing to import, yet.")
             return
-        
-        if bewegungsdaten['unitOfMeasurement'] == 'WH':
-            factor = 1e-3
-        elif bewegungsdaten['unitOfMeasurement'] == 'KWH':
-            factor = 1.0
-        elif bewegungsdaten['unitOfMeasurement'] == '':
-            _LOGGER.debug(f"WienerNetze API response does not contain a unit of measurement (JSON key descriptor.einheit value is null). This can happen if there is no (new) data to import yet. Aborting import!")
-            return
-        else:
-            raise NotImplementedError(f'Unit {bewegungsdaten["unitOfMeasurement"]}" is not yet implemented. Please report!')
 
         last_ts = start
         for value in bewegungsdaten['values']:
