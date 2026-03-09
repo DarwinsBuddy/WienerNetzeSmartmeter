@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import timedelta, timezone, datetime
 from decimal import Decimal
 from operator import itemgetter
+from typing import Optional
 
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.models import (
@@ -10,21 +11,20 @@ from homeassistant.components.recorder.models import (
     StatisticMetaData,
 )
 from homeassistant.components.recorder.statistics import (
-    get_last_statistics, async_add_external_statistics,
+    get_last_statistics, async_import_statistics,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from .AsyncSmartmeter import AsyncSmartmeter
 from .api.constants import ValueType
-from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 class Importer:
 
-    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR):
-        self.id = f'{DOMAIN}:{zaehlpunkt.lower()}'
+    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, entity_id: str, granularity: ValueType = ValueType.QUARTER_HOUR):
+        self.id = entity_id
         self.zaehlpunkt = zaehlpunkt
         self.granularity = granularity
         self.unit_of_measurement = unit_of_measurement
@@ -68,7 +68,8 @@ class Importer:
             return None
         return start, _sum
 
-    async def async_import(self):
+    async def async_import(self) -> Optional[Decimal]:
+        """Import statistics and return the last known cumulative sum, or None on failure."""
         # Query the statistics database for the last value
         # It is crucial to use get_instance here!
         last_inserted_stat = await get_instance(
@@ -89,44 +90,29 @@ class Importer:
 
             if not self.async_smartmeter.is_active(zaehlpunkt):
                 _LOGGER.debug("Smartmeter %s is not active" % zaehlpunkt)
-                return
+                return None
 
             if not self.is_last_inserted_stat_valid(last_inserted_stat):
                 # No previous data - start from scratch
                 _LOGGER.warning("Starting import of historical data. This might take some time.")
-                _sum = await self._initial_import_statistics()
+                return await self._initial_import_statistics()
             else:
                 start_off_point = self.prepare_start_off_point(last_inserted_stat)
                 if start_off_point is None:
-                    return
+                    # Within 24h guard window — return the last known sum directly
+                    return Decimal(last_inserted_stat[self.id][0]["sum"])
                 start, _sum = start_off_point
-                _sum = await self._incremental_import_statistics(start, _sum)
+                return await self._incremental_import_statistics(start, _sum)
 
-            # XXX: Note that the state of this sensor must never be an integer value, such as 0!
-            # If it is set to any number, home assistant will assume that a negative consumption
-            # compensated the last statistics entry and add a negative consumption in the energy
-            # dashboard.
-            # This is a technical debt of HA, as we cannot import statistics and have states at the
-            # same time.
-            # Due to None, the sensor will always show "unkown" - but that is currently the only way
-            # how historical data can be imported without rewriting the database on our own...
-            last_inserted_stat = await get_instance(self.hass).async_add_executor_job(
-                get_last_statistics,
-                self.hass,
-                1,  # Get at most one entry
-                self.id,  # of this sensor's statistics
-                True,  # convert the units
-                {"sum"}  # the fields we want to query
-            )
-            _LOGGER.debug("Last inserted stat: %s", last_inserted_stat)
         except TimeoutError as e:
             _LOGGER.warning("Error retrieving data from smart meter api - Timeout: %s" % e)
         except RuntimeError as e:
             _LOGGER.exception("Error retrieving data from smart meter api - Error: %s" % e)
+        return None
 
     def get_statistics_metadata(self):
         return StatisticMetaData(
-            source=DOMAIN,
+            source="recorder",
             statistic_id=self.id,
             name=self.zaehlpunkt,
             unit_of_measurement=self.unit_of_measurement,
@@ -198,5 +184,5 @@ class Importer:
             statistics.append(StatisticData(start=ts, sum=total_usage, state=float(usage)))
         if len(statistics) > 0:
             _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
-        async_add_external_statistics(self.hass, metadata, statistics)
+        async_import_statistics(self.hass, metadata, statistics)
         return total_usage

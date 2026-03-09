@@ -5,9 +5,9 @@ from typing import Any, Optional
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorStateClass,
-    ENTITY_ID_FORMAT
+    ENTITY_ID_FORMAT,
+    RestoreSensor,
 )
-from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import UnitOfEnergy
 from homeassistant.util import slugify
 
@@ -20,7 +20,7 @@ from .utils import before, today
 _LOGGER = logging.getLogger(__name__)
 
 
-class WNSMSensor(SensorEntity):
+class WNSMSensor(RestoreSensor):
     """
     Representation of a Wiener Smartmeter sensor
     for measuring total increasing energy consumption for a specific zaehlpunkt
@@ -35,7 +35,7 @@ class WNSMSensor(SensorEntity):
         self.password = password
         self.zaehlpunkt = zaehlpunkt
 
-        self._attr_native_value: int | float | None = 0
+        self._attr_native_value: int | float | None = None
         self._attr_extra_state_attributes = {}
         self._attr_name = zaehlpunkt
         self._attr_icon = self._icon()
@@ -75,6 +75,12 @@ class WNSMSensor(SensorEntity):
         """Return True if entity is available."""
         return self._available
 
+    async def async_added_to_hass(self) -> None:
+        """Restore previous sensor state on HA restart."""
+        await super().async_added_to_hass()
+        if (last_state := await self.async_get_last_sensor_data()) is not None:
+            self._attr_native_value = last_state.native_value
+
     def granularity(self) -> ValueType:
         return ValueType.from_str(self._attr_extra_state_attributes.get("granularity", "QUARTER_HOUR"))
 
@@ -95,8 +101,10 @@ class WNSMSensor(SensorEntity):
                 for reading_date in reading_dates:
                     meter_reading = await async_smartmeter.get_meter_reading_from_historic_data(self.zaehlpunkt, reading_date, datetime.now())
                     self._attr_native_value = meter_reading
-                importer = Importer(self.hass, async_smartmeter, self.zaehlpunkt, self.unit_of_measurement, self.granularity())
-                await importer.async_import()
+                importer = Importer(self.hass, async_smartmeter, self.zaehlpunkt, self.unit_of_measurement, self.entity_id, self.granularity())
+                last_sum = await importer.async_import()
+                if last_sum is not None:
+                    self._attr_native_value = float(last_sum)
             self._available = True
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except TimeoutError as e:
