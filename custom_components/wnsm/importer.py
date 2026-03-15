@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import timedelta, timezone, datetime
 from decimal import Decimal
 from operator import itemgetter
+from typing import Optional
 
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.models import (
@@ -140,7 +141,7 @@ class Importer:
     async def _incremental_import_statistics(self, start: datetime, total_usage: Decimal):
         return await self._import_statistics(start=start, total_usage=total_usage)
 
-    async def _import_statistics(self, start: datetime = None, end: datetime = None, total_usage: Decimal = Decimal(0)):
+    async def _import_statistics(self, start: datetime = None, end: datetime = None, total_usage: Decimal = Decimal(0)) -> Optional[Decimal]:
         """Import statistics"""
 
         start = start if start is not None else datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=365 * 3)
@@ -152,11 +153,14 @@ class Importer:
         _LOGGER.debug("Selecting data up to %s" % end)
         if start > end:
             _LOGGER.warning(f"Ignoring async update since last import happened in the future (should not happen) {start} > {end}")
-            return
+            return None
 
         bewegungsdaten = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, self.granularity)
         _LOGGER.debug(f"Mapped historical data: {bewegungsdaten}")
-        if bewegungsdaten['unitOfMeasurement'] == 'WH':
+        if bewegungsdaten['unitOfMeasurement'] is None:
+            _LOGGER.warning("Unit of measurement is None! Aborting import...")
+            return None
+        elif bewegungsdaten['unitOfMeasurement'] == 'WH':
             factor = 1e-3
         elif bewegungsdaten['unitOfMeasurement'] == 'KWH':
             factor = 1.0
@@ -170,7 +174,7 @@ class Importer:
         # Can actually check, if the whole batch can be skipped.
         if total_consumption == 0:
             _LOGGER.debug(f"Batch of data starting at {start} does not contain any bewegungsdaten. Seems there is nothing to import, yet.")
-            return
+            return None
 
         last_ts = start
         for value in bewegungsdaten['values']:
