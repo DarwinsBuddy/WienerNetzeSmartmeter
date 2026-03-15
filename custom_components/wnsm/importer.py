@@ -13,7 +13,10 @@ from homeassistant.components.recorder.statistics import (
     get_last_statistics, async_add_external_statistics,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.util import dt as dt_util
+from homeassistant.util import (
+    dt as dt_util,
+    unit_conversion
+)
 
 from .AsyncSmartmeter import AsyncSmartmeter
 from .api.constants import ValueType
@@ -131,7 +134,7 @@ class Importer:
             name=self.zaehlpunkt,
             unit_of_measurement=self.unit_of_measurement,
             has_mean=False,
-            unit_class="energy",
+            unit_class=EnergyConverter.UNIT_CLASS,
             has_sum=True,
         )
 
