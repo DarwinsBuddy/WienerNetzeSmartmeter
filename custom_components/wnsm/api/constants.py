@@ -62,7 +62,7 @@ class AnlagenType(enum.Enum):
     @staticmethod
     def from_str(label):
         match label.upper():
-            case 'TAGSTROM' | 'NACHTSTROM' | 'WAERMEPUMPE' | 'STROM':
+            case 'TAGSTROM' | 'NACHTSTROM' | 'WAERMEPUMPE' | 'STROM' | 'WANDLER':
                 return AnlagenType.CONSUMING
             case 'BEZUG':
                 return AnlagenType.FEEDING
