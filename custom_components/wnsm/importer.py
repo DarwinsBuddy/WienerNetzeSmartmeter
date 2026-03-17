@@ -8,6 +8,7 @@ from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.models import (
     StatisticData,
     StatisticMetaData,
+    StatisticMeanType
 )
 from homeassistant.components.recorder.statistics import (
     get_last_statistics, async_add_external_statistics,
@@ -132,7 +133,7 @@ class Importer:
             statistic_id=self.id,
             name=self.zaehlpunkt,
             unit_of_measurement=self.unit_of_measurement,
-            has_mean=False,
+            mean_type=StatisticMeanType.NONE,
             unit_class=EnergyConverter.UNIT_CLASS,
             has_sum=True,
         )
