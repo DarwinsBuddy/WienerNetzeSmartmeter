@@ -16,12 +16,11 @@ from homeassistant.const import (
     CONF_PASSWORD,
     CONF_DEVICE_ID
 )
-from homeassistant.core import DOMAIN
 from homeassistant.helpers.typing import (
     ConfigType,
     DiscoveryInfoType,
 )
-from .const import CONF_ZAEHLPUNKTE
+from .const import DOMAIN, CONF_ZAEHLPUNKTE, CONF_PRICE_ENTITY
 from .wnsm_sensor import WNSMSensor
 # Time between updating data from Wiener Netze
 SCAN_INTERVAL = timedelta(minutes=60 * 6)
@@ -41,8 +40,9 @@ async def async_setup_entry(
 ):
     """Setup sensors from a config entry created in the integrations UI."""
     config = hass.data[DOMAIN][config_entry.entry_id]
+    price_entity_id = config.get("options", {}).get(CONF_PRICE_ENTITY) or None
     wnsm_sensors = [
-        WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"])
+        WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"], price_entity_id)
         for zp in config[CONF_ZAEHLPUNKTE]
     ]
     async_add_entities(wnsm_sensors, update_before_add=True)

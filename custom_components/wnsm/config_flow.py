@@ -8,9 +8,11 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
+from homeassistant.core import callback
+from homeassistant.helpers import selector
 
 from .api import Smartmeter
-from .const import ATTRS_ZAEHLPUNKTE_CALL, DOMAIN, CONF_ZAEHLPUNKTE
+from .const import ATTRS_ZAEHLPUNKTE_CALL, DOMAIN, CONF_ZAEHLPUNKTE, CONF_PRICE_ENTITY
 from .utils import translate_dict
 
 _LOGGER = logging.getLogger(__name__)
@@ -24,6 +26,12 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
     """Wiener Netze Smartmeter config flow"""
 
     data: Optional[dict[str, Any]]
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Return the options flow handler."""
+        return WNSMOptionsFlowHandler()
 
     async def validate_auth(self, username: str, password: str) -> list[dict]:
         """
@@ -68,4 +76,31 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
 
         return self.async_show_form(
             step_id="user", data_schema=AUTH_SCHEMA, errors=errors
+        )
+
+
+class WNSMOptionsFlowHandler(config_entries.OptionsFlow):
+    """Options flow for Wiener Netze Smartmeter."""
+
+    async def async_step_init(self, user_input: Optional[dict[str, Any]] = None):
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        current_price_entity = self.config_entry.options.get(CONF_PRICE_ENTITY, "")
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_PRICE_ENTITY,
+                    description={"suggested_value": current_price_entity},
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
         )
