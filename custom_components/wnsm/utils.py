@@ -80,6 +80,5 @@ def translate_dict(
     result = {}
     for src, destination in attrs_list:
         value = dict_path(src, dictionary)
-        if value is not None:
-            result[destination] = value
+        result[destination] = value
     return result
