@@ -5,16 +5,17 @@ from __future__ import annotations
 from functools import reduce
 from datetime import timezone, timedelta, datetime
 import logging
+from typing import Optional
 
 
-def today(tz: None | timezone = None) -> datetime:
+def today(tz: Optional[timezone] = None) -> datetime:
     """
     today's timestamp (start of day)
     """
     return datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def before(timestamp=None, days=1) -> datetime:
+def before(timestamp: Optional[datetime] = None, days=1) -> datetime:
     """
     subtract {days} days from given datetime (default: 1)
     """
@@ -23,7 +24,7 @@ def before(timestamp=None, days=1) -> datetime:
     return timestamp - timedelta(days=days)
 
 
-def strint(string: str) -> int | None:
+def strint(string: str) -> Optional[int]:
     """
     convenience function for easily convert None-able str to in
     """
@@ -44,7 +45,7 @@ def is_valid_access(data: list | dict, accessor: str | int) -> bool:
         return False
 
 
-def dict_path(path: str, dictionary: dict) -> str | None:
+def dict_path(path: str, dictionary: dict) -> Optional[str]:
     """
     convenience function for accessing nested attributes within a dict
     """
@@ -80,6 +81,5 @@ def translate_dict(
     result = {}
     for src, destination in attrs_list:
         value = dict_path(src, dictionary)
-        if value is not None:
-            result[destination] = value
+        result[destination] = value
     return result
