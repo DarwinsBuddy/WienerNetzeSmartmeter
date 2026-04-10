@@ -15,5 +15,5 @@
         "lxml",
         "requests"
     ],
-    "version": "1.0.1"
+    "version": "1.8.0"
 }
