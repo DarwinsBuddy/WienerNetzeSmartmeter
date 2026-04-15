@@ -160,15 +160,38 @@ class Importer:
 
         bewegungsdaten = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, self.granularity)
         _LOGGER.debug(f"Mapped historical data: {bewegungsdaten}")
+<<<<<<< HEAD
         if bewegungsdaten['unitOfMeasurement'] is None:
             _LOGGER.warning("Unit of measurement is None! Aborting import...")
             return None
         elif bewegungsdaten['unitOfMeasurement'] == 'WH':
+=======
+        
+        # Get unit of measurement from API response, with fallback to configured unit
+        unit_of_measurement = bewegungsdaten.get('unitOfMeasurement')
+        if unit_of_measurement is None:
+            # Fallback to the unit configured in the sensor
+            # Normalize unit: "kWh" -> "KWH", "Wh" -> "WH"
+            normalized_unit = self.unit_of_measurement.upper()
+            if 'KW' in normalized_unit:
+                unit_of_measurement = 'KWH'
+            elif 'W' in normalized_unit:
+                unit_of_measurement = 'WH'
+            else:
+                # If we can't determine the unit, default to KWH (most common)
+                unit_of_measurement = 'KWH'
+            _LOGGER.warning(
+                f"API response missing 'unitOfMeasurement' for zaehlpunkt {self.zaehlpunkt}. "
+                f"Using fallback unit: {unit_of_measurement}"
+            )
+        
+        if unit_of_measurement == 'WH':
+>>>>>>> 9faf4c2 (Refactor unit of measurement handling in importer.py)
             factor = 1e-3
-        elif bewegungsdaten['unitOfMeasurement'] == 'KWH':
+        elif unit_of_measurement == 'KWH':
             factor = 1.0
         else:
-            raise NotImplementedError(f'Unit {bewegungsdaten["unitOfMeasurement"]}" is not yet implemented. Please report!')
+            raise NotImplementedError(f'Unit {unit_of_measurement}" is not yet implemented. Please report!')
 
         dates = defaultdict(Decimal)
         if 'values' not in bewegungsdaten:
