@@ -1,4 +1,3 @@
-"""Contains the Smartmeter API Client."""
 import json
 import logging
 from datetime import datetime, timedelta, date
@@ -26,15 +25,10 @@ logger = logging.getLogger(__name__)
 
 
 class Smartmeter:
-    """Smartmeter client."""
+
 
     def __init__(self, username, password, input_code_verifier=None):
-        """Access the Smartmeter API.
 
-        Args:
-            username (str): Username used for API Login.
-            password (str): Password used for API Login.
-        """
         self.username = username
         self.password = password
         self.session = requests.Session()
@@ -44,12 +38,12 @@ class Smartmeter:
         self._access_token_expiration = None
         self._refresh_token_expiration = None
         self._api_gateway_b2b_token = None
-        
+
         self._code_verifier = None
         if input_code_verifier is not None:
             if self.is_valid_code_verifier(input_code_verifier):
                 self._code_verifier = input_code_verifier
-        
+
         self._code_challenge = None
         self._local_login_args = None
 
@@ -72,15 +66,11 @@ class Smartmeter:
         return self._access_token is not None and not self.is_login_expired()
 
     def generate_code_verifier(self):
-        """
-        generate a code verifier
-        """
+
         return base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
-    
+
     def generate_code_challenge(self, code_verifier):
-        """
-        generate a code challenge from the code verifier
-        """
+
         code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
         return base64.urlsafe_b64encode(code_challenge).decode('utf-8').rstrip('=')
 
@@ -91,28 +81,26 @@ class Smartmeter:
         pattern = r'^[A-Za-z0-9\-._~]+$'
         if not re.match(pattern, code_verifier):
             return False
-        
+
         return True
-    
+
     def load_login_page(self):
-        """
-        loads login page and extracts encoded login url
-        """
-        
-        #generate a code verifier, which serves as a secure random value
+
+
+
         if not hasattr(self, '_code_verifier') or self._code_verifier is None:
-           #only generate if it does not exist 
+
            self._code_verifier = self.generate_code_verifier()
-        
-        #generate a code challenge from the code verifier to enhance security
+
+
         self._code_challenge = self.generate_code_challenge(self._code_verifier)
-        
-        #copy const.LOGIN_ARGS
+
+
         self._local_login_args = copy.deepcopy(const.LOGIN_ARGS)
-        
-        #add code_challenge in self._local_login_args
+
+
         self._local_login_args["code_challenge"] = self._code_challenge
-        
+
         login_url = const.AUTH_URL + "auth?" + parse.urlencode(self._local_login_args)
         try:
             result = self.session.get(login_url)
@@ -124,17 +112,15 @@ class Smartmeter:
             )
         tree = html.fromstring(result.content)
         forms = tree.xpath("(//form/@action)")
-        
+
         if not forms:
             raise SmartmeterConnectionError("No form found on the login page.")
-        
+
         action = forms[0]
         return action
 
     def credentials_login(self, url):
-        """
-        login with credentials provided the login url
-        """
+
         try:
             result = self.session.post(
                 url,
@@ -182,9 +168,7 @@ class Smartmeter:
         return code
 
     def load_tokens(self, code):
-        """
-        Provided the totp code loads access and refresh token
-        """
+
         try:
             result = self.session.post(
                 const.AUTH_URL + "token",
@@ -207,9 +191,7 @@ class Smartmeter:
         return tokens
 
     def login(self):
-        """
-        login with credentials specified in ctor
-        """
+
         if self.is_login_expired():
             self.reset()
         if not self.is_logged_in():
@@ -232,9 +214,9 @@ class Smartmeter:
         return self
 
     def _access_valid_or_raise(self):
-        """Checks if the access token is still valid or raises an exception"""
+
         if datetime.now() >= self._access_token_expiration:
-            # TODO: If the refresh token is still valid, it could be refreshed here
+
             raise SmartmeterConnectionError(
                 "Access Token is not valid anymore, please re-log!"
             )
@@ -253,8 +235,8 @@ class Smartmeter:
             if key not in result:
                 raise SmartmeterConnectionError(f"{key} not found in response!")
 
-        # The b2bApiUrl and b2cApiUrl can also be gathered from the configuration
-        # TODO: reduce code duplication...
+
+
         if "b2cApiUrl" in result and result["b2cApiUrl"] != const.API_URL:
             const.API_URL = result["b2cApiUrl"]
             logger.warning("The b2cApiUrl has changed to %s! Update API_URL!", const.API_URL)
@@ -292,10 +274,10 @@ class Smartmeter:
             "Authorization": f"Bearer {self._access_token}",
         }
 
-        # For API calls to B2C or B2B, we need to add the Gateway-APIKey:
-        # TODO: This may be prone to errors if URLs are compared like this.
-        #       The Strings has to be exactly the same, but that may not be the case,
-        #       even though the URLs are the same.
+
+
+
+
         if base_url == const.API_URL:
             headers["X-Gateway-APIKey"] = self._api_gateway_token
         elif base_url == const.API_URL_B2B:
@@ -337,19 +319,30 @@ class Smartmeter:
         return customer_id, zp, const.AnlagenType.from_str(anlagetype)
 
     def zaehlpunkte(self):
-        """Returns zaehlpunkte for currently logged in user."""
+
         return self._call_api("zaehlpunkte")
 
+    def zaehlpunkt_zaehlwerke(self, customer_id: str, zaehlpunkt: str):
+
+        extra = {
+            "Accept": "application/json"
+        }
+        return self._call_api(
+            f"user/zaehlpunkte/{customer_id}/{zaehlpunkt}/zaehlwerke",
+            base_url=const.API_URL_ALT,
+            extra_headers=extra,
+        )
+
     def consumptions(self):
-        """Returns response from 'consumptions' endpoint."""
+
         return self._call_api("zaehlpunkt/consumptions")
 
     def base_information(self):
-        """Returns response from 'baseInformation' endpoint."""
+
         return self._call_api("zaehlpunkt/baseInformation")
 
     def meter_readings(self):
-        """Returns response from 'meterReadings' endpoint."""
+
         return self._call_api("zaehlpunkt/meterReadings")
 
     def verbrauch(
@@ -359,28 +352,12 @@ class Smartmeter:
         date_from: datetime,
         resolution: const.Resolution = const.Resolution.HOUR
     ):
-        """Returns energy usage.
 
-        This returns hourly or quarter hour consumptions for a single day,
-        i.e., for 24 hours after the given date_from.
-
-        Args:
-            customer_id (str): Customer ID returned by zaehlpunkt call ("geschaeftspartner")
-            zaehlpunkt (str, optional): id for desired smartmeter.
-                If None, check for first meter in user profile.
-            date_from (datetime): Start date for energy usage request
-            date_to (datetime, optional): End date for energy usage request.
-                Defaults to datetime.now()
-            resolution (const.Resolution, optional): Specify either 1h or 15min resolution
-        Returns:
-            dict: JSON response of api call to
-                'messdaten/CUSTOMER_ID/ZAEHLPUNKT/verbrauchRaw'
-        """
         if zaehlpunkt is None or customer_id is None:
             customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt()
         endpoint = f"messdaten/{customer_id}/{zaehlpunkt}/verbrauch"
         query = const.build_verbrauchs_args(
-            # This one does not have a dateTo...
+
             dateFrom=self._dt_string(date_from),
             dayViewResolution=resolution.value
         )
@@ -393,31 +370,14 @@ class Smartmeter:
         date_from: datetime,
         date_to: datetime = None,
     ):
-        """Returns energy usage.
-        This can be used to query the daily consumption for a long period of time,
-        for example several months or a week.
 
-        Note: The minimal resolution is a single day.
-        For hourly consumptions use `verbrauch`.
-
-        Args:
-            customer_id (str): Customer ID returned by zaehlpunkt call ("geschaeftspartner")
-            zaehlpunkt (str, optional): id for desired smartmeter.
-                If None, check for first meter in user profile.
-            date_from (datetime): Start date for energy usage request
-            date_to (datetime, optional): End date for energy usage request.
-                Defaults to datetime.now()
-        Returns:
-            dict: JSON response of api call to
-                'messdaten/CUSTOMER_ID/ZAEHLPUNKT/verbrauchRaw'
-        """
         if date_to is None:
             date_to = datetime.now()
         if zaehlpunkt is None or customer_id is None:
             customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt()
         endpoint = f"messdaten/{customer_id}/{zaehlpunkt}/verbrauchRaw"
         query = dict(
-            # These are the only three fields that are used for that endpoint:
+
             dateFrom=self._dt_string(date_from),
             dateTo=self._dt_string(date_to),
             granularity="DAY",
@@ -425,26 +385,13 @@ class Smartmeter:
         return self._call_api(endpoint, query=query)
 
     def profil(self):
-        """Returns profile of a logged-in user.
 
-        Returns:
-            dict: JSON response of api call to 'user/profile'
-        """
         return self._call_api("user/profile", const.API_URL_ALT)
 
     def ereignisse(
         self, date_from: datetime, date_to: datetime = None, zaehlpunkt=None
     ):
-        """Returns events between date_from and date_to of a specific smart meter.
-        Args:
-            date_from (datetime.datetime): Starting date for request
-            date_to (datetime.datetime, optional): Ending date for request.
-                Defaults to datetime.datetime.now().
-            zaehlpunkt (str, optional): id for desired smart meter.
-                If is None check for first meter in user profile.
-        Returns:
-            dict: JSON response of api call to 'user/ereignisse'
-        """
+
         if date_to is None:
             date_to = datetime.now()
         if zaehlpunkt is None:
@@ -457,16 +404,7 @@ class Smartmeter:
         return self._call_api("user/ereignisse", const.API_URL_ALT, query=query)
 
     def create_ereignis(self, zaehlpunkt, name, date_from, date_to=None):
-        """Creates new event.
-        Args:
-            zaehlpunkt (str): Id for desired smartmeter.
-                If None, check for first meter in user profile
-            name (str): Event name
-            date_from (datetime.datetime): (Starting) date for request
-            date_to (datetime.datetime, optional): Ending date for request.
-        Returns:
-            dict: JSON response of api call to 'user/ereignis'
-        """
+
         if date_to is None:
             dto = None
             typ = "ZEITPUNKT"
@@ -485,37 +423,47 @@ class Smartmeter:
         return self._call_api("user/ereignis", data=data, method="POST")
 
     def delete_ereignis(self, ereignis_id):
-        """Deletes ereignis."""
+
         return self._call_api(f"user/ereignis/{ereignis_id}", method="DELETE")
 
-    def find_valid_obis_data(self, zaehlwerke: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Find and validate data with valid OBIS codes from a list of zaehlwerke.
-        """
-        
-        # Check if any OBIS codes exist
+    def find_valid_obis_data(self, zaehlwerke: List[Dict[str, Any]], obis_code: str = None) -> Dict[str, Any]:
+
+
+
         all_obis_codes = [zaehlwerk.get("obisCode") for zaehlwerk in zaehlwerke]
         if not any(all_obis_codes):
             logger.debug("Returned zaehlwerke: %s", zaehlwerke)
             raise SmartmeterQueryError("No OBIS codes found in the provided data.")
-        
-        # Filter data for valid OBIS codes
+
+        if obis_code is not None:
+            requested_data = [
+                zaehlwerk for zaehlwerk in zaehlwerke
+                if zaehlwerk.get("obisCode") == obis_code
+            ]
+            if not requested_data:
+                logger.debug("Returned zaehlwerke: %s", zaehlwerke)
+                raise SmartmeterQueryError(
+                    f"Requested OBIS code {obis_code} not found. OBIS codes in data: {all_obis_codes}"
+                )
+            return requested_data[0]
+
+
         valid_data = [
             zaehlwerk for zaehlwerk in zaehlwerke
             if zaehlwerk.get("obisCode") in const.VALID_OBIS_CODES
         ]
-        
+
         if not valid_data:
             logger.debug("Returned zaehlwerke: %s", zaehlwerke)
             raise SmartmeterQueryError(f"No valid OBIS code found. OBIS codes in data: {all_obis_codes}")
-        
-        # Check for empty or missing messwerte
+
+
         for zaehlwerk in valid_data:
             if not zaehlwerk.get("messwerte"):
                 obis = zaehlwerk.get("obisCode")
                 logger.debug(f"Valid OBIS code '{obis}' has empty or missing messwerte. Data is probably not available yet.")
-                
-        # Log a warning if multiple valid OBIS codes are found        
+
+
         if len(valid_data) > 1:
             found_valid_obis = [zaehlwerk["obisCode"] for zaehlwerk in valid_data]
             logger.warning(f"Multiple valid OBIS codes found: {found_valid_obis}. Using the first one.")
@@ -527,39 +475,36 @@ class Smartmeter:
         zaehlpunktnummer: str = None,
         date_from: date = None,
         date_until: date = None,
-        valuetype: const.ValueType = const.ValueType.METER_READ
+        valuetype: const.ValueType = const.ValueType.METER_READ,
+        obis_code: str = None,
     ):
-        """
-        Query historical data in a batch
-        If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
-        If date_from is not given but date_until, again a three year span is assumed.
-        """
-        # Resolve Zaehlpunkt
+
+
         if zaehlpunktnummer is None:
             customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt()
         else:
             customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
 
-        # Set date range defaults
+
         if date_until is None:
             date_until = date.today()
-            
+
         if date_from is None:
             date_from = date_until - relativedelta(years=3)
 
-        # Query parameters
+
         query = {
             "datumVon": date_from.strftime("%Y-%m-%d"),
             "datumBis": date_until.strftime("%Y-%m-%d"),
             "wertetyp": valuetype.value,
         }
-        
+
         extra = {
-            # For this API Call, requesting json is important!
+
             "Accept": "application/json"
         }
 
-        # API Call
+
         data = self._call_api(
             f"zaehlpunkte/{customer_id}/{zaehlpunkt}/messwerte",
             base_url=const.API_URL_B2B,
@@ -567,18 +512,18 @@ class Smartmeter:
             extra_headers=extra,
         )
 
-        # Sanity check: Validate returned zaehlpunkt
+
         if data.get("zaehlpunkt") != zaehlpunkt:
             logger.debug("Returned data: %s", data)
             raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
 
-        # Validate and extract valid OBIS data
+
         zaehlwerke = data.get("zaehlwerke")
         if not zaehlwerke:
             logger.debug("Returned data: %s", data)
             raise SmartmeterQueryError("Returned data does not contain any zaehlwerke or is empty.")
 
-        valid_obis_data = self.find_valid_obis_data(zaehlwerke)
+        valid_obis_data = self.find_valid_obis_data(zaehlwerke, obis_code=obis_code)
         return valid_obis_data
 
     def bewegungsdaten(
@@ -589,11 +534,7 @@ class Smartmeter:
         valuetype: const.ValueType = const.ValueType.QUARTER_HOUR,
         aggregat: str = None,
     ):
-        """
-        Query historical data in a batch
-        If no arguments are given, a span of three year is queried (same day as today but from current year - 3).
-        If date_from is not given but date_until, again a three year span is assumed.
-        """
+
         customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
 
         if anlagetype == const.AnlagenType.FEEDING:
@@ -617,18 +558,60 @@ class Smartmeter:
             "geschaeftspartner": customer_id,
             "zaehlpunktnummer": zaehlpunkt,
             "rolle": rolle,
-            "zeitpunktVon": date_from.strftime("%Y-%m-%dT%H:%M:00.000Z"), # we catch up from the exact date of the last import to compensate for time shift
+            "zeitpunktVon": date_from.strftime("%Y-%m-%dT%H:%M:00.000Z"),
             "zeitpunktBis": date_until.strftime("%Y-%m-%dT23:59:59.999Z"),
             "aggregat": aggregat or "NONE"
         }
 
         extra = {
-            # For this API Call, requesting json is important!
+
             "Accept": "application/json"
         }
 
         data = self._call_api(
             f"user/messwerte/bewegungsdaten",
+            base_url=const.API_URL_ALT,
+            query=query,
+            extra_headers=extra,
+        )
+        if data["descriptor"]["zaehlpunktnummer"] != zaehlpunkt:
+            raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
+        return data
+
+    def bewegungsdaten_by_profile_role(
+        self,
+        customer_id: str,
+        zaehlpunkt: str,
+        profile_role: str,
+        date_from: date = None,
+        date_until: date = None,
+        aggregat: str = "NONE",
+        eg_id: str = None,
+    ):
+
+        if date_until is None:
+            date_until = date.today()
+
+        if date_from is None:
+            date_from = date_until - relativedelta(years=3)
+
+        query = {
+            "geschaeftspartner": customer_id,
+            "zaehlpunktnummer": zaehlpunkt,
+            "rolle": profile_role,
+            "zeitpunktVon": date_from.strftime("%Y-%m-%dT%H:%M:00.000Z"),
+            "zeitpunktBis": date_until.strftime("%Y-%m-%dT23:59:59.999Z"),
+            "aggregat": aggregat,
+        }
+        if eg_id is not None:
+            query["egId"] = eg_id
+
+        extra = {
+            "Accept": "application/json"
+        }
+
+        data = self._call_api(
+            "user/messwerte/bewegungsdaten",
             base_url=const.API_URL_ALT,
             query=query,
             extra_headers=extra,
