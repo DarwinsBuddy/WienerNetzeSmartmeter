@@ -22,7 +22,8 @@ from homeassistant.helpers.typing import (
     DiscoveryInfoType,
 )
 from .const import CONF_ZAEHLPUNKTE
-from .wnsm_sensor import WNSMSensor
+from .wnsm_sensor import WNSMSensor, WNSMSensorType
+
 # Time between updating data from Wiener Netze
 SCAN_INTERVAL = timedelta(minutes=60 * 6)
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -42,8 +43,13 @@ async def async_setup_entry(
     """Setup sensors from a config entry created in the integrations UI."""
     config = hass.data[DOMAIN][config_entry.entry_id]
     wnsm_sensors = [
-        WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"])
+        sensor
         for zp in config[CONF_ZAEHLPUNKTE]
+        for sensor in (
+            WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"], WNSMSensorType.CONSUMPTION),
+            WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"], WNSMSensorType.FEED_IN),
+            WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"], WNSMSensorType.NET_GRID_BALANCE),
+        )
     ]
     async_add_entities(wnsm_sensors, update_before_add=True)
 
@@ -57,5 +63,9 @@ async def async_setup_platform(
     ] = None,  # pylint: disable=unused-argument
 ) -> None:
     """Set up the sensor platform by adding it into configuration.yaml"""
-    wnsm_sensor = WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID])
-    async_add_entities([wnsm_sensor], update_before_add=True)
+    wnsm_sensors = [
+        WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID], WNSMSensorType.CONSUMPTION),
+        WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID], WNSMSensorType.FEED_IN),
+        WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID], WNSMSensorType.NET_GRID_BALANCE),
+    ]
+    async_add_entities(wnsm_sensors, update_before_add=True)

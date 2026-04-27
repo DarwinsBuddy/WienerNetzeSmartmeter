@@ -340,6 +340,17 @@ class Smartmeter:
         """Returns zaehlpunkte for currently logged in user."""
         return self._call_api("zaehlpunkte")
 
+    def zaehlpunkt_zaehlwerke(self, customer_id: str, zaehlpunkt: str):
+
+        extra = {
+            "Accept": "application/json"
+        }
+        return self._call_api(
+            f"user/zaehlpunkte/{customer_id}/{zaehlpunkt}/zaehlwerke",
+            base_url=const.API_URL_ALT,
+            extra_headers=extra,
+        )
+
     def consumptions(self):
         """Returns response from 'consumptions' endpoint."""
         return self._call_api("zaehlpunkt/consumptions")
@@ -488,7 +499,7 @@ class Smartmeter:
         """Deletes ereignis."""
         return self._call_api(f"user/ereignis/{ereignis_id}", method="DELETE")
 
-    def find_valid_obis_data(self, zaehlwerke: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def find_valid_obis_data(self, zaehlwerke: List[Dict[str, Any]], obis_code: str = None) -> Dict[str, Any]:
         """
         Find and validate data with valid OBIS codes from a list of zaehlwerke.
         """
@@ -499,6 +510,18 @@ class Smartmeter:
             logger.debug("Returned zaehlwerke: %s", zaehlwerke)
             raise SmartmeterQueryError("No OBIS codes found in the provided data.")
         
+        if obis_code is not None:
+            requested_data = [
+                zaehlwerk for zaehlwerk in zaehlwerke
+                if zaehlwerk.get("obisCode") == obis_code
+            ]
+            if not requested_data:
+                logger.debug("Returned zaehlwerke: %s", zaehlwerke)
+                raise SmartmeterQueryError(
+                    f"Requested OBIS code {obis_code} not found. OBIS codes in data: {all_obis_codes}"
+                )
+            return requested_data[0]
+
         # Filter data for valid OBIS codes
         valid_data = [
             zaehlwerk for zaehlwerk in zaehlwerke
@@ -527,7 +550,8 @@ class Smartmeter:
         zaehlpunktnummer: str = None,
         date_from: date = None,
         date_until: date = None,
-        valuetype: const.ValueType = const.ValueType.METER_READ
+        valuetype: const.ValueType = const.ValueType.METER_READ,
+        obis_code: str = None,
     ):
         """
         Query historical data in a batch
@@ -578,7 +602,7 @@ class Smartmeter:
             logger.debug("Returned data: %s", data)
             raise SmartmeterQueryError("Returned data does not contain any zaehlwerke or is empty.")
 
-        valid_obis_data = self.find_valid_obis_data(zaehlwerke)
+        valid_obis_data = self.find_valid_obis_data(zaehlwerke, obis_code=obis_code)
         return valid_obis_data
 
     def bewegungsdaten(
@@ -629,6 +653,48 @@ class Smartmeter:
 
         data = self._call_api(
             f"user/messwerte/bewegungsdaten",
+            base_url=const.API_URL_ALT,
+            query=query,
+            extra_headers=extra,
+        )
+        if data["descriptor"]["zaehlpunktnummer"] != zaehlpunkt:
+            raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
+        return data
+
+    def bewegungsdaten_by_profile_role(
+        self,
+        customer_id: str,
+        zaehlpunkt: str,
+        profile_role: str,
+        date_from: date = None,
+        date_until: date = None,
+        aggregat: str = "NONE",
+        eg_id: str = None,
+    ):
+
+        if date_until is None:
+            date_until = date.today()
+
+        if date_from is None:
+            date_from = date_until - relativedelta(years=3)
+
+        query = {
+            "geschaeftspartner": customer_id,
+            "zaehlpunktnummer": zaehlpunkt,
+            "rolle": profile_role,
+            "zeitpunktVon": date_from.strftime("%Y-%m-%dT%H:%M:00.000Z"),
+            "zeitpunktBis": date_until.strftime("%Y-%m-%dT23:59:59.999Z"),
+            "aggregat": aggregat,
+        }
+        if eg_id is not None:
+            query["egId"] = eg_id
+
+        extra = {
+            "Accept": "application/json"
+        }
+
+        data = self._call_api(
+            "user/messwerte/bewegungsdaten",
             base_url=const.API_URL_ALT,
             query=query,
             extra_headers=extra,
