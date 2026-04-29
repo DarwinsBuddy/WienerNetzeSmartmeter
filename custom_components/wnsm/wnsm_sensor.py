@@ -1,3 +1,5 @@
+"""Sensor entities for Wiener Netze Smartmeter."""
+
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -23,6 +25,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class WNSMSensorType(Enum):
+    """Supported sensor families in this fork."""
+
     CONSUMPTION = "consumption"
     FEED_IN = "feed_in"
     NET_GRID_BALANCE = "net_grid_balance"
@@ -34,6 +38,8 @@ GRID_CONSUMPTION_OBIS_CODE_ALT = "1-2:1.9.0 P.01"
 
 @dataclass(frozen=True)
 class WNSMSensorDefinition:
+    """Configuration bundle for one concrete sensor variant."""
+
     name: str
     unique_suffix: str
     meter_reading_obis_codes: tuple[str, ...]
@@ -60,6 +66,8 @@ SENSOR_DEFINITIONS = {
     WNSMSensorType.NET_GRID_BALANCE: WNSMSensorDefinition(
         name="Restnetzbezug",
         unique_suffix="_Restnetzbezug",
+        # Restnetzbezug can expose the relevant reading under more than one OBIS
+        # code depending on the concrete meter setup.
         meter_reading_obis_codes=(
             GRID_CONSUMPTION_OBIS_CODE,
             GRID_CONSUMPTION_OBIS_CODE_ALT,
@@ -75,6 +83,12 @@ def _resolve_profile_role_match_from_zaehlwerke(
     candidate_roles: tuple[str, ...],
     preferred_granularities: tuple[str, ...] = ("QH", "D"),
 ) -> tuple[str | None, str | None]:
+    """Find the best matching role/granularity pair in ``zaehlwerke``.
+
+    The upstream release had only one consumption sensor and therefore relied on
+    the default role selection of the portal. The fork needs deterministic role
+    resolution so each entity always maps to the intended Wiener-Netze data.
+    """
     profile_matches: set[tuple[str, str | None]] = set()
     for zaehlwerk in zaehlwerke_response.get("zaehlwerke", []):
         for profile in zaehlwerk.get("profiles", []):
@@ -100,6 +114,7 @@ def _resolve_profile_role_from_zaehlwerke(
     granularity: ValueType,
     candidate_roles: tuple[str, ...],
 ) -> str | None:
+    """Resolve only the role part for a wanted Home Assistant granularity."""
     expected_granularity = "QH" if granularity == ValueType.QUARTER_HOUR else "D"
     profile_role, _ = _resolve_profile_role_match_from_zaehlwerke(
         zaehlwerke_response,
@@ -110,6 +125,7 @@ def _resolve_profile_role_from_zaehlwerke(
 
 
 def _build_device_info(zaehlpunkt: str) -> dict[str, Any]:
+    """Group all entities of one metering point under a single HA device."""
     return {
         "identifiers": {(DOMAIN, zaehlpunkt)},
         "manufacturer": "Wiener Netze",
@@ -119,6 +135,8 @@ def _build_device_info(zaehlpunkt: str) -> dict[str, Any]:
 
 
 class WNSMSensor(SensorEntity):
+    """Representation of one Wiener-Netze energy sensor."""
+
     def __init__(
         self,
         username: str,
@@ -151,10 +169,12 @@ class WNSMSensor(SensorEntity):
 
     @property
     def name(self) -> str:
+        """Return the name of the entity."""
         return self._name
 
     @property
     def unique_id(self) -> str:
+        """Return the unique ID of the sensor."""
         return f"{self.zaehlpunkt}{self.definition.unique_suffix}"
 
     @property
@@ -163,14 +183,17 @@ class WNSMSensor(SensorEntity):
 
     @property
     def available(self) -> bool:
+        """Return True if entity is available."""
         return self._available
 
     def granularity(self) -> ValueType:
+        """Derive the preferred granularity from the Zaehlpunkt metadata."""
         return ValueType.from_str(
             self._attr_extra_state_attributes.get("granularity", "QUARTER_HOUR")
         )
 
     def statistic_id(self) -> str:
+        """Return the external-statistics ID used by the importer."""
         return f"wnsm:{slugify(self.unique_id)}"
 
     async def _get_meter_reading(
@@ -178,6 +201,13 @@ class WNSMSensor(SensorEntity):
         async_smartmeter: AsyncSmartmeter,
         reading_date,
     ) -> float | None:
+        """Fetch a direct meter reading for the given day.
+
+        Verbrauch still follows the classic upstream behavior and asks for the
+        default meter reading. Restnetzbezug needs a specific OBIS selection,
+        while Eigendeckung intentionally skips this path and is driven by the
+        imported statistics instead.
+        """
         if (
             len(self.definition.meter_reading_obis_codes) == 0
             and self.definition.use_default_meter_reading
@@ -213,6 +243,7 @@ class WNSMSensor(SensorEntity):
         async_smartmeter: AsyncSmartmeter,
         customer_id: str,
     ) -> str | None:
+        """Resolve the import role for the current sensor."""
         zaehlwerke_response = await async_smartmeter.get_zaehlpunkt_zaehlwerke(
             customer_id,
             self.zaehlpunkt,
@@ -224,6 +255,7 @@ class WNSMSensor(SensorEntity):
         )
 
     async def async_update(self):
+        """Update the entity state and trigger statistics import."""
         try:
             resolved_value = False
             async_smartmeter = await async_get_shared_async_smartmeter(
@@ -252,6 +284,9 @@ class WNSMSensor(SensorEntity):
                     customer_id=customer_id,
                     profile_role=profile_role,
                 )
+                # Since the update is not exactly at midnight, both yesterday
+                # and the day before are tried to make sure a meter reading is
+                # returned.
                 reading_dates = [before(today(), 1), before(today(), 2)]
                 has_meter_reading = False
                 for reading_date in reading_dates:
@@ -264,6 +299,9 @@ class WNSMSensor(SensorEntity):
                         self._attr_native_value = meter_reading
                         resolved_value = True
                 await importer.async_import()
+                # Verbrauch prefers the direct meter reading, while the two
+                # additional sensors are defined through imported movement data
+                # and therefore use the statistics sum as their exposed state.
                 if self.definition.use_statistics_for_state or not has_meter_reading:
                     imported_sum = await importer.async_get_last_sum()
                     if imported_sum is not None:

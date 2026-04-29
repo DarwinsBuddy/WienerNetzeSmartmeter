@@ -1,3 +1,5 @@
+"""Wiener Netze Smartmeter sensor platform."""
+
 import collections.abc
 from datetime import timedelta
 from typing import Optional
@@ -20,6 +22,7 @@ from homeassistant.helpers.typing import (
 from .const import CONF_ZAEHLPUNKTE, DOMAIN
 from .wnsm_sensor import WNSMSensor, WNSMSensorType
 
+# Time between updating data from Wiener Netze.
 SCAN_INTERVAL = timedelta(minutes=60 * 6)
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -35,11 +38,16 @@ async def async_setup_entry(
     config_entry: config_entries.ConfigEntry,
     async_add_entities,
 ):
+    """Set up sensors from a config entry created in the integrations UI."""
     config = hass.data[DOMAIN][config_entry.entry_id]
     wnsm_sensors = [
         sensor
         for zp in config[CONF_ZAEHLPUNKTE]
         for sensor in (
+            # The original integration created only one Verbrauch sensor.
+            # The fork extends the same Zaehlpunkt with two additional sensors
+            # that use different Wiener-Netze profile roles but share the same
+            # surrounding setup flow.
             WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"], WNSMSensorType.CONSUMPTION),
             WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"], WNSMSensorType.FEED_IN),
             WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"], WNSMSensorType.NET_GRID_BALANCE),
@@ -56,6 +64,7 @@ async def async_setup_platform(
         DiscoveryInfoType
     ] = None,
 ) -> None:
+    """Set up the sensor platform through configuration.yaml."""
     wnsm_sensors = [
         WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID], WNSMSensorType.CONSUMPTION),
         WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_DEVICE_ID], WNSMSensorType.FEED_IN),

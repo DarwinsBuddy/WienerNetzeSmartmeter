@@ -1,9 +1,15 @@
+"""
+API constants used by the Wiener-Netze Smartmeter client.
+"""
+
 import enum
 
 PAGE_URL = "https://smartmeter-web.wienernetze.at/"
 API_CONFIG_URL = "https://smartmeter-web.wienernetze.at/assets/app-config.json"
 API_URL_ALT = "https://service.wienernetze.at/sm/api/"
 
+# These two URLs are also published by the frontend as ``b2cApiUrl`` and
+# ``b2bApiUrl`` and may change over time.
 API_URL = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2C/1.0"
 API_URL_B2B = "https://api.wstw.at/gateway/WN_SMART_METER_PORTAL_API_B2B/1.0"
 REDIRECT_URI = "https://smartmeter-web.wienernetze.at/"
@@ -22,19 +28,27 @@ LOGIN_ARGS = {
 }
 
 VALID_OBIS_CODES = {
+    # Total meter reading of consumption in Wh on selected day(s) - updated
+    # daily and used by Wiener Netze as the default Zaehlerstand.
     "1-1:1.8.0",
+    # Measured consumption in Wh in quarter-hour or daily steps - also used by
+    # Wiener Netze for some heat-pump style meter readings.
     "1-1:1.9.0",
+    # Total production/feeding meter reading in Wh.
     "1-1:2.8.0",
+    # Measured production/feeding in Wh in quarter-hour or daily steps.
     "1-1:2.9.0"
 }
 
 class Resolution(enum.Enum):
+    """Possible resolution for one-day consumption data."""
 
     HOUR = "HOUR"
     QUARTER_HOUR = "QUARTER-HOUR"
 
 
 class ValueType(enum.Enum):
+    """Possible ``wertetyp`` values for historical-data queries."""
 
     METER_READ = "METER_READ"
     DAY = "DAY"
@@ -52,6 +66,7 @@ class ValueType(enum.Enum):
             raise NotImplementedError
 
 class AnlagenType(enum.Enum):
+    """Possible installation types returned for a metering point."""
 
     CONSUMING = "TAGSTROM"
     FEEDING = "BEZUG"
@@ -67,6 +82,7 @@ class AnlagenType(enum.Enum):
                 raise NotImplementedError(f"AnlageType {label} not implemented")
 
 class RoleType(enum.Enum):
+    """Original role types used by the classic movement-data endpoint."""
 
     DAILY_CONSUMING = "V001"
     QUARTER_HOURLY_CONSUMING = "V002"
@@ -74,6 +90,7 @@ class RoleType(enum.Enum):
     QUARTER_HOURLY_FEEDING = "E002"
 
 def build_access_token_args(**kwargs):
+    """Build access-token arguments and merge custom keyword arguments."""
 
     args = {
         "grant_type": "authorization_code",
@@ -85,10 +102,13 @@ def build_access_token_args(**kwargs):
 
 
 def build_verbrauchs_args(**kwargs):
+    """Build arguments for the legacy consumption endpoint."""
 
     args = {
         "period": "DAY",
+        # Can be changed to True to get a cumulative sum.
         "accumulate": False,
+        # Additional offset to start the cumulative sum with.
         "offset": 0,
         "dayViewResolution": "HOUR",
     }

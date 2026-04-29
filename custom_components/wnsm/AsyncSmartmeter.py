@@ -1,3 +1,5 @@
+"""Async wrapper around the synchronous Wiener-Netze Smartmeter client."""
+
 import asyncio
 import logging
 from asyncio import Future
@@ -13,22 +15,30 @@ from .utils import translate_dict
 _LOGGER = logging.getLogger(__name__)
 
 class AsyncSmartmeter:
+    """Expose the blocking Smartmeter client through Home Assistant helpers."""
 
     def __init__(self, hass: HomeAssistant, smartmeter: Smartmeter = None):
         self.hass = hass
         self.smartmeter = smartmeter
         self.login_lock = asyncio.Lock()
+        # This lock is a fork-specific addition. Once the integration was
+        # expanded to multiple sensors per metering point, serializing requests
+        # proved much more reliable than letting all entities hit the portal in
+        # parallel.
         self.request_lock = asyncio.Lock()
 
     async def _async_call(self, func, *args):
+        """Run a blocking client call in the executor while serializing access."""
         async with self.request_lock:
             return await self.hass.async_add_executor_job(func, *args)
 
     async def login(self) -> Future:
+        """Ensure that only one login flow is active at a time."""
         async with self.login_lock:
             return await self._async_call(self.smartmeter.login)
 
     def contracts2zaehlpunkte(self, contracts: dict, zaehlpunkt: str) -> list[dict]:
+        """Flatten contracts into metering-point entries for one Zaehlpunkt."""
         zaehlpunkte = []
         if contracts is not None and isinstance(contracts, list) and len(contracts) > 0:
             for contract in contracts:
@@ -42,6 +52,7 @@ class AsyncSmartmeter:
         return zaehlpunkte
 
     async def get_zaehlpunkt(self, zaehlpunkt: str) -> dict[str, str]:
+        """Asynchronously fetch and sanitize one metering-point response."""
         contracts = await self._async_call(self.smartmeter.zaehlpunkte)
         zaehlpunkte = self.contracts2zaehlpunkte(contracts, zaehlpunkt)
         zp = [z for z in zaehlpunkte if z["zaehlpunktnummer"] == zaehlpunkt]
@@ -55,6 +66,7 @@ class AsyncSmartmeter:
         )
 
     async def get_zaehlpunkt_zaehlwerke(self, customer_id: str, zaehlpunkt: str) -> dict:
+        """Fetch the available ``zaehlwerke`` including profile-role metadata."""
         response = await self._async_call(
             self.smartmeter.zaehlpunkt_zaehlwerke,
             customer_id,
@@ -65,6 +77,12 @@ class AsyncSmartmeter:
         return response
 
     async def get_bewegungsdaten_by_profile_role(self, customer_id: str, zaehlpunkt: str, profile_role: str, start: datetime = None, end: datetime = None, aggregat: str = "NONE"):
+        """Fetch movement data for one explicit profile role.
+
+        This is one of the key fork extensions. The upstream release only
+        queried the default consumption role; the fork needs explicit role
+        selection so Verbrauch, Eigendeckung and Restnetzbezug can coexist.
+        """
         response = await self._async_call(
             self.smartmeter.bewegungsdaten_by_profile_role,
             customer_id,
@@ -87,6 +105,12 @@ class AsyncSmartmeter:
         return translate_dict(response, ATTRS_BEWEGUNGSDATEN)
 
     async def get_meter_reading_from_historic_data(self, zaehlpunkt: str, start_date: datetime, end_date: datetime, obis_code: str = None) -> float:
+        """Return one meter reading from the historical-data endpoint.
+
+        ``obis_code`` is optional in the upstream logic, but the fork uses it
+        for Restnetzbezug so the correct reading can be selected when multiple
+        OBIS values are available.
+        """
         response = await self._async_call(
             self.smartmeter.historical_data,
             zaehlpunkt,
@@ -104,6 +128,7 @@ class AsyncSmartmeter:
 
     @staticmethod
     def is_active(zaehlpunkt_response: dict) -> bool:
+        """Return the active status of a smart meter from the Zaehlpunkt payload."""
         return (
                 "active" not in zaehlpunkt_response or zaehlpunkt_response["active"]
         ) or (

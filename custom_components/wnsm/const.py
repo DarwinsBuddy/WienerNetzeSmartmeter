@@ -1,7 +1,10 @@
+"""Home-Assistant-side constants and attribute translation maps."""
+
 DOMAIN = "wnsm"
 
 CONF_ZAEHLPUNKTE = "zaehlpunkte"
 
+# Mapping for a single selected metering point.
 ATTRS_ZAEHLPUNKT_CALL = [
     ("zaehlpunktnummer", "zaehlpunktnummer"),
     ("customLabel", "label"),
@@ -18,6 +21,7 @@ ATTRS_ZAEHLPUNKT_CALL = [
     ("anlage.typ", "type"),
 ]
 
+# Mapping for the contract list returned during login/setup.
 ATTRS_ZAEHLPUNKTE_CALL = [
     ("geschaeftspartner", "customerId"),
     ("zaehlpunktnummer", "zaehlpunktnummer"),
@@ -37,6 +41,8 @@ ATTRS_ZAEHLPUNKTE_CALL = [
     ("idexStatus.granularity.status", "granularity")
 ]
 
+# Legacy mappings kept because several helper methods still translate these
+# payloads even if the UI only exposes a subset of them today.
 ATTRS_CONSUMPTIONS_CALL = [
     ("consumptionYesterday.value", "consumptionYesterdayValue"),
     ("consumptionYesterday.validated", "consumptionYesterdayValidated"),
@@ -78,6 +84,7 @@ ATTRS_HISTORIC_DATA = [
     ('messwerte', 'values'),
 ]
 
+# Mapping for the movement-data endpoint used for statistics imports.
 ATTRS_BEWEGUNGSDATEN = [
     ('descriptor.geschaeftspartnernummer', 'customerId'),
     ('descriptor.zaehlpunktnummer', 'zaehlpunkt'),

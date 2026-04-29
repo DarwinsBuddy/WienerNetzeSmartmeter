@@ -1,3 +1,5 @@
+"""Setting up the config flow for Home Assistant."""
+
 import logging
 from typing import Any, Optional
 
@@ -18,12 +20,12 @@ AUTH_SCHEMA = vol.Schema(
 
 
 class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-
+    """Wiener Netze Smartmeter config flow."""
 
     data: Optional[dict[str, Any]]
 
     async def validate_auth(self, username: str, password: str) -> list[dict]:
-
+        """Validate credentials and return the available metering points."""
         smartmeter = Smartmeter(username, password)
         await self.hass.async_add_executor_job(smartmeter.login)
         contracts = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
@@ -36,7 +38,7 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
 
 
     async def async_step_user(self, user_input: Optional[dict[str, Any]] = None):
-
+        """Handle a flow started by the user in the UI."""
         errors: dict[str, str] = {}
         zps = []
         if user_input is not None:
@@ -49,13 +51,16 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
                 _LOGGER.exception(exception)
                 errors["base"] = "auth"
             if not errors:
-
+                # Input is valid, set data.
                 self.data = user_input
                 self.data[CONF_ZAEHLPUNKTE] = [
                     translate_dict(zp, ATTRS_ZAEHLPUNKTE_CALL) for zp in zps
+                    # Only create active Zaehlpunkte, because inactive ones can
+                    # still appear in older contracts returned by the portal.
                     if zp["isActive"]
                 ]
 
+                # User is done authenticating, create the config entry.
                 return self.async_create_entry(
                     title="Wiener Netze Smartmeter", data=self.data
                 )

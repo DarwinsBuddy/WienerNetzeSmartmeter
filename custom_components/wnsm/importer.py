@@ -1,3 +1,5 @@
+"""Historical statistics importer for Wiener-Netze energy data."""
+
 import logging
 from collections import defaultdict
 from datetime import timedelta, timezone, datetime
@@ -15,7 +17,6 @@ from homeassistant.components.recorder.statistics import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
-
 from homeassistant.util.unit_conversion import EnergyConverter
 
 from .AsyncSmartmeter import AsyncSmartmeter
@@ -24,10 +25,26 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-class Importer:
 
-    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR, statistic_id: str | None = None, statistic_name: str | None = None, customer_id: str | None = None, profile_role: str | None = None):
-        self.id = statistic_id or f'{DOMAIN}:{zaehlpunkt.lower()}'
+class Importer:
+    """Import external statistics into Home Assistant's recorder."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        async_smartmeter: AsyncSmartmeter,
+        zaehlpunkt: str,
+        unit_of_measurement: str,
+        granularity: ValueType = ValueType.QUARTER_HOUR,
+        statistic_id: str | None = None,
+        statistic_name: str | None = None,
+        customer_id: str | None = None,
+        profile_role: str | None = None,
+    ):
+        # ``statistic_id``/``statistic_name``/``profile_role`` are fork-specific
+        # additions so the same importer can serve Verbrauch, Eigendeckung and
+        # Restnetzbezug instead of only the original Verbrauch sensor.
+        self.id = statistic_id or f"{DOMAIN}:{zaehlpunkt.lower()}"
         self.zaehlpunkt = zaehlpunkt
         self.granularity = granularity
         self.unit_of_measurement = unit_of_measurement
@@ -38,14 +55,18 @@ class Importer:
         self.profile_role = profile_role
 
     def is_last_inserted_stat_valid(self, last_inserted_stat):
-        return len(last_inserted_stat) == 1 and len(last_inserted_stat[self.id]) == 1 and            "sum" in last_inserted_stat[self.id][0] and "end" in last_inserted_stat[self.id][0]
+        return (
+            len(last_inserted_stat) == 1
+            and len(last_inserted_stat[self.id]) == 1
+            and "sum" in last_inserted_stat[self.id][0]
+            and "end" in last_inserted_stat[self.id][0]
+        )
 
     def prepare_start_off_point(self, last_inserted_stat):
-
+        # Previous data found in the statistics table.
         _sum = Decimal(last_inserted_stat[self.id][0]["sum"])
 
-
-
+        # The next start is the previous end.
         start = last_inserted_stat[self.id][0]["end"]
         if isinstance(start, (int, float)):
             start = dt_util.utc_from_timestamp(start)
@@ -53,56 +74,68 @@ class Importer:
             start = dt_util.parse_datetime(start)
 
         if not isinstance(start, datetime):
-            _LOGGER.error("HA core decided to change the return type AGAIN! "
-                          "Please open a bug report. "
-                          "Additional Information: %s Type: %s",
-                          last_inserted_stat,
-                          type(last_inserted_stat[self.id][0]["end"]))
+            _LOGGER.error(
+                "HA core decided to change the return type AGAIN! "
+                "Please open a bug report. "
+                "Additional Information: %s Type: %s",
+                last_inserted_stat,
+                type(last_inserted_stat[self.id][0]["end"]),
+            )
             return None
         _LOGGER.debug("New starting datetime: %s", start)
 
-
-
-
+        # Extra check to not strain the API too much: if the last insert date
+        # is less than 24h away, simply exit here because we will not get any
+        # finished daily data from the API yet.
         min_wait = timedelta(hours=24)
-        delta_t = datetime.now(timezone.utc).replace(microsecond=0) - start.replace(microsecond=0)
+        delta_t = (
+            datetime.now(timezone.utc).replace(microsecond=0)
+            - start.replace(microsecond=0)
+        )
         if delta_t <= min_wait:
             _LOGGER.debug(
-                "Not querying the API, because last update is not older than 24 hours. Earliest update in %s" % (
-                        min_wait - delta_t))
+                "Not querying the API, because last update is not older than 24 hours. Earliest update in %s"
+                % (min_wait - delta_t)
+            )
             return None
         return start, _sum
 
     async def async_import(self):
-
-
+        # Query the statistics database for the last value. It is crucial to
+        # use get_instance here.
         last_inserted_stat = await get_instance(
             self.hass
         ).async_add_executor_job(
             get_last_statistics,
             self.hass,
-            1,
+            1,  # Get at most one entry.
             self.id,
             True,
-
-            {"sum", "state"},
+            {"sum", "state"},  # Fields we want to query.
         )
         _LOGGER.debug("Last inserted stat: %s" % last_inserted_stat)
         try:
             await self.async_smartmeter.login()
-            zaehlpunkt = await (self.async_smartmeter.get_zaehlpunkt(self.zaehlpunkt))
+            zaehlpunkt = await self.async_smartmeter.get_zaehlpunkt(self.zaehlpunkt)
 
             if not self.async_smartmeter.is_active(zaehlpunkt):
                 _LOGGER.debug("Smartmeter %s is not active" % zaehlpunkt)
                 return
 
             if self.profile_role is None:
-                _LOGGER.warning("Skipping import for %s because no profile role was resolved.", self.id)
+                # Without a resolved profile role we do not know which
+                # Wiener-Netze data stream belongs to this sensor.
+                _LOGGER.warning(
+                    "Skipping import for %s because no profile role was resolved.",
+                    self.id,
+                )
                 return
 
             if not self.is_last_inserted_stat_valid(last_inserted_stat):
-
-                _LOGGER.warning("Starting import of historical data. This might take some time.")
+                # No previous data - start from scratch.
+                _LOGGER.warning(
+                    "Starting import of historical data. This might take some time."
+                )
                 _sum = await self._initial_import_statistics()
             else:
                 start_off_point = self.prepare_start_off_point(last_inserted_stat)
@@ -111,21 +144,17 @@ class Importer:
                 start, _sum = start_off_point
                 _sum = await self._incremental_import_statistics(start, _sum)
 
-
-
-
-
-
-
-
-
+            # The entity state and the imported long-term statistics are kept
+            # separate. The importer writes the long-term history, while the
+            # entity may expose either a meter reading or the last imported sum
+            # depending on the sensor type.
             last_inserted_stat = await get_instance(self.hass).async_add_executor_job(
                 get_last_statistics,
                 self.hass,
-                1,
+                1,  # Get at most one entry.
                 self.id,
                 True,
-                {"sum"}
+                {"sum"},
             )
             _LOGGER.debug("Last inserted stat: %s", last_inserted_stat)
         except TimeoutError as e:
@@ -134,6 +163,7 @@ class Importer:
             _LOGGER.exception("Error retrieving data from smart meter api - Error: %s" % e)
 
     def get_statistics_metadata(self):
+        """Build metadata for Home Assistant's external statistics API."""
         return StatisticMetaData(
             source=DOMAIN,
             statistic_id=self.id,
@@ -145,6 +175,7 @@ class Importer:
         )
 
     async def async_get_last_sum(self) -> float | None:
+        """Return the last imported cumulative sum, if one exists."""
         last_inserted_stat = await get_instance(
             self.hass
         ).async_add_executor_job(
@@ -160,23 +191,44 @@ class Importer:
         return None
 
     async def _initial_import_statistics(self):
+        """Import the full historical window."""
         return await self._import_statistics()
 
     async def _incremental_import_statistics(self, start: datetime, total_usage: Decimal):
+        """Import only the window after the last inserted statistics point."""
         return await self._import_statistics(start=start, total_usage=total_usage)
 
-    async def _import_statistics(self, start: datetime = None, end: datetime = None, total_usage: Decimal = Decimal(0)) -> Optional[Decimal]:
-
-
-        start = start if start is not None else datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=365 * 3)
-        end = end if end is not None else datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    async def _import_statistics(
+        self,
+        start: datetime = None,
+        end: datetime = None,
+        total_usage: Decimal = Decimal(0),
+    ) -> Optional[Decimal]:
+        """Import one initial or incremental statistics window."""
+        start = (
+            start
+            if start is not None
+            else datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            - timedelta(days=365 * 3)
+        )
+        end = (
+            end
+            if end is not None
+            else datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+        )
 
         if start.tzinfo is None:
             raise ValueError("start datetime must be timezone-aware!")
 
         _LOGGER.debug("Selecting data up to %s" % end)
         if start > end:
-            _LOGGER.warning(f"Ignoring async update since last import happened in the future (should not happen) {start} > {end}")
+            _LOGGER.warning(
+                f"Ignoring async update since last import happened in the future (should not happen) {start} > {end}"
+            )
             return None
 
         bewegungsdaten = await self.async_smartmeter.get_bewegungsdaten_by_profile_role(
@@ -190,6 +242,8 @@ class Importer:
         _LOGGER.debug(f"Mapped historical data: {bewegungsdaten}")
         values = bewegungsdaten.get("values", [])
         if len(values) == 0:
+            # Empty windows are common when Wiener Netze has not published a new
+            # day yet. Keeping the existing statistics avoids noisy false errors.
             _LOGGER.debug(
                 "No historical values returned for %s (role %s) in window %s - %s. Keeping existing statistics.",
                 self.id,
@@ -199,24 +253,31 @@ class Importer:
             )
             return total_usage
 
-        if bewegungsdaten['unitOfMeasurement'] is None:
+        if bewegungsdaten["unitOfMeasurement"] is None:
+            # Some portal responses contain structural metadata and values but no
+            # usable unit. In that case the safest choice is to keep the last
+            # known statistics instead of importing ambiguous data.
             _LOGGER.warning(
                 "Unit of measurement is None for %s although %s values were returned. Skipping this import window.",
                 self.id,
                 len(values),
             )
             return total_usage
-        elif bewegungsdaten['unitOfMeasurement'] == 'WH':
+        elif bewegungsdaten["unitOfMeasurement"] == "WH":
             factor = 1e-3
-        elif bewegungsdaten['unitOfMeasurement'] == 'KWH':
+        elif bewegungsdaten["unitOfMeasurement"] == "KWH":
             factor = 1.0
         else:
-            raise NotImplementedError(f'Unit {bewegungsdaten["unitOfMeasurement"]}" is not yet implemented. Please report!')
+            raise NotImplementedError(
+                f'Unit {bewegungsdaten["unitOfMeasurement"]}" is not yet implemented. Please report!'
+            )
 
         dates = defaultdict(Decimal)
         total_consumption = sum([v.get("wert", 0) for v in values])
 
         if total_consumption == 0:
+            # Zero-only batches usually mean "nothing new yet" rather than a
+            # real reset of the cumulative energy history.
             _LOGGER.debug(
                 "Batch of data starting at %s for %s contains only zero values. Keeping existing statistics.",
                 start,
@@ -226,20 +287,22 @@ class Importer:
 
         last_ts = start
         for value in values:
-            ts = dt_util.parse_datetime(value['zeitpunktVon'])
+            ts = dt_util.parse_datetime(value["zeitpunktVon"])
             if ts < last_ts:
-
-                _LOGGER.warning(f"Timestamp from API ({ts}) is less than previously collected timestamp ({last_ts}), ignoring value!")
+                _LOGGER.warning(
+                    f"Timestamp from API ({ts}) is less than previously collected timestamp ({last_ts}), ignoring value!"
+                )
                 continue
             last_ts = ts
-            if value['wert'] is None:
-
+            if value["wert"] is None:
+                # Usually this means that the measurement is not yet in the
+                # Wiener-Netze database.
                 continue
-            reading = Decimal(value['wert'] * factor)
+            reading = Decimal(value["wert"] * factor)
             if ts.minute % 15 != 0 or ts.second != 0 or ts.microsecond != 0:
                 _LOGGER.warning(f"Unexpected time detected in historic data: {value}")
             dates[ts.replace(minute=0)] += reading
-            if value['geschaetzt']:
+            if value["geschaetzt"]:
                 _LOGGER.debug(f"Not seen that before: Estimated Value found for {ts}: {reading}")
 
         statistics = []
