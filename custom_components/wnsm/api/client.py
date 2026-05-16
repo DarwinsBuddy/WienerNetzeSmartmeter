@@ -588,6 +588,7 @@ class Smartmeter:
         date_until: date = None,
         valuetype: const.ValueType = const.ValueType.QUARTER_HOUR,
         aggregat: str = None,
+        rolle: str = None,
     ):
         """
         Query historical data in a batch
@@ -596,16 +597,17 @@ class Smartmeter:
         """
         customer_id, zaehlpunkt, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
 
-        if anlagetype == const.AnlagenType.FEEDING:
-            if valuetype == const.ValueType.DAY:
-                rolle = const.RoleType.DAILY_FEEDING.value
+        if rolle is None:
+            if anlagetype == const.AnlagenType.FEEDING:
+                if valuetype == const.ValueType.DAY:
+                    rolle = const.RoleType.DAILY_FEEDING.value
+                else:
+                    rolle = const.RoleType.QUARTER_HOURLY_FEEDING.value
             else:
-                rolle = const.RoleType.QUARTER_HOURLY_FEEDING.value
-        else:
-            if valuetype == const.ValueType.DAY:
-                rolle = const.RoleType.DAILY_CONSUMING.value
-            else:
-                rolle = const.RoleType.QUARTER_HOURLY_CONSUMING.value
+                if valuetype == const.ValueType.DAY:
+                    rolle = const.RoleType.DAILY_CONSUMING.value
+                else:
+                    rolle = const.RoleType.QUARTER_HOURLY_CONSUMING.value
 
         if date_until is None:
             date_until = date.today()
@@ -636,3 +638,28 @@ class Smartmeter:
         if data["descriptor"]["zaehlpunktnummer"] != zaehlpunkt:
             raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
         return data
+
+    def zaehlwerke(
+        self,
+        customer_id: str = None,
+        zaehlpunktnummer: str = None,
+    ):
+        """Returns the zaehlwerke metadata for a zaehlpunkt.
+
+        Besides the available profile roles this also contains the
+        'eagTeilnahmen' list, which describes active Energiegemeinschaft
+        participations (status 'A' with a date range covering today).
+        """
+        if zaehlpunktnummer is None or customer_id is None:
+            customer_id, zaehlpunktnummer, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
+
+        extra = {
+            # For this API Call, requesting json is important!
+            "Accept": "application/json"
+        }
+
+        return self._call_api(
+            f"user/zaehlpunkte/{customer_id}/{zaehlpunktnummer}/zaehlwerke",
+            base_url=const.API_URL_ALT,
+            extra_headers=extra,
+        )

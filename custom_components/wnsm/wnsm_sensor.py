@@ -13,7 +13,7 @@ from homeassistant.util import slugify
 
 from .AsyncSmartmeter import AsyncSmartmeter
 from .api import Smartmeter
-from .api.constants import ValueType
+from .api.constants import RoleType, ValueType
 from .importer import Importer
 from .utils import before, today
 
@@ -97,6 +97,13 @@ class WNSMSensor(SensorEntity):
                     self._attr_native_value = meter_reading
                 importer = Importer(self.hass, async_smartmeter, self.zaehlpunkt, self.unit_of_measurement, self.granularity())
                 await importer.async_import()
+                if await async_smartmeter.has_energiegemeinschaft(self.zaehlpunkt):
+                    for suffix, rolle in (
+                        ("_grid", RoleType.GRID_CONSUMING.value),
+                        ("_eeg", RoleType.EEG_CONSUMING.value),
+                    ):
+                        eeg_importer = Importer(self.hass, async_smartmeter, self.zaehlpunkt, self.unit_of_measurement, ValueType.QUARTER_HOUR, statistic_suffix=suffix, rolle=rolle)
+                        await eeg_importer.async_import()
             self._available = True
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except TimeoutError as e:

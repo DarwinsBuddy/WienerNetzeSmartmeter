@@ -26,13 +26,15 @@ _LOGGER = logging.getLogger(__name__)
 
 class Importer:
 
-    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR):
-        self.id = f'{DOMAIN}:{zaehlpunkt.lower()}'
+    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR, statistic_suffix: str = "", rolle: str = None):
+        self.id = f'{DOMAIN}:{zaehlpunkt.lower()}{statistic_suffix}'
         self.zaehlpunkt = zaehlpunkt
         self.granularity = granularity
         self.unit_of_measurement = unit_of_measurement
         self.hass = hass
         self.async_smartmeter = async_smartmeter
+        self.statistic_suffix = statistic_suffix
+        self.rolle = rolle
 
     def is_last_inserted_stat_valid(self, last_inserted_stat):
         return len(last_inserted_stat) == 1 and len(last_inserted_stat[self.id]) == 1 and \
@@ -131,7 +133,7 @@ class Importer:
         return StatisticMetaData(
             source=DOMAIN,
             statistic_id=self.id,
-            name=self.zaehlpunkt,
+            name=f"{self.zaehlpunkt}{self.statistic_suffix}",
             unit_of_measurement=self.unit_of_measurement,
             mean_type=StatisticMeanType.NONE,
             unit_class=EnergyConverter.UNIT_CLASS,
@@ -158,7 +160,7 @@ class Importer:
             _LOGGER.warning(f"Ignoring async update since last import happened in the future (should not happen) {start} > {end}")
             return None
 
-        bewegungsdaten = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, self.granularity)
+        bewegungsdaten = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, self.granularity, self.rolle)
         _LOGGER.debug(f"Mapped historical data: {bewegungsdaten}")
         if bewegungsdaten['unitOfMeasurement'] is None:
             _LOGGER.warning("Unit of measurement is None! Aborting import...")
