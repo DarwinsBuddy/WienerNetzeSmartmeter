@@ -308,6 +308,32 @@ def history_response(
 
     return {"zaehlwerke": zaehlwerke, "zaehlpunkt": zp}
     
+def zaehlwerke_response(customer_id: str, zp: str, eag_teilnahmen=None, wrong_zp: bool = False):
+    if wrong_zp:
+        zp = zp + "9"
+    resp = {
+        "geschaeftspartner": customer_id,
+        "zaehlpunktnummer": zp,
+        "granularities": [
+            {"granularity": "QH", "dateFrom": "2024-11-30T23:00:00Z", "dateTo": "9999-12-31T22:59:59Z"},
+        ],
+        "zaehlwerke": [
+            {"kennziffer": "1-1:1.9.0", "profiles": [
+                {"profile": "000000001001296766", "granularity": "QH", "profileRole": "V002"},
+            ]},
+            {"kennziffer": "1-1:1.9.0 P.01", "profiles": [
+                {"profile": "000000001001765015", "granularity": "QH", "profileRole": "G001"},
+            ]},
+            {"kennziffer": "1-1:2.9.0 G.03", "profiles": [
+                {"profile": "000000001001765011", "granularity": "QH", "profileRole": "G003"},
+            ]},
+        ],
+    }
+    if eag_teilnahmen is not None:
+        resp["eagTeilnahmen"] = eag_teilnahmen
+    return resp
+
+
 def delta(i: str, n: int=0) -> timedelta:
     return {
         "h":  timedelta(hours=n),
@@ -361,6 +387,17 @@ def bewegungsdaten_response(customer_id: str, zp: str,
         },
         "values": values
     }
+
+
+@pytest.mark.usefixtures("requests_mock")
+def expect_zaehlwerke(requests_mock: Mocker, customer_id: str, zp: str, eag_teilnahmen=None, wrong_zp: bool = False):
+    path = f'user/zaehlpunkte/{customer_id}/{zp}/zaehlwerke'
+    requests_mock.get(parse.urljoin(API_URL_ALT, path),
+                      headers={
+                          "Authorization": f"Bearer {ACCESS_TOKEN}",
+                          "Accept": "application/json"
+                      },
+                      json=zaehlwerke_response(customer_id, zp, eag_teilnahmen, wrong_zp))
 
 
 def smartmeter(username=USERNAME, password=PASSWORD, code_verifier=CODE_VERIFIER):
@@ -574,17 +611,18 @@ def expect_history(
 @pytest.mark.usefixtures("requests_mock")
 def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime,
                           granularity:ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlagenType = AnlagenType.CONSUMING,
-                          wrong_zp: bool = False, values_count=10):
-    if anlagetype== AnlagenType.FEEDING:
-        if granularity == ValueType.DAY: 
-            rolle = RoleType.DAILY_FEEDING.value 
+                          wrong_zp: bool = False, values_count=10, rolle: str = None):
+    if rolle is None:
+        if anlagetype== AnlagenType.FEEDING:
+            if granularity == ValueType.DAY:
+                rolle = RoleType.DAILY_FEEDING.value
+            else:
+                rolle = RoleType.QUARTER_HOURLY_FEEDING.value
         else:
-            rolle = RoleType.QUARTER_HOURLY_FEEDING.value 
-    else: 
-        if granularity == ValueType.DAY: 
-            rolle = RoleType.DAILY_CONSUMING.value 
-        else: 
-            rolle = RoleType.QUARTER_HOURLY_CONSUMING.value
+            if granularity == ValueType.DAY:
+                rolle = RoleType.DAILY_CONSUMING.value
+            else:
+                rolle = RoleType.QUARTER_HOURLY_CONSUMING.value
     params = {
         "geschaeftspartner": customer_id,
         "zaehlpunktnummer": zp,

@@ -23,6 +23,7 @@ from it import (
     mock_token,
     mock_get_api_key,
     expect_history, expect_bewegungsdaten, zaehlpunkt_response,
+    expect_zaehlwerke,
 )
 from wnsm.api.errors import SmartmeterConnectionError, SmartmeterLoginError, SmartmeterQueryError
 import wnsm.api.constants as const
@@ -435,3 +436,51 @@ def test_verbrauch_raw(requests_mock: Mocker):
     verbrauch = smartmeter().login().verbrauch(customer_id, zp, dateFrom)
 
     assert 7 == len(verbrauch['values'])
+
+
+@pytest.mark.usefixtures("requests_mock")
+def test_zaehlwerke(requests_mock: Mocker):
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    expect_zaehlwerke(requests_mock, customer_id, zp,
+                      eag_teilnahmen=[{"status": "A", "dateFrom": "2026-02-04", "dateTo": "9999-12-31"}])
+
+    zw = smartmeter().login().zaehlwerke()
+
+    assert zp == zw['zaehlpunktnummer']
+    assert [{"status": "A", "dateFrom": "2026-02-04", "dateTo": "9999-12-31"}] == zw['eagTeilnahmen']
+    roles = {p['profileRole'] for w in zw['zaehlwerke'] for p in w['profiles']}
+    assert {'V002', 'G001', 'G003'} <= roles
+
+
+@pytest.mark.usefixtures("requests_mock")
+def test_zaehlwerke_with_zp(requests_mock: Mocker):
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    zp = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    customer_id = z["geschaeftspartner"]
+    expect_login(requests_mock)
+    expect_zaehlwerke(requests_mock, customer_id, zp)
+
+    zw = smartmeter().login().zaehlwerke(customer_id, zp)
+
+    assert zp == zw['zaehlpunktnummer']
+    assert 'eagTeilnahmen' not in zw
+
+
+@pytest.mark.usefixtures("requests_mock")
+def test_bewegungsdaten_explicit_role(requests_mock: Mocker):
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    dateFrom = dt.datetime(2023, 4, 21, 00, 00, 00, 0)
+    dateTo = dt.datetime(2023, 5, 1, 23, 59, 59, 999999)
+    zpn = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    expect_login(requests_mock)
+    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo,
+                          const.ValueType.QUARTER_HOUR, values_count=COUNT, rolle="G003")
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+
+    hist = smartmeter().login().bewegungsdaten(None, dateFrom, dateTo, const.ValueType.QUARTER_HOUR, None, "G003")
+
+    assert 10 == len(hist['values'])
