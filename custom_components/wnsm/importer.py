@@ -1,25 +1,23 @@
 import logging
 from collections import defaultdict
-from datetime import timedelta, timezone, datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from operator import itemgetter
 from typing import Optional
 
 from homeassistant.components.recorder import get_instance
-from homeassistant.components.recorder.models import (
-    StatisticData,
-    StatisticMetaData
-)
+from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
 from homeassistant.components.recorder.statistics import (
-    get_last_statistics, async_add_external_statistics, StatisticMeanType
+    StatisticMeanType,
+    async_add_external_statistics,
+    get_last_statistics,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
-
 from homeassistant.util.unit_conversion import EnergyConverter
 
-from .AsyncSmartmeter import AsyncSmartmeter
 from .api.constants import ValueType
+from .AsyncSmartmeter import AsyncSmartmeter
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)

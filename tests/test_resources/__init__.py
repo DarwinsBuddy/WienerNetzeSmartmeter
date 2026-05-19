@@ -1,5 +1,6 @@
-import requests
 from urllib import parse
+
+import requests
 
 
 def post_data_matcher(expected: dict = None):
@@ -9,8 +10,8 @@ def post_data_matcher(expected: dict = None):
     def match(request: requests.PreparedRequest):
         flag = dict(parse.parse_qsl(request.body)) == expected
         if not flag:
-            print(f'ACTUAL:   {dict(parse.parse_qsl(request.body))}')
-            print(f'EXPECTED: {expected}')
+            print(f"ACTUAL:   {dict(parse.parse_qsl(request.body))}")
+            print(f"EXPECTED: {expected}")
         return flag
 
     return match

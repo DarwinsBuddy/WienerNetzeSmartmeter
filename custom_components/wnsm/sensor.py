@@ -7,22 +7,15 @@ from typing import Optional
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant import core, config_entries
-from homeassistant.components.sensor import (
-    PLATFORM_SCHEMA
-)
-from homeassistant.const import (
-    CONF_USERNAME,
-    CONF_PASSWORD,
-    CONF_DEVICE_ID
-)
+from homeassistant import config_entries, core
+from homeassistant.components.sensor import PLATFORM_SCHEMA
+from homeassistant.const import CONF_DEVICE_ID, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import DOMAIN
-from homeassistant.helpers.typing import (
-    ConfigType,
-    DiscoveryInfoType,
-)
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+
 from .const import CONF_ZAEHLPUNKTE
 from .wnsm_sensor import WNSMSensor
+
 # Time between updating data from Wiener Netze
 SCAN_INTERVAL = timedelta(minutes=60 * 6)
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(

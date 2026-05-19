@@ -7,10 +7,10 @@ from typing import Any, Optional
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 
 from .api import Smartmeter
-from .const import ATTRS_ZAEHLPUNKTE_CALL, DOMAIN, CONF_ZAEHLPUNKTE
+from .const import ATTRS_ZAEHLPUNKTE_CALL, CONF_ZAEHLPUNKTE, DOMAIN
 from .utils import translate_dict
 
 _LOGGER = logging.getLogger(__name__)

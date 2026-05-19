@@ -1,4 +1,5 @@
 """Test component setup."""
+
 # from homeassistant.tests.setup import async_setup_component
 
 # from ..custom_components.wnsm.const import DOMAIN # pylint: disable=relative-beyond-top-level
