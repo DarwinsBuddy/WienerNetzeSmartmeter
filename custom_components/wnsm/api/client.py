@@ -1,19 +1,18 @@
 """Contains the Smartmeter API Client."""
+import base64
+import copy
+import hashlib
 import json
 import logging
-from datetime import datetime, timedelta, date
+import os
+import re
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, List
 from urllib import parse
-from typing import List, Dict, Any
 
 import requests
 from dateutil.relativedelta import relativedelta
 from lxml import html
-
-import base64
-import hashlib
-import os
-import copy
-import re
 
 from . import constants as const
 from .errors import (
@@ -311,7 +310,7 @@ class Smartmeter:
             method, url, headers=headers, json=data, timeout=timeout
         )
 
-        logger.debug("\nAPI Request: %s\n%s\n\nAPI Response: %s" % (
+        logger.debug("\nAPI Request: {}\n{}\n\nAPI Response: {}".format(
             url, ("" if data is None else "body: "+json.dumps(data, indent=2)),
             None if response is None or response.json() is None else json.dumps(response.json(), indent=2)))
 

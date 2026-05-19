@@ -2,20 +2,21 @@
 Utility functions and convenience methods to avoid boilerplate
 """
 from __future__ import annotations
-from functools import reduce
-from datetime import timezone, timedelta, datetime
+
 import logging
+from datetime import datetime, timedelta, timezone
+from functools import reduce
 from typing import Optional
 
 
-def today(tz: Optional[timezone] = None) -> datetime:
+def today(tz: timezone | None = None) -> datetime:
     """
     today's timestamp (start of day)
     """
     return datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def before(timestamp: Optional[datetime] = None, days=1) -> datetime:
+def before(timestamp: datetime | None = None, days=1) -> datetime:
     """
     subtract {days} days from given datetime (default: 1)
     """
@@ -24,7 +25,7 @@ def before(timestamp: Optional[datetime] = None, days=1) -> datetime:
     return timestamp - timedelta(days=days)
 
 
-def strint(string: str) -> Optional[int]:
+def strint(string: str) -> int | None:
     """
     convenience function for easily convert None-able str to in
     """
@@ -45,7 +46,7 @@ def is_valid_access(data: list | dict, accessor: str | int) -> bool:
         return False
 
 
-def dict_path(path: str, dictionary: dict) -> Optional[str]:
+def dict_path(path: str, dictionary: dict) -> str | None:
     """
     convenience function for accessing nested attributes within a dict
     """

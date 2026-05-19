@@ -3,17 +3,17 @@ from datetime import datetime
 from typing import Any, Optional
 
 from homeassistant.components.sensor import (
+    ENTITY_ID_FORMAT,
     SensorDeviceClass,
+    SensorEntity,
     SensorStateClass,
-    ENTITY_ID_FORMAT
 )
-from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import UnitOfEnergy
 from homeassistant.util import slugify
 
-from .AsyncSmartmeter import AsyncSmartmeter
 from .api import Smartmeter
 from .api.constants import ValueType
+from .AsyncSmartmeter import AsyncSmartmeter
 from .importer import Importer
 from .utils import before, today
 

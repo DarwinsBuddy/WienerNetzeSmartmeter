@@ -1,5 +1,5 @@
 """Set up the Wiener Netze SmartMeter Integration component."""
-from homeassistant import core, config_entries
+from homeassistant import config_entries, core
 from homeassistant.core import DOMAIN
 
 
