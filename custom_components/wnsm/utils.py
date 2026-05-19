@@ -62,15 +62,6 @@ def dict_path(path: str, dictionary: dict) -> Optional[str]:
     return None
 
 
-def safeget(dct, *keys, default=None):
-    for key in keys:
-        try:
-            dct = dct[key]
-        except KeyError:
-            return default
-    return dct
-
-
 def translate_dict(
         dictionary: dict, attrs_list: list[tuple[str, str]]
 ) -> dict[str, str]:

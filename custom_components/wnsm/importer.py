@@ -26,13 +26,16 @@ _LOGGER = logging.getLogger(__name__)
 
 class Importer:
 
-    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR):
-        self.id = f'{DOMAIN}:{zaehlpunkt.lower()}'
+    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR, statistic_id: str | None = None, statistic_name: str | None = None, customer_id: str | None = None, profile_role: str | None = None):
+        self.id = statistic_id or f'{DOMAIN}:{zaehlpunkt.lower()}'
         self.zaehlpunkt = zaehlpunkt
         self.granularity = granularity
         self.unit_of_measurement = unit_of_measurement
         self.hass = hass
         self.async_smartmeter = async_smartmeter
+        self.statistic_name = statistic_name or zaehlpunkt
+        self.customer_id = customer_id
+        self.profile_role = profile_role
 
     def is_last_inserted_stat_valid(self, last_inserted_stat):
         return len(last_inserted_stat) == 1 and len(last_inserted_stat[self.id]) == 1 and \
@@ -94,6 +97,10 @@ class Importer:
                 _LOGGER.debug("Smartmeter %s is not active" % zaehlpunkt)
                 return
 
+            if self.profile_role is None:
+                _LOGGER.warning("Skipping import for %s because no profile role was resolved.", self.id)
+                return
+
             if not self.is_last_inserted_stat_valid(last_inserted_stat):
                 # No previous data - start from scratch
                 _LOGGER.warning("Starting import of historical data. This might take some time.")
@@ -131,12 +138,27 @@ class Importer:
         return StatisticMetaData(
             source=DOMAIN,
             statistic_id=self.id,
-            name=self.zaehlpunkt,
+            name=self.statistic_name,
             unit_of_measurement=self.unit_of_measurement,
             mean_type=StatisticMeanType.NONE,
             unit_class=EnergyConverter.UNIT_CLASS,
             has_sum=True,
         )
+
+    async def async_get_last_sum(self) -> float | None:
+        last_inserted_stat = await get_instance(
+            self.hass
+        ).async_add_executor_job(
+            get_last_statistics,
+            self.hass,
+            1,
+            self.id,
+            True,
+            {"sum"},
+        )
+        if self.id in last_inserted_stat and len(last_inserted_stat[self.id]) > 0:
+            return float(last_inserted_stat[self.id][0].get("sum"))
+        return None
 
     async def _initial_import_statistics(self):
         return await self._import_statistics()
@@ -158,11 +180,33 @@ class Importer:
             _LOGGER.warning(f"Ignoring async update since last import happened in the future (should not happen) {start} > {end}")
             return None
 
-        bewegungsdaten = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, self.granularity)
+        bewegungsdaten = await self.async_smartmeter.get_bewegungsdaten_by_profile_role(
+            self.customer_id,
+            self.zaehlpunkt,
+            self.profile_role,
+            start,
+            end,
+            "NONE",
+        )
         _LOGGER.debug(f"Mapped historical data: {bewegungsdaten}")
+        values = bewegungsdaten.get("values", [])
+        if len(values) == 0:
+            _LOGGER.debug(
+                "No historical values returned for %s (role %s) in window %s - %s. Keeping existing statistics.",
+                self.id,
+                self.profile_role,
+                start,
+                end,
+            )
+            return total_usage
+
         if bewegungsdaten['unitOfMeasurement'] is None:
-            _LOGGER.warning("Unit of measurement is None! Aborting import...")
-            return None
+            _LOGGER.warning(
+                "Unit of measurement is None for %s although %s values were returned. Skipping this import window.",
+                self.id,
+                len(values),
+            )
+            return total_usage
         elif bewegungsdaten['unitOfMeasurement'] == 'WH':
             factor = 1e-3
         elif bewegungsdaten['unitOfMeasurement'] == 'KWH':
@@ -171,16 +215,18 @@ class Importer:
             raise NotImplementedError(f'Unit {bewegungsdaten["unitOfMeasurement"]}" is not yet implemented. Please report!')
 
         dates = defaultdict(Decimal)
-        if 'values' not in bewegungsdaten:
-            raise ValueError("WienerNetze does not report historical data (yet)")
-        total_consumption = sum([v.get("wert", 0) for v in bewegungsdaten['values']])
-        # Can actually check, if the whole batch can be skipped.
+        total_consumption = sum([v.get("wert", 0) for v in values])
+
         if total_consumption == 0:
-            _LOGGER.debug(f"Batch of data starting at {start} does not contain any bewegungsdaten. Seems there is nothing to import, yet.")
-            return None
+            _LOGGER.debug(
+                "Batch of data starting at %s for %s contains only zero values. Keeping existing statistics.",
+                start,
+                self.id,
+            )
+            return total_usage
 
         last_ts = start
-        for value in bewegungsdaten['values']:
+        for value in values:
             ts = dt_util.parse_datetime(value['zeitpunktVon'])
             if ts < last_ts:
                 # This should prevent any issues with ambiguous values though...
