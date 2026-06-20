@@ -633,6 +633,15 @@ class Smartmeter:
             query=query,
             extra_headers=extra,
         )
+        if "descriptor" not in data:
+            # WienerNetze intermittently returns a response without a "descriptor"
+            # (e.g. an error body, or simply no movement data for the requested period
+            # yet). Raise a domain error instead of a raw KeyError so callers can
+            # handle it gracefully. See issue #349.
+            raise SmartmeterQueryError(
+                "Returned 'bewegungsdaten' does not contain a 'descriptor'. "
+                "WienerNetze likely has no movement data for the requested period yet."
+            )
         if data["descriptor"]["zaehlpunktnummer"] != zaehlpunkt:
             raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
         return data

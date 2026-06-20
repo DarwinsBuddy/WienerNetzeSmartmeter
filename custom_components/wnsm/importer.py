@@ -20,6 +20,7 @@ from homeassistant.util.unit_conversion import EnergyConverter
 
 from .AsyncSmartmeter import AsyncSmartmeter
 from .api.constants import ValueType
+from .api.errors import SmartmeterError
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -124,6 +125,14 @@ class Importer:
             _LOGGER.debug("Last inserted stat: %s", last_inserted_stat)
         except TimeoutError as e:
             _LOGGER.warning("Error retrieving data from smart meter api - Timeout: %s" % e)
+        except SmartmeterError as e:
+            # WienerNetze returned no/incomplete data for this cycle (e.g. a missing
+            # "descriptor" or empty body). Skip this import instead of failing the whole
+            # sensor update, so it recovers automatically once data is available again.
+            _LOGGER.warning(
+                "Skipping import for %s - WienerNetze returned no/incomplete data: %s",
+                self.zaehlpunkt, e
+            )
         except RuntimeError as e:
             _LOGGER.exception("Error retrieving data from smart meter api - Error: %s" % e)
 
