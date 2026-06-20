@@ -20,6 +20,7 @@ from homeassistant.util.unit_conversion import EnergyConverter
 
 from .AsyncSmartmeter import AsyncSmartmeter
 from .api.constants import ValueType
+from .api.errors import SmartmeterError
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -124,8 +125,12 @@ class Importer:
             _LOGGER.debug("Last inserted stat: %s", last_inserted_stat)
         except TimeoutError as e:
             _LOGGER.warning("Error retrieving data from smart meter api - Timeout: %s" % e)
-        except RuntimeError as e:
-            _LOGGER.exception("Error retrieving data from smart meter api - Error: %s" % e)
+        except (RuntimeError, SmartmeterError) as e:
+            error_response = getattr(e, "error_response", None)
+            if error_response:
+                _LOGGER.warning("Error retrieving data from smart meter api - Error: %s; Response: %s", e, error_response)
+            else:
+                _LOGGER.warning("Error retrieving data from smart meter api - Error: %s", e)
 
     def get_statistics_metadata(self):
         return StatisticMetaData(

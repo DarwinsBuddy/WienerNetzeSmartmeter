@@ -619,7 +619,8 @@ class Smartmeter:
             "rolle": rolle,
             "zeitpunktVon": date_from.strftime("%Y-%m-%dT%H:%M:00.000Z"), # we catch up from the exact date of the last import to compensate for time shift
             "zeitpunktBis": date_until.strftime("%Y-%m-%dT23:59:59.999Z"),
-            "aggregat": aggregat or "NONE"
+            "aggregat": aggregat or "NONE",
+            "wandler": "false"
         }
 
         extra = {
@@ -633,6 +634,17 @@ class Smartmeter:
             query=query,
             extra_headers=extra,
         )
-        if data["descriptor"]["zaehlpunktnummer"] != zaehlpunkt:
+        if not isinstance(data, dict) or "descriptor" not in data or not isinstance(data["descriptor"], dict):
+            response = json.dumps(data)
+            if isinstance(data, dict) and "Exception" in data:
+                raise SmartmeterQueryError(
+                    f"Cannot access bewegungsdaten: {data['Exception']}",
+                    error_response=response,
+                )
+            raise SmartmeterQueryError(
+                f"Returned bewegungsdaten response has unexpected format: {response[:500]}",
+                error_response=response,
+            )
+        if data["descriptor"].get("zaehlpunktnummer") != zaehlpunkt:
             raise SmartmeterQueryError("Returned data does not match given zaehlpunkt!")
         return data

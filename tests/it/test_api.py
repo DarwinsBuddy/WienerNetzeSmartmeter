@@ -421,6 +421,20 @@ def test_bewegungsdaten_wrong_zp(requests_mock: Mocker):
 
 
 @pytest.mark.usefixtures("requests_mock")
+def test_bewegungsdaten_unexpected_response_format(requests_mock: Mocker):
+    z = zaehlpunkt_response([enabled(zaehlpunkt())])[0]
+    dateFrom = dt.datetime(2023, 4, 21, 00, 00, 00, 0)
+    dateTo = dt.datetime(2023, 5, 1, 23, 59, 59, 999999)
+    zpn = z["zaehlpunkte"][0]['zaehlpunktnummer']
+    expect_login(requests_mock)
+    expect_bewegungsdaten(requests_mock, z["geschaeftspartner"], zpn, dateFrom, dateTo, json_response={"Exception": "temporary backend error"})
+    expect_zaehlpunkte(requests_mock, [enabled(zaehlpunkt())])
+    with pytest.raises(SmartmeterQueryError) as exc_info:
+        smartmeter().login().bewegungsdaten(None, dateFrom, dateTo)
+    assert 'Cannot access bewegungsdaten: temporary backend error' == str(exc_info.value)
+
+
+@pytest.mark.usefixtures("requests_mock")
 def test_verbrauch_raw(requests_mock: Mocker):
 
     dateFrom = dt.datetime(2023, 4, 21, 22, 00, 00)

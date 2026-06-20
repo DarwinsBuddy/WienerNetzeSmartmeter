@@ -574,7 +574,7 @@ def expect_history(
 @pytest.mark.usefixtures("requests_mock")
 def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, dateTo: dt.datetime,
                           granularity:ValueType = ValueType.QUARTER_HOUR, anlagetype: AnlagenType = AnlagenType.CONSUMING,
-                          wrong_zp: bool = False, values_count=10):
+                          wrong_zp: bool = False, values_count=10, json_response=None):
     if anlagetype== AnlagenType.FEEDING:
         if granularity == ValueType.DAY: 
             rolle = RoleType.DAILY_FEEDING.value 
@@ -591,7 +591,8 @@ def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, date
         "rolle": rolle,
         "zeitpunktVon": dateFrom.strftime("%Y-%m-%dT00:00:00.000Z"),
         "zeitpunktBis": dateTo.strftime("%Y-%m-%dT23:59:59.999Z"),
-        "aggregat": "NONE"
+        "aggregat": "NONE",
+        "wandler": "false"
     }
     url = parse.urljoin(API_URL_ALT, f'user/messwerte/bewegungsdaten?{urlencode(params)}')
     requests_mock.get(url,
@@ -599,4 +600,4 @@ def expect_bewegungsdaten(requests_mock: Mocker, customer_id: str, zp: str, date
                           "Authorization": f"Bearer {ACCESS_TOKEN}",
                           "Accept": "application/json"
                       },
-                      json=bewegungsdaten_response(customer_id, zp, granularity, anlagetype, wrong_zp, values_count))
+                      json=json_response if json_response is not None else bewegungsdaten_response(customer_id, zp, granularity, anlagetype, wrong_zp, values_count))
