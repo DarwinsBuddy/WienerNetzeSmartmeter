@@ -149,6 +149,16 @@ class Importer:
     async def _incremental_import_statistics(self, start: datetime, total_usage: Decimal):
         return await self._import_statistics(start=start, total_usage=total_usage)
 
+    async def _get_bewegungsdaten(self, start: datetime, end: datetime):
+        data = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, self.granularity)
+        # WienerNetze often leaves the V002 quarter-hour feed empty (einheit: null)
+        # even when the meter is opted into 15-min values; daily (V001) still works.
+        if self.granularity != ValueType.DAY and data.get('unitOfMeasurement') is None:
+            _LOGGER.info("No %s data for %s; falling back to daily granularity",
+                         self.granularity.value, self.zaehlpunkt)
+            data = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, ValueType.DAY)
+        return data
+
     async def _import_statistics(self, start: datetime = None, end: datetime = None, total_usage: Decimal = Decimal(0)) -> Optional[Decimal]:
         """Import statistics"""
 
@@ -163,7 +173,7 @@ class Importer:
             _LOGGER.warning(f"Ignoring async update since last import happened in the future (should not happen) {start} > {end}")
             return None
 
-        bewegungsdaten = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, self.granularity)
+        bewegungsdaten = await self._get_bewegungsdaten(start, end)
         _LOGGER.debug(f"Mapped historical data: {bewegungsdaten}")
         if bewegungsdaten['unitOfMeasurement'] is None:
             _LOGGER.warning("Unit of measurement is None! Aborting import...")
