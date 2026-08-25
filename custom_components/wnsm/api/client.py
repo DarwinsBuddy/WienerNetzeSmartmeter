@@ -334,6 +334,15 @@ class Smartmeter:
                     anlagetype = zp_details[0]["anlage"]["typ"]
                     zp = zp_details[0]["zaehlpunktnummer"]
                     customer_id = contract["geschaeftspartner"]
+                    # The same zaehlpunkt can be listed under several contracts,
+                    # e.g. after a move or a change of supplier. Only the active
+                    # contract returns data; querying bewegungsdaten with the
+                    # geschaeftspartner of an expired one yields a descriptor
+                    # with einheit=None and no values, which aborts the import.
+                    # Stop at the active contract, otherwise keep the previous
+                    # behaviour of taking the last match.
+                    if zp_details[0].get("isActive"):
+                        break
         return customer_id, zp, const.AnlagenType.from_str(anlagetype)
 
     def zaehlpunkte(self):
