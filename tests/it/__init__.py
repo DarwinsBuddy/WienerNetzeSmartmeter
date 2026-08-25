@@ -527,6 +527,17 @@ def expect_zaehlpunkte(requests_mock: Mocker, zps: list[dict]):
 
 
 @pytest.mark.usefixtures("requests_mock")
+def expect_contracts(requests_mock: Mocker, contracts: list[dict]):
+    """Mock zaehlpunkte with a raw contracts payload, for several Geschaeftspartner."""
+    requests_mock.get(parse.urljoin(API_URL_B2C, 'zaehlpunkte'),
+                      headers={
+                          "Authorization": f"Bearer {ACCESS_TOKEN}",
+                          "X-Gateway-APIKey": B2C_API_KEY,
+                      },
+                      json=contracts)
+
+
+@pytest.mark.usefixtures("requests_mock")
 def expect_verbrauch(requests_mock: Mocker, customer_id: str, zp: str, dateFrom: dt.datetime, response: dict,
                      granularity='DAY', resolution='HOUR'):
     params = {

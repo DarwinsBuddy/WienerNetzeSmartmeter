@@ -2,6 +2,7 @@
 import pytest
 import time
 import logging
+from copy import deepcopy
 from requests_mock import Mocker
 import datetime as dt
 from dateutil.relativedelta import relativedelta
@@ -22,7 +23,7 @@ from it import (
     USERNAME,
     mock_token,
     mock_get_api_key,
-    expect_history, expect_bewegungsdaten, zaehlpunkt_response,
+    expect_history, expect_bewegungsdaten, zaehlpunkt_response, expect_contracts,
 )
 from wnsm.api.errors import SmartmeterConnectionError, SmartmeterLoginError, SmartmeterQueryError
 import wnsm.api.constants as const
@@ -449,3 +450,49 @@ def test_verbrauch_raw(requests_mock: Mocker):
     verbrauch = smartmeter().login().verbrauch(customer_id, zp, dateFrom)
 
     assert 7 == len(verbrauch['values'])
+
+
+def _contract(customer_id: str, zp: dict):
+    return {
+        "bezeichnung": f"Margit Musterfrau, Kundennummer {customer_id}",
+        "geschaeftspartner": customer_id,
+        "zaehlpunkte": [zp],
+    }
+
+
+@pytest.mark.usefixtures("requests_mock")
+def test_get_zaehlpunkt_prefers_active_contract(requests_mock: Mocker):
+    """
+    The same zaehlpunkt can appear under several contracts, e.g. after a move.
+    Only the active contract returns data, so it must win even when an expired
+    contract is listed after it.
+    """
+    active = enabled(deepcopy(zaehlpunkt()))
+    expired = disabled(deepcopy(zaehlpunkt()))
+    expect_login(requests_mock)
+    expect_contracts(requests_mock, [
+        _contract("1000000001", active),
+        _contract("1000000002", expired),
+    ])
+
+    customer_id, zp, anlagetype = smartmeter().login().get_zaehlpunkt(active["zaehlpunktnummer"])
+
+    assert "1000000001" == customer_id
+    assert active["zaehlpunktnummer"] == zp
+    assert const.AnlagenType.CONSUMING == anlagetype
+
+
+@pytest.mark.usefixtures("requests_mock")
+def test_get_zaehlpunkt_falls_back_to_last_match_when_none_active(requests_mock: Mocker):
+    """Without an active contract, keep returning the last match as before."""
+    first = disabled(deepcopy(zaehlpunkt()))
+    second = disabled(deepcopy(zaehlpunkt()))
+    expect_login(requests_mock)
+    expect_contracts(requests_mock, [
+        _contract("1000000001", first),
+        _contract("1000000002", second),
+    ])
+
+    customer_id, _, _ = smartmeter().login().get_zaehlpunkt(first["zaehlpunktnummer"])
+
+    assert "1000000002" == customer_id
