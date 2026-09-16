@@ -165,6 +165,11 @@ class Importer:
 
         bewegungsdaten = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, self.granularity)
         _LOGGER.debug(f"Mapped historical data: {bewegungsdaten}")
+        if (bewegungsdaten['unitOfMeasurement'] is None or not bewegungsdaten.get('values')) \
+                and self.granularity != ValueType.DAY:
+            _LOGGER.warning("No quarter-hour data returned, falling back to daily values (V001)")
+            bewegungsdaten = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, ValueType.DAY)
+            _LOGGER.debug(f"Mapped historical data (DAY): {bewegungsdaten}")
         if bewegungsdaten['unitOfMeasurement'] is None:
             _LOGGER.warning("Unit of measurement is None! Aborting import...")
             return None
