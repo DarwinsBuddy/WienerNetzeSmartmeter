@@ -1,9 +1,10 @@
 """Tests for Importer's daily/quarter-hour fallback and daily-floor overlay (issue #361)."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.components.recorder.models import StatisticData
 
 from it import bewegungsdaten_response
 from wnsm.api.constants import ValueType
@@ -76,6 +77,16 @@ def test_bucket_by_hour_skips_out_of_order_timestamps():
     dates = _bucket_by_hour(values, 1.0, start)
 
     assert dates == {datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc): Decimal("5.0")}
+
+
+def test_bucket_by_hour_logs_unexpected_time_and_estimated_value(caplog):
+    start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    value = {"zeitpunktVon": "2024-01-01T10:05:00Z", "wert": 1.0, "geschaetzt": True}
+
+    dates = _bucket_by_hour([value], 1.0, start)
+
+    assert dates == {datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc): Decimal("1.0")}
+    assert "Unexpected time detected" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -215,3 +226,233 @@ async def test_collect_dates_skips_daily_floor_for_incremental_import():
 
     assert dates == {START: Decimal("4.0")}
     importer.async_smartmeter.get_bewegungsdaten.assert_awaited_once()  # no daily floor fetched
+
+
+@pytest.mark.asyncio
+async def test_collect_dates_returns_empty_when_incremental_fetch_totally_empty():
+    importer = _importer(ValueType.DAY)
+    importer.async_smartmeter.get_bewegungsdaten.return_value = _data(None)
+
+    dates = await importer._collect_dates(START, END, recover_quarter_hour=False)
+
+    assert dates == {}
+
+
+@pytest.mark.asyncio
+async def test_import_statistics_rejects_naive_start():
+    importer = _importer(ValueType.QUARTER_HOUR)
+
+    with pytest.raises(ValueError):
+        await importer._import_statistics(start=datetime(2024, 1, 1), end=END)
+
+
+@pytest.mark.asyncio
+async def test_import_statistics_returns_none_when_start_after_end():
+    importer = _importer(ValueType.QUARTER_HOUR)
+
+    result = await importer._import_statistics(start=END, end=START)
+
+    assert result is None
+    importer.async_smartmeter.get_bewegungsdaten.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_import_statistics_returns_none_when_nothing_to_import():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    importer.async_smartmeter.get_bewegungsdaten.return_value = _data("KWH", [])
+
+    result = await importer._import_statistics(start=START, end=END)
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_import_statistics_writes_accumulated_statistics():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    reading = _value(START, 4.0)
+    importer.async_smartmeter.get_bewegungsdaten.return_value = _data("KWH", [reading])
+
+    with patch("wnsm.importer.async_add_external_statistics") as write:
+        total = await importer._import_statistics(start=START, end=END, total_usage=Decimal("10"))
+
+    assert total == Decimal("14.0")
+    write.assert_called_once()
+    _hass_arg, _metadata, statistics = write.call_args.args
+    assert statistics == [StatisticData(start=START, sum=Decimal("14.0"), state=4.0)]
+
+
+def test_get_statistics_metadata():
+    importer = _importer(ValueType.QUARTER_HOUR)
+
+    metadata = importer.get_statistics_metadata()
+
+    assert metadata["statistic_id"] == importer.id
+    assert metadata["name"] == ZAEHLPUNKT
+    assert metadata["unit_of_measurement"] == "kWh"
+    assert metadata["has_sum"] is True
+
+
+@pytest.mark.parametrize(("last_inserted_stat", "expected"), [
+    pytest.param({"wnsm:x": [{"sum": "1.0", "end": 1.0}]}, True, id="valid"),
+    pytest.param({}, False, id="empty"),
+    pytest.param({"wnsm:x": [{"sum": "1.0"}]}, False, id="missing_end"),
+    pytest.param({"wnsm:x": [{"end": 1.0}]}, False, id="missing_sum"),
+    pytest.param({"wnsm:x": [], "wnsm:y": []}, False, id="wrong_key_count"),
+])
+def test_is_last_inserted_stat_valid(last_inserted_stat, expected):
+    importer = _importer(ValueType.QUARTER_HOUR)
+    importer.id = "wnsm:x"
+
+    assert importer.is_last_inserted_stat_valid(last_inserted_stat) is expected
+
+
+def test_prepare_start_off_point_parses_float_timestamp_and_returns_sum():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    old_end = datetime.now(timezone.utc) - timedelta(days=2)
+    last_inserted_stat = {importer.id: [{"sum": "12.5", "end": old_end.timestamp()}]}
+
+    result = importer.prepare_start_off_point(last_inserted_stat)
+
+    assert result is not None
+    start, total = result
+    assert total == Decimal("12.5")
+    assert abs((start - old_end).total_seconds()) < 1
+
+
+def test_prepare_start_off_point_parses_string_timestamp():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    old_end = datetime.now(timezone.utc) - timedelta(days=2)
+    last_inserted_stat = {importer.id: [{"sum": "1.0", "end": old_end.isoformat()}]}
+
+    result = importer.prepare_start_off_point(last_inserted_stat)
+
+    assert result is not None
+
+
+def test_prepare_start_off_point_returns_none_when_within_24_hours():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    recent_end = datetime.now(timezone.utc) - timedelta(hours=1)
+    last_inserted_stat = {importer.id: [{"sum": "1.0", "end": recent_end}]}
+
+    assert importer.prepare_start_off_point(last_inserted_stat) is None
+
+
+def test_prepare_start_off_point_returns_none_for_unparseable_end():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    last_inserted_stat = {importer.id: [{"sum": "1.0", "end": ["not", "a", "date"]}]}
+
+    assert importer.prepare_start_off_point(last_inserted_stat) is None
+
+
+@pytest.mark.asyncio
+async def test_async_import_runs_initial_import_when_no_previous_stats():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    importer.async_smartmeter.is_active = MagicMock(return_value=True)
+    importer._initial_import_statistics = AsyncMock(return_value=Decimal("1.0"))
+    importer._incremental_import_statistics = AsyncMock()
+
+    with patch("wnsm.importer.get_instance") as get_instance:
+        get_instance.return_value.async_add_executor_job = AsyncMock(return_value={})
+        await importer.async_import()
+
+    importer._initial_import_statistics.assert_awaited_once()
+    importer._incremental_import_statistics.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_async_import_runs_incremental_import_when_previous_stats_are_valid():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    importer.async_smartmeter.is_active = MagicMock(return_value=True)
+    importer._initial_import_statistics = AsyncMock()
+    importer._incremental_import_statistics = AsyncMock(return_value=Decimal("2.0"))
+    old_end = datetime.now(timezone.utc) - timedelta(days=2)
+    valid_stat = {importer.id: [{"sum": "1.0", "end": old_end}]}
+
+    with patch("wnsm.importer.get_instance") as get_instance:
+        get_instance.return_value.async_add_executor_job = AsyncMock(return_value=valid_stat)
+        await importer.async_import()
+
+    importer._initial_import_statistics.assert_not_awaited()
+    importer._incremental_import_statistics.assert_awaited_once()
+    assert importer._incremental_import_statistics.call_args.args[1] == Decimal("1.0")
+
+
+@pytest.mark.asyncio
+async def test_async_import_skips_inactive_zaehlpunkt():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    importer.async_smartmeter.is_active = MagicMock(return_value=False)
+    importer._initial_import_statistics = AsyncMock()
+
+    with patch("wnsm.importer.get_instance") as get_instance:
+        get_instance.return_value.async_add_executor_job = AsyncMock(return_value={})
+        await importer.async_import()
+
+    importer._initial_import_statistics.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_async_import_skips_incremental_when_within_24_hours():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    importer.async_smartmeter.is_active = MagicMock(return_value=True)
+    importer._incremental_import_statistics = AsyncMock()
+    recent_stat = {importer.id: [{"sum": "1.0", "end": datetime.now(timezone.utc) - timedelta(hours=1)}]}
+
+    with patch("wnsm.importer.get_instance") as get_instance:
+        get_instance.return_value.async_add_executor_job = AsyncMock(return_value=recent_stat)
+        await importer.async_import()
+
+    importer._incremental_import_statistics.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_async_import_logs_timeout_error():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    importer.async_smartmeter.login = AsyncMock(side_effect=TimeoutError("slow"))
+
+    with patch("wnsm.importer.get_instance") as get_instance:
+        get_instance.return_value.async_add_executor_job = AsyncMock(return_value={})
+        await importer.async_import()  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_async_import_logs_smartmeter_error_with_response_body():
+    from wnsm.api.errors import SmartmeterError
+
+    importer = _importer(ValueType.QUARTER_HOUR)
+    importer.async_smartmeter.login = AsyncMock(side_effect=SmartmeterError("boom", error_response="body"))
+
+    with patch("wnsm.importer.get_instance") as get_instance:
+        get_instance.return_value.async_add_executor_job = AsyncMock(return_value={})
+        await importer.async_import()  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_async_import_logs_runtime_error_without_response_body():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    importer.async_smartmeter.login = AsyncMock(side_effect=RuntimeError("boom"))
+
+    with patch("wnsm.importer.get_instance") as get_instance:
+        get_instance.return_value.async_add_executor_job = AsyncMock(return_value={})
+        await importer.async_import()  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_initial_import_statistics_recovers_quarter_hour():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    importer._import_statistics = AsyncMock(return_value=Decimal("1.0"))
+
+    result = await importer._initial_import_statistics()
+
+    assert result == Decimal("1.0")
+    importer._import_statistics.assert_awaited_once_with(recover_quarter_hour=True)
+
+
+@pytest.mark.asyncio
+async def test_incremental_import_statistics_forwards_start_and_total():
+    importer = _importer(ValueType.QUARTER_HOUR)
+    importer._import_statistics = AsyncMock(return_value=Decimal("2.0"))
+
+    result = await importer._incremental_import_statistics(START, Decimal("1.0"))
+
+    assert result == Decimal("2.0")
+    importer._import_statistics.assert_awaited_once_with(start=START, total_usage=Decimal("1.0"))
