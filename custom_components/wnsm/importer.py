@@ -25,6 +25,43 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+UNIT_FACTORS = {"WH": 1e-3, "KWH": 1.0}
+
+
+def _unit_factor(unit: Optional[str]) -> float:
+    if unit not in UNIT_FACTORS:
+        raise NotImplementedError(f'Unit "{unit}" is not yet implemented. Please report!')
+    return UNIT_FACTORS[unit]
+
+
+def _bucket_by_hour(values: list, factor: float, start: datetime) -> dict:
+    """Sum raw bewegungsdaten values into per-hour usage deltas."""
+    dates = defaultdict(Decimal)
+    last_ts = start
+    for value in values:
+        ts = dt_util.parse_datetime(value['zeitpunktVon'])
+        if ts < last_ts:
+            # This should prevent any issues with ambiguous values though...
+            _LOGGER.warning(f"Timestamp from API ({ts}) is less than previously collected timestamp ({last_ts}), ignoring value!")
+            continue
+        last_ts = ts
+        if value['wert'] is None:
+            # Usually this means that the measurement is not yet in the WSTW database.
+            continue
+        reading = Decimal(value['wert'] * factor)
+        if ts.minute % 15 != 0 or ts.second != 0 or ts.microsecond != 0:
+            _LOGGER.warning(f"Unexpected time detected in historic data: {value}")
+        dates[ts.replace(minute=0)] += reading
+        if value['geschaetzt']:
+            _LOGGER.debug(f"Not seen that before: Estimated Value found for {ts}: {reading}")
+    return dict(dates)
+
+
+def _bucket(bewegungsdaten: dict, start: datetime) -> dict:
+    factor = _unit_factor(bewegungsdaten['unitOfMeasurement'])
+    return _bucket_by_hour(bewegungsdaten.get('values') or [], factor, start)
+
+
 class Importer:
 
     def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR):
@@ -144,22 +181,59 @@ class Importer:
         )
 
     async def _initial_import_statistics(self):
-        return await self._import_statistics()
+        # Only the initial backfill can span a granularity opt-in, so only it
+        # layers quarter-hour data over a daily floor.
+        return await self._import_statistics(recover_quarter_hour=True)
 
     async def _incremental_import_statistics(self, start: datetime, total_usage: Decimal):
         return await self._import_statistics(start=start, total_usage=total_usage)
 
-    async def _get_bewegungsdaten(self, start: datetime, end: datetime):
-        data = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, self.granularity)
+    async def _fetch(self, start: datetime, end: datetime, granularity: ValueType) -> dict:
+        return await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, granularity)
+
+    async def _get_bewegungsdaten(self, start: datetime, end: datetime) -> dict:
+        """Fetch at the configured granularity, falling back to daily once if empty."""
+        data = await self._fetch(start, end, self.granularity)
         # WienerNetze often leaves the V002 quarter-hour feed empty (einheit: null)
         # even when the meter is opted into 15-min values; daily (V001) still works.
         if self.granularity != ValueType.DAY and data.get('unitOfMeasurement') is None:
             _LOGGER.info("No %s data for %s; falling back to daily granularity",
                          self.granularity.value, self.zaehlpunkt)
-            data = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, ValueType.DAY)
+            return await self._fetch(start, end, ValueType.DAY)
         return data
 
-    async def _import_statistics(self, start: datetime = None, end: datetime = None, total_usage: Decimal = Decimal(0)) -> Optional[Decimal]:
+    async def _collect_with_daily_floor(self, start: datetime, end: datetime) -> dict:
+        """Fetch daily as a floor and layer quarter-hour on top, unconditionally.
+
+        WienerNetze may report a valid quarter-hour response that silently omits
+        everything before the real opt-in date, so we can't tell from the
+        quarter-hour fetch alone whether the daily floor is needed - always fetch
+        both and let quarter-hour win wherever it actually reports a value.
+        """
+        daily = await self._fetch(start, end, ValueType.DAY)
+        if daily.get('unitOfMeasurement') is None:
+            _LOGGER.warning("Unit of measurement is None! Aborting import...")
+            return {}
+        dates = _bucket(daily, start)
+
+        quarter_hour = await self._fetch(start, end, ValueType.QUARTER_HOUR)
+        if quarter_hour.get('unitOfMeasurement') is None:
+            return dates
+        return {**dates, **_bucket(quarter_hour, start)}
+
+    async def _collect_dates(self, start: datetime, end: datetime, recover_quarter_hour: bool) -> dict:
+        if recover_quarter_hour and self.granularity == ValueType.QUARTER_HOUR:
+            return await self._collect_with_daily_floor(start, end)
+
+        bewegungsdaten = await self._get_bewegungsdaten(start, end)
+        _LOGGER.debug(f"Mapped historical data: {bewegungsdaten}")
+        if bewegungsdaten['unitOfMeasurement'] is None:
+            _LOGGER.warning("Unit of measurement is None! Aborting import...")
+            return {}
+        return _bucket(bewegungsdaten, start)
+
+    async def _import_statistics(self, start: datetime = None, end: datetime = None, total_usage: Decimal = Decimal(0),
+                                 recover_quarter_hour: bool = False) -> Optional[Decimal]:
         """Import statistics"""
 
         start = start if start is not None else datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=365 * 3)
@@ -173,52 +247,16 @@ class Importer:
             _LOGGER.warning(f"Ignoring async update since last import happened in the future (should not happen) {start} > {end}")
             return None
 
-        bewegungsdaten = await self._get_bewegungsdaten(start, end)
-        _LOGGER.debug(f"Mapped historical data: {bewegungsdaten}")
-        if bewegungsdaten['unitOfMeasurement'] is None:
-            _LOGGER.warning("Unit of measurement is None! Aborting import...")
-            return None
-        elif bewegungsdaten['unitOfMeasurement'] == 'WH':
-            factor = 1e-3
-        elif bewegungsdaten['unitOfMeasurement'] == 'KWH':
-            factor = 1.0
-        else:
-            raise NotImplementedError(f'Unit {bewegungsdaten["unitOfMeasurement"]}" is not yet implemented. Please report!')
-
-        dates = defaultdict(Decimal)
-        if 'values' not in bewegungsdaten:
-            raise ValueError("WienerNetze does not report historical data (yet)")
-        total_consumption = sum([v.get("wert", 0) for v in bewegungsdaten['values']])
-        # Can actually check, if the whole batch can be skipped.
-        if total_consumption == 0:
+        dates = await self._collect_dates(start, end, recover_quarter_hour)
+        if not dates or sum(dates.values()) == 0:
             _LOGGER.debug(f"Batch of data starting at {start} does not contain any bewegungsdaten. Seems there is nothing to import, yet.")
             return None
 
-        last_ts = start
-        for value in bewegungsdaten['values']:
-            ts = dt_util.parse_datetime(value['zeitpunktVon'])
-            if ts < last_ts:
-                # This should prevent any issues with ambiguous values though...
-                _LOGGER.warning(f"Timestamp from API ({ts}) is less than previously collected timestamp ({last_ts}), ignoring value!")
-                continue
-            last_ts = ts
-            if value['wert'] is None:
-                # Usually this means that the measurement is not yet in the WSTW database.
-                continue
-            reading = Decimal(value['wert'] * factor)
-            if ts.minute % 15 != 0 or ts.second != 0 or ts.microsecond != 0:
-                _LOGGER.warning(f"Unexpected time detected in historic data: {value}")
-            dates[ts.replace(minute=0)] += reading
-            if value['geschaetzt']:
-                _LOGGER.debug(f"Not seen that before: Estimated Value found for {ts}: {reading}")
-
         statistics = []
         metadata = self.get_statistics_metadata()
-
         for ts, usage in sorted(dates.items(), key=itemgetter(0)):
             total_usage += usage
             statistics.append(StatisticData(start=ts, sum=total_usage, state=float(usage)))
-        if len(statistics) > 0:
-            _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
+        _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
         async_add_external_statistics(self.hass, metadata, statistics)
         return total_usage
