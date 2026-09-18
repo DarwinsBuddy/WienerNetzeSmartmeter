@@ -5,6 +5,24 @@ DOMAIN = "wnsm"
 
 CONF_ZAEHLPUNKTE = "zaehlpunkte"
 
+# --- Auth method selection (config flow) -----------------------------------
+CONF_AUTH_METHOD = "auth_method"
+
+AUTH_METHOD_LEGACY = "legacy"          #: Username/password scraper
+AUTH_METHOD_OFFICIAL = "official"      #: OAuth2 + x-Gateway-APIKey
+
+# --- Credentials for the official WN_SMART_METER_API -----------------------
+CONF_CLIENT_ID = "client_id"
+CONF_CLIENT_SECRET = "client_secret"
+CONF_API_KEY = "api_key"
+CONF_WEB_PROFILE_ID = "web_profile_id"
+CONF_CUSTOMER_ID = "customer_id"
+# Optional OAuth2 ``scope`` value. Most apps registered in the Wiener
+# Stadtwerke developer portal are NOT provisioned with a scope, so the
+# gateway rejects ``scope=profile`` with "scope not associated with the
+# client" (see repository issue #276). Leave empty to omit the field.
+CONF_SCOPE = "scope"
+
 ATTRS_ZAEHLPUNKT_CALL = [
     ("zaehlpunktnummer", "zaehlpunktnummer"),
     ("customLabel", "label"),

@@ -2,10 +2,10 @@ import asyncio
 import logging
 from asyncio import Future
 from datetime import datetime
+from typing import Any
 
 from homeassistant.core import HomeAssistant
 
-from .api import Smartmeter
 from .api.constants import ValueType
 from .const import ATTRS_METERREADINGS_CALL, ATTRS_BASEINFORMATION_CALL, ATTRS_CONSUMPTIONS_CALL, ATTRS_BEWEGUNGSDATEN, ATTRS_ZAEHLPUNKTE_CALL, ATTRS_HISTORIC_DATA, ATTRS_VERBRAUCH_CALL
 from .utils import translate_dict
@@ -13,8 +13,14 @@ from .utils import translate_dict
 _LOGGER = logging.getLogger(__name__)
 
 class AsyncSmartmeter:
+    """Async wrapper around any Smartmeter-compatible client.
 
-    def __init__(self, hass: HomeAssistant, smartmeter: Smartmeter = None):
+    Accepts both the legacy :class:`wnsm.api.client.Smartmeter` and the
+    :class:`wnsm.api.client_factory._OfficialSmartmeterShim` – callers
+    get to pick which one via :func:`wnsm.api.client_factory.make_client`.
+    """
+
+    def __init__(self, hass: HomeAssistant, smartmeter: Any = None):
         self.hass = hass
         self.smartmeter = smartmeter
         self.login_lock = asyncio.Lock()
