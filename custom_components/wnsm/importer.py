@@ -34,6 +34,22 @@ def _unit_factor(unit: Optional[str]) -> float:
     return UNIT_FACTORS[unit]
 
 
+def _bucket_hour(value: dict, ts: datetime) -> datetime:
+    """Hour bucket for a value.
+
+    Quarter-hour values land in the hour they start in. Values spanning more than
+    an hour (daily values) land in the LAST hour of their interval: the statistic's
+    end is then the end of that day, so the next incremental import starts at the
+    following midnight instead of 01:00 of the same day. Bucketing a daily total at
+    00:00 made the next run re-import hours 01:00-23:00 as quarter-hour data and
+    count that day twice (seen 2026-10-09: 22.96 kWh instead of 11.59 kWh).
+    """
+    until = dt_util.parse_datetime(value['zeitpunktBis']) if value.get('zeitpunktBis') else None
+    if until is not None and until - ts > timedelta(hours=1):
+        return (until - timedelta(milliseconds=1)).replace(minute=0, second=0, microsecond=0)
+    return ts.replace(minute=0, second=0, microsecond=0)
+
+
 def _bucket_by_hour(values: list, factor: float, start: datetime) -> dict:
     """Sum raw bewegungsdaten values into per-hour usage deltas."""
     dates = defaultdict(Decimal)
@@ -51,7 +67,7 @@ def _bucket_by_hour(values: list, factor: float, start: datetime) -> dict:
         reading = Decimal(value['wert'] * factor)
         if ts.minute % 15 != 0 or ts.second != 0 or ts.microsecond != 0:
             _LOGGER.warning(f"Unexpected time detected in historic data: {value}")
-        dates[ts.replace(minute=0)] += reading
+        dates[_bucket_hour(value, ts)] += reading
         if value['geschaetzt']:
             _LOGGER.debug(f"Not seen that before: Estimated Value found for {ts}: {reading}")
     return dict(dates)
@@ -196,7 +212,15 @@ class Importer:
         data = await self._fetch(start, end, self.granularity)
         # WienerNetze often leaves the V002 quarter-hour feed empty (einheit: null)
         # even when the meter is opted into 15-min values; daily (V001) still works.
+        # Only fall back at a local day boundary: a daily total always covers the
+        # whole day, so starting mid-day would count the already imported hours twice.
         if self.granularity != ValueType.DAY and data.get('unitOfMeasurement') is None:
+            local_start = dt_util.as_local(start)
+            if (local_start.hour, local_start.minute, local_start.second) != (0, 0, 0):
+                _LOGGER.info("No %s data for %s yet and import starts mid-day (%s); "
+                             "waiting for quarter-hour data instead of falling back to daily",
+                             self.granularity.value, self.zaehlpunkt, local_start)
+                return data
             _LOGGER.info("No %s data for %s; falling back to daily granularity",
                          self.granularity.value, self.zaehlpunkt)
             return await self._fetch(start, end, ValueType.DAY)

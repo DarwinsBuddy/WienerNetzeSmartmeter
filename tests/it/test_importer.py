@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.components.recorder.models import StatisticData
+from homeassistant.util import dt as dt_util
 
 from it import bewegungsdaten_response
 from wnsm.api.constants import ValueType
@@ -456,3 +457,93 @@ async def test_incremental_import_statistics_forwards_start_and_total():
 
     assert result == Decimal("2.0")
     importer._import_statistics.assert_awaited_once_with(start=START, total_usage=Decimal("1.0"))
+
+
+# --- Daily fallback must not double count a day (issue #368) -----------------------------
+
+def _daily_value(day_start: datetime, day_end: datetime, wert: float) -> dict:
+    return {"zeitpunktVon": day_start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "zeitpunktBis": day_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "wert": wert, "geschaetzt": False}
+
+
+@pytest.fixture
+def vienna_time_zone():
+    original = dt_util.DEFAULT_TIME_ZONE
+    dt_util.set_default_time_zone(dt_util.get_time_zone("Europe/Vienna"))
+    yield
+    dt_util.set_default_time_zone(original)
+
+
+def test_bucket_by_hour_puts_daily_value_into_last_hour_of_its_day():
+    values = [_daily_value(datetime(2024, 1, 1, tzinfo=timezone.utc), datetime(2024, 1, 2, tzinfo=timezone.utc), 4.0)]
+
+    dates = _bucket_by_hour(values, 1.0, START)
+
+    assert dates == {datetime(2024, 1, 1, 23, 0, tzinfo=timezone.utc): Decimal("4.0")}
+
+
+def test_bucket_by_hour_handles_daily_value_ending_at_end_of_day_milliseconds():
+    values = [{"zeitpunktVon": "2024-01-01T00:00:00Z", "zeitpunktBis": "2024-01-01T23:59:59.999Z",
+               "wert": 4.0, "geschaetzt": False}]
+
+    dates = _bucket_by_hour(values, 1.0, START)
+
+    assert dates == {datetime(2024, 1, 1, 23, 0, tzinfo=timezone.utc): Decimal("4.0")}
+
+
+def test_bucket_by_hour_puts_daily_value_into_last_hour_on_dst_change_day(vienna_time_zone):
+    # 2026-10-25 has 25 hours in Vienna; the day still ends at local midnight.
+    day_start = datetime(2026, 10, 24, 22, 0, tzinfo=timezone.utc)
+    day_end = datetime(2026, 10, 25, 23, 0, tzinfo=timezone.utc)
+
+    dates = _bucket_by_hour([_daily_value(day_start, day_end, 4.0)], 1.0, day_start)
+
+    assert dates == {datetime(2026, 10, 25, 22, 0, tzinfo=timezone.utc): Decimal("4.0")}
+
+
+def test_bucket_by_hour_keeps_quarter_hour_value_with_until_in_its_own_hour():
+    values = [{"zeitpunktVon": "2024-01-01T10:15:00Z", "zeitpunktBis": "2024-01-01T10:30:00Z",
+               "wert": 1.0, "geschaetzt": False}]
+
+    dates = _bucket_by_hour(values, 1.0, START)
+
+    assert dates == {datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc): Decimal("1.0")}
+
+
+@pytest.mark.asyncio
+async def test_get_bewegungsdaten_does_not_fall_back_to_daily_when_import_starts_mid_day(vienna_time_zone):
+    # Incremental import resuming at 01:00 local: a daily total would cover hours already imported.
+    importer = _importer(ValueType.QUARTER_HOUR)
+    start = datetime(2026, 10, 8, 23, 0, tzinfo=timezone.utc)  # 2026-10-09 01:00 Europe/Vienna
+    end = datetime(2026, 10, 10, tzinfo=timezone.utc)
+    empty_quarter_hour = _translated_response(ValueType.QUARTER_HOUR, no_descriptor=True)
+    importer.async_smartmeter.get_bewegungsdaten.return_value = empty_quarter_hour
+
+    result = await importer._get_bewegungsdaten(start, end)
+
+    assert result == empty_quarter_hour
+    importer.async_smartmeter.get_bewegungsdaten.assert_awaited_once_with(
+        ZAEHLPUNKT, start, end, ValueType.QUARTER_HOUR
+    )
+
+
+@pytest.mark.asyncio
+async def test_daily_fallback_ends_at_next_midnight_so_next_import_does_not_double_count(vienna_time_zone):
+    # Regression for #368: the daily total was bucketed at 00:00, the next incremental
+    # import resumed at 01:00 of the same day and added the quarter-hour values on top.
+    importer = _importer(ValueType.QUARTER_HOUR)
+    day_start = datetime(2026, 10, 8, 22, 0, tzinfo=timezone.utc)  # 2026-10-09 00:00 Europe/Vienna
+    day_end = datetime(2026, 10, 9, 22, 0, tzinfo=timezone.utc)
+    importer.async_smartmeter.get_bewegungsdaten.side_effect = [
+        _data(None), _data("KWH", [_daily_value(day_start, day_end, 4.0)]),
+    ]
+
+    with patch("wnsm.importer.async_add_external_statistics") as write:
+        total = await importer._import_statistics(start=day_start, end=day_end, total_usage=Decimal("10"))
+
+    assert total == Decimal("14.0")
+    statistics = write.call_args.args[2]
+    assert [s["start"] for s in statistics] == [datetime(2026, 10, 9, 21, 0, tzinfo=timezone.utc)]
+    # prepare_start_off_point resumes at the end of the last statistic: the next local midnight
+    assert statistics[-1]["start"] + timedelta(hours=1) == day_end
