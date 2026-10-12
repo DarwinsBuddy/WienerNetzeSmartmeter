@@ -12,8 +12,7 @@
     "iot_class": "calculated",
     "issue_tracker": "https://github.com/DarwinsBuddy/WienerNetzeSmartmeter/issues",
     "requirements": [
-        "lxml",
-        "requests"
+        "lxml"
     ],
-    "version": "1.8.0"
+    "version": "1.9.1"
 }

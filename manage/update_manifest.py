@@ -18,10 +18,16 @@ def update_manifest():
 
     manifest["version"] = version
 
+    # hassfest requires "domain" and "name" first, then all other keys sorted
+    ordered = {key: manifest[key] for key in ("domain", "name")}
+    ordered.update(
+        sorted((key, value) for key, value in manifest.items() if key not in ordered)
+    )
+
     with open(
         f"{os.getcwd()}/custom_components/wnsm/manifest.json", "w", encoding="utf-8"
     ) as manifestfile:
-        manifestfile.write(json.dumps(manifest, indent=4, sort_keys=True))
+        manifestfile.write(json.dumps(ordered, indent=4) + "\n")
 
 
 update_manifest()
