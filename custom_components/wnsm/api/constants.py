@@ -77,6 +77,7 @@ class RoleType(enum.Enum):
     QUARTER_HOURLY_FEEDING = "E002"  #: Feeding data is updated in quarter hour steps
     GRID_CONSUMING = "G001"  #: Energiegemeinschaft: consumption drawn from the grid (quarter hour)
     EEG_CONSUMING = "G003"  #: Energiegemeinschaft: consumption supplied by the energy community (quarter hour)
+    GRID_FEEDING = "U001"  #: Energiegemeinschaft: feed-in delivered to the grid (quarter hour)
 
 def build_access_token_args(**kwargs):
     """

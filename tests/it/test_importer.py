@@ -9,7 +9,7 @@ from homeassistant.components.recorder.models import StatisticData
 from it import bewegungsdaten_response
 from wnsm.api.constants import ValueType
 from wnsm.const import ATTRS_BEWEGUNGSDATEN
-from wnsm.importer import Importer, _bucket_by_hour, _unit_factor
+from wnsm.importer import Importer, _bucket_by_hour, _subtract, _unit_factor
 from wnsm.utils import translate_dict
 
 CUSTOMER_ID = "1234567890"
@@ -485,3 +485,48 @@ async def test_collect_dates_with_role_skips_daily_floor_on_initial_import():
     importer.async_smartmeter.get_bewegungsdaten.assert_awaited_once_with(
         ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR, "G001"
     )
+
+
+T0 = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+T1 = datetime(2024, 1, 1, 10, 15, tzinfo=timezone.utc)
+T2 = datetime(2024, 1, 1, 10, 30, tzinfo=timezone.utc)
+
+
+def test_subtract_per_timestamp_and_skips_missing_values():
+    minuend = _data("KWH", [_value(T0, 3.0), _value(T1, 2.0), _value(T2, None)])
+    subtrahend = _data("KWH", [_value(T0, 1.0), _value(T2, 0.5)])
+
+    result = _subtract(minuend, subtrahend)
+
+    assert [(v["zeitpunktVon"], v["wert"]) for v in result["values"]] == [(T0.strftime("%Y-%m-%dT%H:%M:%SZ"), 2.0)]
+    assert result["unitOfMeasurement"] == "KWH"
+
+
+def test_subtract_converts_units_and_never_goes_negative():
+    minuend = _data("KWH", [_value(T0, 1.0), _value(T1, 0.5)])
+    subtrahend = _data("WH", [_value(T0, 250.0), _value(T1, 501.0)])
+
+    result = _subtract(minuend, subtrahend)
+
+    assert [v["wert"] for v in result["values"]] == [0.75, 0]
+
+
+def test_subtract_without_unit_on_either_side_yields_no_data():
+    assert _subtract(_data(None), _data("KWH", [_value(T0, 1.0)]))["unitOfMeasurement"] is None
+    assert _subtract(_data("KWH", [_value(T0, 1.0)]), _data(None))["values"] == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_with_subtract_role_queries_both_roles():
+    importer = Importer(hass=None, async_smartmeter=AsyncMock(), zaehlpunkt=ZAEHLPUNKT, unit_of_measurement="kWh",
+                        rolle="E002", subtract_rolle="U001")
+    importer.async_smartmeter.get_bewegungsdaten.side_effect = [
+        _data("KWH", [_value(T0, 3.0)]),
+        _data("KWH", [_value(T0, 2.5)]),
+    ]
+
+    result = await importer._fetch(START, END, ValueType.QUARTER_HOUR)
+
+    assert [v["wert"] for v in result["values"]] == [0.5]
+    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR, "E002")
+    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR, "U001")

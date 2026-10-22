@@ -62,9 +62,32 @@ def _bucket(bewegungsdaten: dict, start: datetime) -> dict:
     return _bucket_by_hour(bewegungsdaten.get('values') or [], factor, start)
 
 
+def _subtract(minuend: dict, subtrahend: dict) -> dict:
+    """Per-timestamp difference of two bewegungsdaten responses.
+
+    Used for values without a role of their own, e.g. the feed-in delivered to
+    an Energiegemeinschaft (E002 - U001). A timestamp missing a value on either
+    side is left out instead of being guessed.
+    """
+    if minuend.get('unitOfMeasurement') is None or subtrahend.get('unitOfMeasurement') is None:
+        return {**minuend, 'unitOfMeasurement': None, 'values': []}
+    scale = _unit_factor(subtrahend['unitOfMeasurement']) / _unit_factor(minuend['unitOfMeasurement'])
+    other = {v['zeitpunktVon']: v for v in subtrahend.get('values') or [] if v.get('wert') is not None}
+    values = []
+    for value in minuend.get('values') or []:
+        match = other.get(value['zeitpunktVon'])
+        if value.get('wert') is None or match is None:
+            continue
+        values.append({**value,
+                       # rounding may push a share that is really zero just below it
+                       'wert': max(value['wert'] - match['wert'] * scale, 0),
+                       'geschaetzt': bool(value.get('geschaetzt') or match.get('geschaetzt'))})
+    return {**minuend, 'values': values}
+
+
 class Importer:
 
-    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR, statistic_suffix: str = "", rolle: str = None):
+    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR, statistic_suffix: str = "", rolle: str = None, subtract_rolle: str = None):
         self.id = f'{DOMAIN}:{zaehlpunkt.lower()}{statistic_suffix}'
         self.zaehlpunkt = zaehlpunkt
         self.granularity = granularity
@@ -73,6 +96,7 @@ class Importer:
         self.async_smartmeter = async_smartmeter
         self.statistic_suffix = statistic_suffix
         self.rolle = rolle
+        self.subtract_rolle = subtract_rolle
 
     def is_last_inserted_stat_valid(self, last_inserted_stat):
         return len(last_inserted_stat) == 1 and len(last_inserted_stat[self.id]) == 1 and \
@@ -191,7 +215,11 @@ class Importer:
         return await self._import_statistics(start=start, total_usage=total_usage)
 
     async def _fetch(self, start: datetime, end: datetime, granularity: ValueType) -> dict:
-        return await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, granularity, self.rolle)
+        data = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, granularity, self.rolle)
+        if self.subtract_rolle is None:
+            return data
+        subtrahend = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, granularity, self.subtract_rolle)
+        return _subtract(data, subtrahend)
 
     async def _get_bewegungsdaten(self, start: datetime, end: datetime) -> dict:
         """Fetch at the configured granularity, falling back to daily once if empty."""
