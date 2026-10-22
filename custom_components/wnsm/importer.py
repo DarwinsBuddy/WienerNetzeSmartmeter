@@ -64,13 +64,15 @@ def _bucket(bewegungsdaten: dict, start: datetime) -> dict:
 
 class Importer:
 
-    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR):
-        self.id = f'{DOMAIN}:{zaehlpunkt.lower()}'
+    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR, statistic_suffix: str = "", rolle: str = None):
+        self.id = f'{DOMAIN}:{zaehlpunkt.lower()}{statistic_suffix}'
         self.zaehlpunkt = zaehlpunkt
         self.granularity = granularity
         self.unit_of_measurement = unit_of_measurement
         self.hass = hass
         self.async_smartmeter = async_smartmeter
+        self.statistic_suffix = statistic_suffix
+        self.rolle = rolle
 
     def is_last_inserted_stat_valid(self, last_inserted_stat):
         return len(last_inserted_stat) == 1 and len(last_inserted_stat[self.id]) == 1 and \
@@ -173,7 +175,7 @@ class Importer:
         return StatisticMetaData(
             source=DOMAIN,
             statistic_id=self.id,
-            name=self.zaehlpunkt,
+            name=f"{self.zaehlpunkt}{self.statistic_suffix}",
             unit_of_measurement=self.unit_of_measurement,
             mean_type=StatisticMeanType.NONE,
             unit_class=EnergyConverter.UNIT_CLASS,
@@ -189,14 +191,16 @@ class Importer:
         return await self._import_statistics(start=start, total_usage=total_usage)
 
     async def _fetch(self, start: datetime, end: datetime, granularity: ValueType) -> dict:
-        return await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, granularity)
+        return await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, granularity, self.rolle)
 
     async def _get_bewegungsdaten(self, start: datetime, end: datetime) -> dict:
         """Fetch at the configured granularity, falling back to daily once if empty."""
         data = await self._fetch(start, end, self.granularity)
         # WienerNetze often leaves the V002 quarter-hour feed empty (einheit: null)
         # even when the meter is opted into 15-min values; daily (V001) still works.
-        if self.granularity != ValueType.DAY and data.get('unitOfMeasurement') is None:
+        # Profile roles like G001/G003 have no daily counterpart; the daily V001
+        # would be total consumption, so they never fall back.
+        if self.rolle is None and self.granularity != ValueType.DAY and data.get('unitOfMeasurement') is None:
             _LOGGER.info("No %s data for %s; falling back to daily granularity",
                          self.granularity.value, self.zaehlpunkt)
             return await self._fetch(start, end, ValueType.DAY)
@@ -222,7 +226,7 @@ class Importer:
         return {**dates, **_bucket(quarter_hour, start)}
 
     async def _collect_dates(self, start: datetime, end: datetime, recover_quarter_hour: bool) -> dict:
-        if recover_quarter_hour and self.granularity == ValueType.QUARTER_HOUR:
+        if recover_quarter_hour and self.rolle is None and self.granularity == ValueType.QUARTER_HOUR:
             return await self._collect_with_daily_floor(start, end)
 
         bewegungsdaten = await self._get_bewegungsdaten(start, end)

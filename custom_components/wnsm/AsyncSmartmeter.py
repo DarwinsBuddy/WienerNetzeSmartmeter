@@ -138,19 +138,58 @@ class AsyncSmartmeter:
                 or zaehlpunkt_response["smartMeterReady"]
         )
 
-    async def get_bewegungsdaten(self, zaehlpunkt: str, start: datetime = None, end: datetime = None, granularity: ValueType = ValueType.QUARTER_HOUR):
+    async def get_bewegungsdaten(self, zaehlpunkt: str, start: datetime = None, end: datetime = None, granularity: ValueType = ValueType.QUARTER_HOUR, rolle: str = None):
         """Return three years of historic quarter-hourly data"""
         response = await self.hass.async_add_executor_job(
             self.smartmeter.bewegungsdaten,
             zaehlpunkt,
             start,
             end,
-            granularity
+            granularity,
+            None,
+            rolle
         )
         if "Exception" in response:
             raise RuntimeError(f"Cannot access bewegungsdaten: {response}")
         _LOGGER.debug(f"Raw bewegungsdaten: {response}")
         return translate_dict(response, ATTRS_BEWEGUNGSDATEN)
+
+    async def get_zaehlwerke(self, zaehlpunkt: str) -> dict:
+        """
+        asynchronously get the /zaehlwerke response (profile roles + eagTeilnahmen)
+        """
+        response = await self.hass.async_add_executor_job(
+            self.smartmeter.zaehlwerke,
+            None,
+            zaehlpunkt
+        )
+        if "Exception" in response:
+            raise RuntimeError(f"Cannot access zaehlwerke: {response}")
+        return response
+
+    async def has_energiegemeinschaft(self, zaehlpunkt: str) -> bool:
+        """
+        Returns True if the zaehlpunkt has an active Energiegemeinschaft
+        participation (eagTeilnahmen entry with status 'A' covering today).
+        Detection is best-effort and must never break the regular update.
+        """
+        try:
+            zaehlwerke = await self.get_zaehlwerke(zaehlpunkt)
+        except (RuntimeError, KeyError, TimeoutError) as e:
+            _LOGGER.debug("Could not determine Energiegemeinschaft participation: %s", e)
+            return False
+        today = datetime.now().date()
+        for teilnahme in zaehlwerke.get("eagTeilnahmen", []) or []:
+            if teilnahme.get("status") != "A":
+                continue
+            try:
+                date_from = datetime.strptime(teilnahme["dateFrom"], "%Y-%m-%d").date()
+                date_to = datetime.strptime(teilnahme["dateTo"], "%Y-%m-%d").date()
+            except (KeyError, ValueError):
+                continue
+            if date_from <= today <= date_to:
+                return True
+        return False
 
     async def get_consumptions(self) -> dict[str, str]:
         """
