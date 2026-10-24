@@ -10,7 +10,7 @@ from wnsm.wnsm_sensor import WNSMSensor, eeg_splits
 def test_eeg_splits_consumption():
     assert eeg_splits(AnlagenType.CONSUMING.value) == (
         ("_grid", "G001", None),
-        ("_eeg", "G003", None),
+        ("_eeg", "V002", "G001"),
     )
 
 
@@ -22,7 +22,7 @@ def test_eeg_splits_feeding():
 
 
 def test_eeg_splits_unknown_type_falls_back_to_consumption():
-    assert eeg_splits(None)[1] == ("_eeg", "G003", None)
+    assert eeg_splits(None)[1] == ("_eeg", "V002", "G001")
 
 
 async def _update(zaehlpunkt_type: str, eeg: bool):
@@ -58,3 +58,12 @@ async def test_async_update_without_eeg_imports_only_the_total():
 
     assert sensor.available
     assert importer.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_async_update_imports_consumption_split_for_eeg():
+    sensor, importer = await _update(AnlagenType.CONSUMING.value, eeg=True)
+
+    assert sensor.available
+    splits = [(c.kwargs["statistic_suffix"], c.kwargs["rolle"], c.kwargs["subtract_rolle"]) for c in importer.call_args_list[1:]]
+    assert splits == [("_grid", "G001", None), ("_eeg", "V002", "G001")]

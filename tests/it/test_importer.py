@@ -1,4 +1,5 @@
 """Tests for Importer's daily/quarter-hour fallback and daily-floor overlay (issue #361)."""
+import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -509,6 +510,16 @@ def test_subtract_converts_units_and_never_goes_negative():
     result = _subtract(minuend, subtrahend)
 
     assert [v["wert"] for v in result["values"]] == [0.75, 0]
+
+
+def test_subtract_logs_skipped_and_clamped_values_at_debug(caplog):
+    minuend = _data("KWH", [_value(T0, 1.0), _value(T1, 0.5), _value(T2, 2.0)])
+    subtrahend = _data("KWH", [_value(T0, 0.5), _value(T1, 0.6)])
+
+    with caplog.at_level(logging.DEBUG, logger="custom_components.wnsm.importer"):
+        _subtract(minuend, subtrahend)
+
+    assert "1 values skipped for a missing side, 1 negative values set to 0" in caplog.text
 
 
 def test_subtract_without_unit_on_either_side_yields_no_data():

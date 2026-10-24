@@ -65,23 +65,32 @@ def _bucket(bewegungsdaten: dict, start: datetime) -> dict:
 def _subtract(minuend: dict, subtrahend: dict) -> dict:
     """Per-timestamp difference of two bewegungsdaten responses.
 
-    Used for values without a role of their own, e.g. the feed-in delivered to
-    an Energiegemeinschaft (E002 - U001). A timestamp missing a value on either
-    side is left out instead of being guessed.
+    Used for the Energiegemeinschaft share, which is only available per
+    community: total minus the residual over all communities (V002 - G001,
+    E002 - U001). A timestamp missing a value on either side is left out
+    instead of being guessed.
     """
     if minuend.get('unitOfMeasurement') is None or subtrahend.get('unitOfMeasurement') is None:
         return {**minuend, 'unitOfMeasurement': None, 'values': []}
     scale = _unit_factor(subtrahend['unitOfMeasurement']) / _unit_factor(minuend['unitOfMeasurement'])
     other = {v['zeitpunktVon']: v for v in subtrahend.get('values') or [] if v.get('wert') is not None}
     values = []
+    skipped = clamped = 0
     for value in minuend.get('values') or []:
         match = other.get(value['zeitpunktVon'])
         if value.get('wert') is None or match is None:
+            skipped += 1
             continue
+        difference = value['wert'] - match['wert'] * scale
+        if difference < 0:
+            # rounding may push a share that is really zero just below it
+            clamped += 1
         values.append({**value,
-                       # rounding may push a share that is really zero just below it
-                       'wert': max(value['wert'] - match['wert'] * scale, 0),
+                       'wert': max(difference, 0),
                        'geschaetzt': bool(value.get('geschaetzt') or match.get('geschaetzt'))})
+    if skipped or clamped:
+        _LOGGER.debug("Difference of %s and %s: %d values skipped for a missing side, %d negative values set to 0",
+                      minuend.get('role'), subtrahend.get('role'), skipped, clamped)
     return {**minuend, 'values': values}
 
 

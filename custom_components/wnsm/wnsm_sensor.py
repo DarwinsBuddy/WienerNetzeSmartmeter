@@ -24,9 +24,10 @@ _LOGGER = logging.getLogger(__name__)
 def eeg_splits(anlagetype: Optional[str]) -> tuple:
     """(statistic suffix, role, role to subtract) per Energiegemeinschaft statistic.
 
-    Consumption: G001 from the grid, G003 from the community.
-    Feed-in: U001 to the grid; the share delivered to the community has no
-    role of its own and is the total feed-in E002 minus U001.
+    _grid is the residual over all communities: G001 for consumption, U001 for
+    feed-in. The community share (G003 and the like) is defined per community,
+    so with several participations a query by role would be ambiguous; _eeg is
+    therefore the total minus the residual (V002 - G001, E002 - U001).
     """
     if anlagetype == AnlagenType.FEEDING.value:
         return (
@@ -35,7 +36,7 @@ def eeg_splits(anlagetype: Optional[str]) -> tuple:
         )
     return (
         ("_grid", RoleType.GRID_CONSUMING.value, None),
-        ("_eeg", RoleType.EEG_CONSUMING.value, None),
+        ("_eeg", RoleType.QUARTER_HOURLY_CONSUMING.value, RoleType.GRID_CONSUMING.value),
     )
 
 
