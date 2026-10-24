@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -12,7 +12,7 @@ from homeassistant.const import UnitOfEnergy
 from homeassistant.util import slugify
 
 from .AsyncSmartmeter import AsyncSmartmeter
-from .api import Smartmeter
+from .api.client_factory import make_client
 from .api.constants import ValueType
 from .api.errors import SmartmeterError
 from .importer import Importer
@@ -30,10 +30,12 @@ class WNSMSensor(SensorEntity):
     def _icon(self) -> str:
         return "mdi:flash"
 
-    def __init__(self, username: str, password: str, zaehlpunkt: str) -> None:
+    def __init__(self, entry_data: Dict[str, Any], zaehlpunkt: str) -> None:
         super().__init__()
-        self.username = username
-        self.password = password
+        # Store the full HA entry payload so ``make_client`` can pick the
+        # right backend (legacy scraper vs. OAuth2 official API) on every
+        # update without the sensor having to care which one is active.
+        self._entry_data = entry_data
         self.zaehlpunkt = zaehlpunkt
 
         self._attr_native_value: int | float | None = 0
@@ -84,7 +86,7 @@ class WNSMSensor(SensorEntity):
         update sensor
         """
         try:
-            smartmeter = Smartmeter(username=self.username, password=self.password)
+            smartmeter = make_client(self._entry_data)
             async_smartmeter = AsyncSmartmeter(self.hass, smartmeter)
             await async_smartmeter.login()
             zaehlpunkt_response = await async_smartmeter.get_zaehlpunkt(self.zaehlpunkt)

@@ -101,3 +101,48 @@ def build_verbrauchs_args(**kwargs):
     }
     args.update(**kwargs)
     return args
+
+
+# ---------------------------------------------------------------------------
+# Official Wiener Netze Smart Meter API (WN_SMART_METER_API)
+# ---------------------------------------------------------------------------
+# This is the public, OAuth2-secured API that Wiener Netze documents at
+# https://api-portal.wienerstadtwerke.at. Unlike the "portal" endpoints above,
+# it does not require any HTML scraping: authentication is a standard
+# OAuth2 client_credentials exchange and requests carry both a Bearer access
+# token and the per-application x-Gateway-APIKey header.
+
+OFFICIAL_API_URL: str = "https://api.wstw.at/gateway/WN_SMART_METER_API/1.0"
+OFFICIAL_TOKEN_URL: str = (
+    "https://api.wstw.at/invoke/pub.apigateway.oauth2/getAccessToken"
+)
+OFFICIAL_AUTHORIZE_URL: str = (
+    "https://api.wstw.at/invoke/pub.apigateway.oauth2/authorize"
+)
+OFFICIAL_DEFAULT_SCOPE: str = "profile"
+# Wiener Netze issues tokens valid for this many seconds; refresh a little
+# earlier so concurrent calls never race a just-expired token.
+OFFICIAL_TOKEN_VALIDITY_SECONDS: int = 3600
+OFFICIAL_TOKEN_REFRESH_LEEWAY_SECONDS: int = 60
+# Date format expected by /zaehlpunkte/messwerte (ISO 8601 date, no time).
+OFFICIAL_API_DATE_FORMAT: str = "%Y-%m-%d"
+
+
+class Wertetyp(enum.Enum):
+    """Valid ``wertetyp`` query parameter values for the official API.
+
+    These match what the Wiener Netze gateway accepts on
+    ``GET /zaehlpunkte/messwerte`` and ``GET /zaehlpunkte/{zp}/messwerte``.
+    """
+
+    QUARTER_HOUR = "QUARTER_HOUR"  #: 15-minute interval values
+    DAY = "DAY"  #: Daily aggregated values
+    METER_READ = "METER_READ"  #: Meter readings ("Zählerstand")
+
+    @staticmethod
+    def from_str(label: str) -> "Wertetyp":
+        normalised = label.strip().upper()
+        for member in Wertetyp:
+            if member.value == normalised:
+                return member
+        raise ValueError(f"Unknown Wertetyp: {label!r}")

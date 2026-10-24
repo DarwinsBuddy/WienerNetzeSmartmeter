@@ -1,0 +1,523 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "WN_SMART_METER_API",
+    "description" : "Diese API ermöglicht Kunden, die sich zusätzlich mit OAUTH2 Token authentizieren, den Bezug von Anlagedaten und Verbauchswerten.\nZur Verfügung stehen sowohl allgemeine Aufrufe nur mit der Geschäftspartnernummer als auch gezielte zählpunktscharfe Anfragen.\n",
+    "contact" : {
+      "name" : "IPS Smart Meter",
+      "url" : "https://wienernetze.at",
+      "email" : "support.sm-portal@wienit.at"
+    },
+    "license" : {
+      "name" : "Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)",
+      "url" : "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+    },
+    "version" : "1.0"
+  },
+  "servers" : [ {
+    "url" : "https://api.wstw.at/gateway/WN_SMART_METER_API/1.0"
+  } ],
+  "tags" : [ ],
+  "paths" : {
+    "/zaehlpunkte" : {
+      "summary" : "",
+      "description" : "",
+      "get" : {
+        "summary" : "",
+        "description" : "",
+        "operationId" : "getZaehlpunkteAnlagendaten",
+        "parameters" : [ {
+          "name" : "resultType",
+          "in" : "query",
+          "description" : "",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "zaehlpunkt",
+          "in" : "query",
+          "description" : "",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "webProfileId",
+          "in" : "query",
+          "description" : "",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Successful",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/zaehlpunkte_GET_response"
+                },
+                "example" : null
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          },
+          "500" : {
+            "description" : "Internal Server Error"
+          },
+          "401" : {
+            "description" : "Access Denied"
+          },
+          "403" : {
+            "description" : "Forbidden"
+          },
+          "404" : {
+            "description" : "Not found"
+          }
+        },
+        "security" : [ { } ]
+      }
+    },
+    "/zaehlpunkte/messwerte" : {
+      "summary" : "",
+      "description" : "",
+      "get" : {
+        "summary" : "",
+        "description" : "",
+        "operationId" : "getZaehlpunkteMesswerte",
+        "parameters" : [ {
+          "name" : "datumBis",
+          "in" : "query",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "datumVon",
+          "in" : "query",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "wertetyp",
+          "in" : "query",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "webProfileId",
+          "in" : "query",
+          "description" : "",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "zaehlpunkt",
+          "in" : "query",
+          "description" : "",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Successful",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/zaehlpunktemesswerte_GET_response"
+                },
+                "example" : null
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          },
+          "401" : {
+            "description" : "Access Denied"
+          },
+          "500" : {
+            "description" : "Internal Server Error"
+          },
+          "403" : {
+            "description" : "Forbidden"
+          },
+          "404" : {
+            "description" : "Not found"
+          }
+        },
+        "security" : [ { } ]
+      }
+    },
+    "/zaehlpunkte/{zaehlpunkt}" : {
+      "summary" : "",
+      "description" : "",
+      "get" : {
+        "summary" : "",
+        "description" : "",
+        "operationId" : "getZaehlpunktAnlagendaten",
+        "parameters" : [ {
+          "name" : "webProfileId",
+          "in" : "query",
+          "description" : "",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "zaehlpunkt",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Successful",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/zaehlpunktezaehlpunkt_GET_response"
+                },
+                "example" : "{\"anlage\":{\"anlage\":\"qmJKYGFO\",\"sparte\":\"AIhppuK\",\"typ\":\"XrPihMf\"},\"geraet\":{\"equipmentnummer\":\"B\",\"geraetenummer\":\"uuT\"},\"idex\":{\"customerInterface\":\"vbpuqgwNlbh\",\"displayLocked\":false,\"granularity\":\"tT\"},\"verbrauchsstelle\":{\"haus\":\"FfkdVHkrkN\",\"hausnummer1\":\"\",\"hausnummer2\":\"\",\"land\":\"jsBEdOhiYlMKI\",\"ort\":\"OgYJGoTqGf\",\"postleitzahl\":\"NwPWXepscdf\",\"stockwerk\":\"PdAUUMxbw\",\"strasse\":\"\",\"strasseZusatz\":\"yACrKFrMSxXdrE\",\"tuernummer\":\"IAaSgYefVK\"},\"zaehlpunktname\":\"UnT\",\"zaehlpunktnummer\":\"DYIOOcJwWYt\"}"
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          },
+          "500" : {
+            "description" : "Internal Server Error"
+          },
+          "401" : {
+            "description" : "Access Denied"
+          },
+          "403" : {
+            "description" : "Forbidden"
+          },
+          "404" : {
+            "description" : "Not found"
+          }
+        },
+        "security" : [ { } ]
+      }
+    },
+    "/zaehlpunkte/{zaehlpunkt}/messwerte" : {
+      "summary" : "",
+      "description" : "",
+      "get" : {
+        "summary" : "",
+        "description" : "",
+        "operationId" : "getZaehlpunktMesswerte",
+        "parameters" : [ {
+          "name" : "wertetyp",
+          "in" : "query",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "datumBis",
+          "in" : "query",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "datumVon",
+          "in" : "query",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "zaehlpunkt",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "webProfileId",
+          "in" : "query",
+          "description" : "",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Successful",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/zaehlpunktezaehlpunktmesswerte_GET_response"
+                },
+                "example" : "{\"zaehlpunkt\":\"TM\",\"zaehlwerke\":[{\"einheit\":\"wNIKaR\",\"messwerte\":[{\"messwert\":630961152,\"qualitaet\":\"KKQmiWKWSHp\",\"zeitBis\":\"UAcRx\",\"zeitVon\":\"gKtKju\"}],\"obisCode\":\"hAWhjaPpL\"}]}"
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          },
+          "401" : {
+            "description" : "Access Denied"
+          },
+          "500" : {
+            "description" : "Internal Server Error"
+          },
+          "403" : {
+            "description" : "Forbidden"
+          },
+          "404" : {
+            "description" : "Not found"
+          }
+        },
+        "security" : [ { } ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "Geraet" : {
+        "required" : [ "equipmentnummer", "geraetenummer" ],
+        "type" : "object",
+        "properties" : {
+          "equipmentnummer" : {
+            "type" : "string"
+          },
+          "geraetenummer" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Messwert" : {
+        "required" : [ "messwert", "qualitaet", "zeitBis", "zeitVon" ],
+        "type" : "object",
+        "properties" : {
+          "messwert" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "qualitaet" : {
+            "type" : "string"
+          },
+          "zeitBis" : {
+            "type" : "string"
+          },
+          "zeitVon" : {
+            "type" : "string"
+          }
+        }
+      },
+      "zaehlpunktezaehlpunktmesswerte_GET_response" : {
+        "required" : [ "zaehlpunkt", "zaehlwerke" ],
+        "type" : "object",
+        "properties" : {
+          "zaehlpunkt" : {
+            "type" : "string"
+          },
+          "zaehlwerke" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ZaehlwerkMesswerte"
+            }
+          }
+        }
+      },
+      "ZaehlwerkMesswerte" : {
+        "required" : [ "einheit", "messwerte", "obisCode" ],
+        "type" : "object",
+        "properties" : {
+          "einheit" : {
+            "type" : "string"
+          },
+          "messwerte" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Messwert"
+            }
+          },
+          "obisCode" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Verbrauchsstelle" : {
+        "required" : [ "haus", "hausnummer1", "hausnummer2", "land", "ort", "postleitzahl", "stockwerk", "strasse", "strasseZusatz", "tuernummer" ],
+        "type" : "object",
+        "properties" : {
+          "haus" : {
+            "type" : "string"
+          },
+          "hausnummer1" : {
+            "type" : "string"
+          },
+          "hausnummer2" : {
+            "type" : "string"
+          },
+          "land" : {
+            "type" : "string"
+          },
+          "ort" : {
+            "type" : "string"
+          },
+          "postleitzahl" : {
+            "type" : "string"
+          },
+          "stockwerk" : {
+            "type" : "string"
+          },
+          "strasse" : {
+            "type" : "string"
+          },
+          "strasseZusatz" : {
+            "type" : "string"
+          },
+          "tuernummer" : {
+            "type" : "string"
+          }
+        }
+      },
+      "zaehlpunkte_GET_response" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "$ref" : "#/components/schemas/Zaehlpunkt"
+          }
+        }
+      },
+      "ZaehlpunktMesswerte" : {
+        "required" : [ "zaehlpunkt", "zaehlwerke" ],
+        "type" : "object",
+        "properties" : {
+          "zaehlpunkt" : {
+            "type" : "string"
+          },
+          "zaehlwerke" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ZaehlwerkMesswerte"
+            }
+          }
+        }
+      },
+      "zaehlpunktemesswerte_GET_response" : {
+        "required" : [ "$rootArray" ],
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "$ref" : "#/components/schemas/ZaehlpunktMesswerte"
+          }
+        }
+      },
+      "Zaehlpunkt" : {
+        "required" : [ "anlage", "geraet", "idex", "verbrauchsstelle", "zaehlpunktname", "zaehlpunktnummer" ],
+        "type" : "object",
+        "properties" : {
+          "anlage" : {
+            "$ref" : "#/components/schemas/Anlage"
+          },
+          "geraet" : {
+            "$ref" : "#/components/schemas/Geraet"
+          },
+          "idex" : {
+            "$ref" : "#/components/schemas/Idex"
+          },
+          "verbrauchsstelle" : {
+            "$ref" : "#/components/schemas/Verbrauchsstelle"
+          },
+          "zaehlpunktname" : {
+            "type" : "string"
+          },
+          "zaehlpunktnummer" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Anlage" : {
+        "required" : [ "anlage", "sparte", "typ" ],
+        "type" : "object",
+        "properties" : {
+          "anlage" : {
+            "type" : "string"
+          },
+          "sparte" : {
+            "type" : "string"
+          },
+          "typ" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Idex" : {
+        "required" : [ "customerInterface", "displayLocked", "granularity" ],
+        "type" : "object",
+        "properties" : {
+          "customerInterface" : {
+            "type" : "string"
+          },
+          "displayLocked" : {
+            "type" : "boolean"
+          },
+          "granularity" : {
+            "type" : "string"
+          }
+        }
+      },
+      "zaehlpunktezaehlpunkt_GET_response" : {
+        "type" : "object",
+        "properties" : {
+          "anlage" : {
+            "$ref" : "#/components/schemas/Anlage"
+          },
+          "geraet" : {
+            "$ref" : "#/components/schemas/Geraet"
+          },
+          "idex" : {
+            "$ref" : "#/components/schemas/Idex"
+          },
+          "verbrauchsstelle" : {
+            "$ref" : "#/components/schemas/Verbrauchsstelle"
+          },
+          "zaehlpunktname" : {
+            "type" : "string"
+          },
+          "zaehlpunktnummer" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "securitySchemes" : {
+      "x-Gateway-APIKey" : {
+        "type" : "apiKey",
+        "name" : "x-Gateway-APIKey",
+        "in" : "header"
+      },
+      "OAUTH2" : {
+        "type" : "oauth2",
+        "flows" : { }
+      }
+    }
+  }
+}

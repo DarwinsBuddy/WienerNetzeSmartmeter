@@ -1,18 +1,38 @@
 {
   "config": {
     "error": {
-      "auth": "Username/password invalid",
+      "auth": "Authentication failed — please double-check your credentials.",
       "connection_error": "Unable to connect"
     },
     "flow_title": "Wiener Netze Smartmeter",
     "step": {
       "user": {
-        "title": "Wiener Netze Smartmeter Authentication",
-        "description": "Enter your Wiener Netze Smartmeter credentials",
+        "title": "Wiener Netze Smartmeter",
+        "description": "Choose how you want to connect to Wiener Netze. The official API is the recommended path if you have obtained an application (API key + OAuth2 client) from https://api-portal.wienerstadtwerke.at.",
+        "menu_options": {
+          "official": "Official API (OAuth2 + API key)",
+          "legacy": "Username & Password (legacy)"
+        }
+      },
+      "legacy": {
+        "title": "Wiener Netze — Username & Password",
+        "description": "Enter your Wiener Netze Smartmeter portal credentials. This path scrapes the web portal and may break when Wiener Netze changes its login page.",
         "data": {
           "username": "Username",
           "password": "Password"
-        }        
+        }
+      },
+      "official": {
+        "title": "Wiener Netze — Official API",
+        "description": "Enter the credentials of your Wiener Netze API application. The Client ID, Client Secret and API key are visible in the application detail page of the Wiener Stadtwerke API portal. Before this works you must also ask Wiener Netze (via email) to link your smart meter account to the application. 'webProfileId', 'customerId' and 'scope' are optional — leave 'scope' empty unless Wiener Netze explicitly told you the app was provisioned with one (sending 'profile' otherwise returns 'scope not associated with the client').",
+        "data": {
+          "client_id": "OAuth2 Client ID",
+          "client_secret": "OAuth2 Client Secret",
+          "api_key": "x-Gateway-APIKey",
+          "web_profile_id": "Web profile ID (optional)",
+          "customer_id": "Customer / Geschäftspartner number (optional)",
+          "scope": "OAuth2 scope (optional, leave empty by default)"
+        }
       }
     }
   }
