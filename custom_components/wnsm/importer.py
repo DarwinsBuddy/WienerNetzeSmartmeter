@@ -218,7 +218,9 @@ class Importer:
         data = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, granularity, self.rolle)
         if self.subtract_rolle is None:
             return data
-        subtrahend = await self.async_smartmeter.get_bewegungsdaten(self.zaehlpunkt, start, end, granularity, self.subtract_rolle)
+        subtrahend = await self.async_smartmeter.get_bewegungsdaten(
+            self.zaehlpunkt, start, end, granularity, self.subtract_rolle
+        )
         return _subtract(data, subtrahend)
 
     async def _get_bewegungsdaten(self, start: datetime, end: datetime) -> dict:

@@ -672,7 +672,7 @@ class Smartmeter:
         participations (status 'A' with a date range covering today).
         """
         if zaehlpunktnummer is None or customer_id is None:
-            customer_id, zaehlpunktnummer, anlagetype = self.get_zaehlpunkt(zaehlpunktnummer)
+            customer_id, zaehlpunktnummer, _ = self.get_zaehlpunkt(zaehlpunktnummer)
 
         extra = {
             # For this API Call, requesting json is important!

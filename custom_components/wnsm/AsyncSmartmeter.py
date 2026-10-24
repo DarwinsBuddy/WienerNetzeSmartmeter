@@ -175,7 +175,7 @@ class AsyncSmartmeter:
         """
         try:
             zaehlwerke = await self.get_zaehlwerke(zaehlpunkt)
-        except (RuntimeError, KeyError, TimeoutError) as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught  # detection must never break the regular update
             _LOGGER.debug("Could not determine Energiegemeinschaft participation: %s", e)
             return False
         today = datetime.now().date()

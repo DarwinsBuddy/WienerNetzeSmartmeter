@@ -118,7 +118,16 @@ class WNSMSensor(SensorEntity):
                 await importer.async_import()
                 if await async_smartmeter.has_energiegemeinschaft(self.zaehlpunkt):
                     for suffix, rolle, subtract_rolle in eeg_splits(zaehlpunkt_response.get("type")):
-                        eeg_importer = Importer(self.hass, async_smartmeter, self.zaehlpunkt, self.unit_of_measurement, ValueType.QUARTER_HOUR, statistic_suffix=suffix, rolle=rolle, subtract_rolle=subtract_rolle)
+                        eeg_importer = Importer(
+                            self.hass,
+                            async_smartmeter,
+                            self.zaehlpunkt,
+                            self.unit_of_measurement,
+                            ValueType.QUARTER_HOUR,
+                            statistic_suffix=suffix,
+                            rolle=rolle,
+                            subtract_rolle=subtract_rolle,
+                        )
                         await eeg_importer.async_import()
             self._available = True
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
