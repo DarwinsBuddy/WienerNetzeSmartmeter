@@ -1,4 +1,5 @@
 """Tests for Importer's daily/quarter-hour fallback and daily-floor overlay (issue #361)."""
+import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -9,7 +10,7 @@ from homeassistant.components.recorder.models import StatisticData
 from it import bewegungsdaten_response
 from wnsm.api.constants import ValueType
 from wnsm.const import ATTRS_BEWEGUNGSDATEN
-from wnsm.importer import Importer, _bucket_by_hour, _unit_factor
+from wnsm.importer import Importer, _bucket_by_hour, _subtract, _unit_factor
 from wnsm.utils import translate_dict
 
 CUSTOMER_ID = "1234567890"
@@ -34,13 +35,14 @@ def _value(ts: datetime, wert: float | None) -> dict:
     return {"zeitpunktVon": ts.strftime("%Y-%m-%dT%H:%M:%SZ"), "wert": wert, "geschaetzt": False}
 
 
-def _importer(granularity: ValueType = ValueType.QUARTER_HOUR) -> Importer:
+def _importer(granularity: ValueType = ValueType.QUARTER_HOUR, rolle: str | None = None) -> Importer:
     return Importer(
         hass=None,
         async_smartmeter=AsyncMock(),
         zaehlpunkt=ZAEHLPUNKT,
         unit_of_measurement="kWh",
         granularity=granularity,
+        rolle=rolle,
     )
 
 
@@ -99,7 +101,7 @@ async def test_get_bewegungsdaten_returns_quarter_hour_data_without_fallback_whe
 
     assert result == quarter_hour_data
     importer.async_smartmeter.get_bewegungsdaten.assert_awaited_once_with(
-        ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR
+        ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR, None
     )
 
 
@@ -114,8 +116,8 @@ async def test_get_bewegungsdaten_falls_back_to_daily_when_quarter_hour_unit_of_
 
     assert result == daily_data
     assert importer.async_smartmeter.get_bewegungsdaten.await_count == 2
-    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR)
-    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.DAY)
+    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR, None)
+    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.DAY, None)
 
 
 @pytest.mark.asyncio
@@ -131,7 +133,7 @@ async def test_get_bewegungsdaten_does_not_fall_back_when_only_values_are_empty_
 
     assert result == no_new_readings_yet
     importer.async_smartmeter.get_bewegungsdaten.assert_awaited_once_with(
-        ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR
+        ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR, None
     )
 
 
@@ -145,7 +147,7 @@ async def test_get_bewegungsdaten_does_not_retry_when_already_querying_daily_gra
 
     assert result == empty_daily
     importer.async_smartmeter.get_bewegungsdaten.assert_awaited_once_with(
-        ZAEHLPUNKT, START, END, ValueType.DAY
+        ZAEHLPUNKT, START, END, ValueType.DAY, None
     )
 
 
@@ -162,8 +164,8 @@ async def test_collect_with_daily_floor_layers_quarter_hour_over_daily():
     dates = await importer._collect_with_daily_floor(START, END)
 
     assert dates == {START: Decimal("4.0"), datetime(2024, 1, 1, 1, 0, tzinfo=timezone.utc): Decimal("9.0")}
-    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.DAY)
-    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR)
+    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.DAY, None)
+    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR, None)
 
 
 @pytest.mark.asyncio
@@ -456,3 +458,86 @@ async def test_incremental_import_statistics_forwards_start_and_total():
 
     assert result == Decimal("2.0")
     importer._import_statistics.assert_awaited_once_with(start=START, total_usage=Decimal("1.0"))
+
+
+@pytest.mark.asyncio
+async def test_get_bewegungsdaten_with_role_never_falls_back_to_daily():
+    # G001/G003 have no daily counterpart; the daily V001 is total consumption
+    # and must never end up in a _grid/_eeg statistic.
+    importer = _importer(ValueType.QUARTER_HOUR, rolle="G003")
+    empty_quarter_hour = _translated_response(ValueType.QUARTER_HOUR, no_descriptor=True)
+    importer.async_smartmeter.get_bewegungsdaten.return_value = empty_quarter_hour
+
+    result = await importer._get_bewegungsdaten(START, END)
+
+    assert result == empty_quarter_hour
+    importer.async_smartmeter.get_bewegungsdaten.assert_awaited_once_with(
+        ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR, "G003"
+    )
+
+
+@pytest.mark.asyncio
+async def test_collect_dates_with_role_skips_daily_floor_on_initial_import():
+    importer = _importer(ValueType.QUARTER_HOUR, rolle="G001")
+    importer.async_smartmeter.get_bewegungsdaten.return_value = _translated_response(ValueType.QUARTER_HOUR)
+
+    await importer._collect_dates(START, END, recover_quarter_hour=True)
+
+    importer.async_smartmeter.get_bewegungsdaten.assert_awaited_once_with(
+        ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR, "G001"
+    )
+
+
+T0 = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+T1 = datetime(2024, 1, 1, 10, 15, tzinfo=timezone.utc)
+T2 = datetime(2024, 1, 1, 10, 30, tzinfo=timezone.utc)
+
+
+def test_subtract_per_timestamp_and_skips_missing_values():
+    minuend = _data("KWH", [_value(T0, 3.0), _value(T1, 2.0), _value(T2, None)])
+    subtrahend = _data("KWH", [_value(T0, 1.0), _value(T2, 0.5)])
+
+    result = _subtract(minuend, subtrahend)
+
+    assert [(v["zeitpunktVon"], v["wert"]) for v in result["values"]] == [(T0.strftime("%Y-%m-%dT%H:%M:%SZ"), 2.0)]
+    assert result["unitOfMeasurement"] == "KWH"
+
+
+def test_subtract_converts_units_and_never_goes_negative():
+    minuend = _data("KWH", [_value(T0, 1.0), _value(T1, 0.5)])
+    subtrahend = _data("WH", [_value(T0, 250.0), _value(T1, 501.0)])
+
+    result = _subtract(minuend, subtrahend)
+
+    assert [v["wert"] for v in result["values"]] == [0.75, 0]
+
+
+def test_subtract_logs_skipped_and_clamped_values_at_debug(caplog):
+    minuend = _data("KWH", [_value(T0, 1.0), _value(T1, 0.5), _value(T2, 2.0)])
+    subtrahend = _data("KWH", [_value(T0, 0.5), _value(T1, 0.6)])
+
+    with caplog.at_level(logging.DEBUG, logger="custom_components.wnsm.importer"):
+        _subtract(minuend, subtrahend)
+
+    assert "1 values skipped for a missing side, 1 negative values set to 0" in caplog.text
+
+
+def test_subtract_without_unit_on_either_side_yields_no_data():
+    assert _subtract(_data(None), _data("KWH", [_value(T0, 1.0)]))["unitOfMeasurement"] is None
+    assert _subtract(_data("KWH", [_value(T0, 1.0)]), _data(None))["values"] == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_with_subtract_role_queries_both_roles():
+    importer = Importer(hass=None, async_smartmeter=AsyncMock(), zaehlpunkt=ZAEHLPUNKT, unit_of_measurement="kWh",
+                        rolle="E002", subtract_rolle="U001")
+    importer.async_smartmeter.get_bewegungsdaten.side_effect = [
+        _data("KWH", [_value(T0, 3.0)]),
+        _data("KWH", [_value(T0, 2.5)]),
+    ]
+
+    result = await importer._fetch(START, END, ValueType.QUARTER_HOUR)
+
+    assert [v["wert"] for v in result["values"]] == [0.5]
+    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR, "E002")
+    importer.async_smartmeter.get_bewegungsdaten.assert_any_await(ZAEHLPUNKT, START, END, ValueType.QUARTER_HOUR, "U001")

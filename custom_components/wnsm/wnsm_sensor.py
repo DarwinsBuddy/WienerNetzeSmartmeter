@@ -13,12 +13,31 @@ from homeassistant.util import slugify
 
 from .AsyncSmartmeter import AsyncSmartmeter
 from .api import Smartmeter
-from .api.constants import ValueType
+from .api.constants import AnlagenType, RoleType, ValueType
 from .api.errors import SmartmeterError
 from .importer import Importer
 from .utils import before, today
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def eeg_splits(anlagetype: Optional[str]) -> tuple:
+    """(statistic suffix, role, role to subtract) per Energiegemeinschaft statistic.
+
+    _grid is the residual over all communities: G001 for consumption, U001 for
+    feed-in. The community share (G003 and the like) is defined per community,
+    so with several participations a query by role would be ambiguous; _eeg is
+    therefore the total minus the residual (V002 - G001, E002 - U001).
+    """
+    if anlagetype == AnlagenType.FEEDING.value:
+        return (
+            ("_grid", RoleType.GRID_FEEDING.value, None),
+            ("_eeg", RoleType.QUARTER_HOURLY_FEEDING.value, RoleType.GRID_FEEDING.value),
+        )
+    return (
+        ("_grid", RoleType.GRID_CONSUMING.value, None),
+        ("_eeg", RoleType.QUARTER_HOURLY_CONSUMING.value, RoleType.GRID_CONSUMING.value),
+    )
 
 
 class WNSMSensor(SensorEntity):
@@ -98,6 +117,19 @@ class WNSMSensor(SensorEntity):
                     self._attr_native_value = meter_reading
                 importer = Importer(self.hass, async_smartmeter, self.zaehlpunkt, self.unit_of_measurement, self.granularity())
                 await importer.async_import()
+                if await async_smartmeter.has_energiegemeinschaft(self.zaehlpunkt):
+                    for suffix, rolle, subtract_rolle in eeg_splits(zaehlpunkt_response.get("type")):
+                        eeg_importer = Importer(
+                            self.hass,
+                            async_smartmeter,
+                            self.zaehlpunkt,
+                            self.unit_of_measurement,
+                            ValueType.QUARTER_HOUR,
+                            statistic_suffix=suffix,
+                            rolle=rolle,
+                            subtract_rolle=subtract_rolle,
+                        )
+                        await eeg_importer.async_import()
             self._available = True
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         except TimeoutError as e:
