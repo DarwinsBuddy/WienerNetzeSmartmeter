@@ -16,12 +16,11 @@ from homeassistant.const import (
     CONF_PASSWORD,
     CONF_DEVICE_ID
 )
-from homeassistant.core import DOMAIN
 from homeassistant.helpers.typing import (
     ConfigType,
     DiscoveryInfoType,
 )
-from .const import CONF_ZAEHLPUNKTE
+from .const import CONF_ZAEHLPUNKTE, DOMAIN
 from .wnsm_sensor import WNSMSensor
 # Time between updating data from Wiener Netze
 SCAN_INTERVAL = timedelta(minutes=60 * 6)
