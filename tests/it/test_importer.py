@@ -456,3 +456,132 @@ async def test_incremental_import_statistics_forwards_start_and_total():
 
     assert result == Decimal("2.0")
     importer._import_statistics.assert_awaited_once_with(start=START, total_usage=Decimal("1.0"))
+
+
+def _priced_importer(price_per_kwh: Decimal | None = None, feed_in_price_per_kwh: Decimal | None = None) -> Importer:
+    return Importer(
+        hass=None,
+        async_smartmeter=AsyncMock(),
+        zaehlpunkt=ZAEHLPUNKT,
+        unit_of_measurement="kWh",
+        granularity=ValueType.QUARTER_HOUR,
+        price_per_kwh=price_per_kwh,
+        feed_in_price_per_kwh=feed_in_price_per_kwh,
+    )
+
+
+async def _prepare(importer: Importer, anlage_type: str, last_monetary_stat: dict) -> AsyncMock:
+    with patch("wnsm.importer.get_instance") as get_instance:
+        executor_job = AsyncMock(return_value=last_monetary_stat)
+        get_instance.return_value.async_add_executor_job = executor_job
+        await importer._prepare_monetary_statistic({"type": anlage_type})
+    return executor_job
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("anlage_type", ["TAGSTROM", "NACHTSTROM", "WAERMEPUMPE", "STROM", "WANDLER"])
+async def test_prepare_monetary_statistic_uses_price_for_consuming_zaehlpunkt(anlage_type):
+    importer = _priced_importer(price_per_kwh=Decimal("0.25"), feed_in_price_per_kwh=Decimal("0.08"))
+
+    await _prepare(importer, anlage_type, {})
+
+    assert importer.price == Decimal("0.25")
+    assert importer.monetary_id == f"{importer.id}_cost"
+    assert importer.total_money == Decimal(0)
+
+
+@pytest.mark.asyncio
+async def test_prepare_monetary_statistic_uses_feed_in_price_for_feeding_zaehlpunkt():
+    importer = _priced_importer(price_per_kwh=Decimal("0.25"), feed_in_price_per_kwh=Decimal("0.08"))
+
+    await _prepare(importer, "BEZUG", {})
+
+    assert importer.price == Decimal("0.08")
+    assert importer.monetary_id == f"{importer.id}_compensation"
+    assert importer.get_monetary_statistics_metadata()["unit_of_measurement"] == "EUR"
+    assert importer.get_monetary_statistics_metadata()["name"] == f"{ZAEHLPUNKT} Compensation"
+
+
+@pytest.mark.asyncio
+async def test_prepare_monetary_statistic_continues_previous_sum():
+    importer = _priced_importer(price_per_kwh=Decimal("0.25"))
+    monetary_id = f"{importer.id}_cost"
+
+    executor_job = await _prepare(importer, "TAGSTROM", {monetary_id: [{"sum": 12.5}]})
+
+    assert importer.total_money == Decimal("12.5")
+    assert executor_job.call_args.args[3] == monetary_id
+
+
+@pytest.mark.asyncio
+async def test_prepare_monetary_statistic_without_prices_does_nothing():
+    importer = _priced_importer()
+
+    executor_job = await _prepare(importer, "UNKNOWN", {})
+
+    assert importer.price is None
+    executor_job.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("anlage_type, price_per_kwh, feed_in_price_per_kwh", [
+    ("TAGSTROM", None, Decimal("0.08")),
+    ("BEZUG", Decimal("0.25"), None),
+])
+async def test_prepare_monetary_statistic_without_price_for_type_does_nothing(anlage_type, price_per_kwh, feed_in_price_per_kwh):
+    importer = _priced_importer(price_per_kwh=price_per_kwh, feed_in_price_per_kwh=feed_in_price_per_kwh)
+
+    executor_job = await _prepare(importer, anlage_type, {})
+
+    assert importer.price is None
+    assert importer.monetary_id is None
+    executor_job.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_import_statistics_writes_monetary_statistics_with_price():
+    importer = _priced_importer(price_per_kwh=Decimal("0.25"))
+    await _prepare(importer, "TAGSTROM", {f"{importer.id}_cost": [{"sum": 2}]})
+    second_hour = START + timedelta(hours=1)
+    importer.async_smartmeter.get_bewegungsdaten.return_value = _data("KWH", [_value(START, 4.0), _value(second_hour, 2.0)])
+
+    with patch("wnsm.importer.async_add_external_statistics") as write:
+        total = await importer._import_statistics(start=START, end=END, total_usage=Decimal("10"))
+
+    assert total == Decimal("16.0")
+    assert write.call_count == 2
+    _hass_arg, metadata, statistics = write.call_args_list[1].args
+    assert metadata["statistic_id"] == f"{importer.id}_cost"
+    assert statistics == [
+        StatisticData(start=START, sum=Decimal("3.0"), state=1.0),
+        StatisticData(start=second_hour, sum=Decimal("3.5"), state=0.5),
+    ]
+    assert importer.total_money == Decimal("3.5")
+
+
+@pytest.mark.asyncio
+async def test_import_statistics_writes_no_monetary_statistics_without_price():
+    importer = _priced_importer(feed_in_price_per_kwh=Decimal("0.08"))
+    await _prepare(importer, "TAGSTROM", {})
+    importer.async_smartmeter.get_bewegungsdaten.return_value = _data("KWH", [_value(START, 4.0)])
+
+    with patch("wnsm.importer.async_add_external_statistics") as write:
+        await importer._import_statistics(start=START, end=END)
+
+    write.assert_called_once()
+    assert write.call_args.args[1]["statistic_id"] == importer.id
+
+
+@pytest.mark.asyncio
+async def test_async_import_prepares_monetary_statistic_for_zaehlpunkt():
+    importer = _priced_importer(price_per_kwh=Decimal("0.25"))
+    importer.async_smartmeter.is_active = MagicMock(return_value=True)
+    importer.async_smartmeter.get_zaehlpunkt.return_value = {"type": "TAGSTROM"}
+    importer._initial_import_statistics = AsyncMock(return_value=Decimal("1.0"))
+
+    with patch("wnsm.importer.get_instance") as get_instance:
+        get_instance.return_value.async_add_executor_job = AsyncMock(return_value={})
+        await importer.async_import()
+
+    assert importer.monetary_id == f"{importer.id}_cost"
+    importer._initial_import_statistics.assert_awaited_once()

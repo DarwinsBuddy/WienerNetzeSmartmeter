@@ -4,6 +4,8 @@
 DOMAIN = "wnsm"
 
 CONF_ZAEHLPUNKTE = "zaehlpunkte"
+CONF_PRICE_PER_KWH = "price_per_kwh"
+CONF_FEED_IN_PRICE_PER_KWH = "feed_in_price_per_kwh"
 
 ATTRS_ZAEHLPUNKT_CALL = [
     ("zaehlpunktnummer", "zaehlpunktnummer"),

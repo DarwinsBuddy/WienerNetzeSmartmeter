@@ -42,6 +42,17 @@ After successful configuration you can add sensors to your favourite dashboard, 
 
 ### Manual
 See [Example configuration files](https://github.com/DarwinsBuddy/WienerNetzeSmartmeter/blob/main/example/configuration.yaml)
+
+### Cost and compensation statistics
+The energy dashboard does not accept a price for external statistics such as `wnsm:<zaehlpunkt>`.
+Set a fixed price in the integration's options (Settings → Devices & Services → Wiener Netze Smartmeter → Configure) to import a monetary statistic next to the energy statistic:
+
+- **Price per kWh for consumption**: imports `wnsm:<zaehlpunkt>_cost` (EUR) for consuming Zählpunkte. Select it as cost statistic of the grid consumption.
+- **Compensation per kWh for feed-in**: imports `wnsm:<zaehlpunkt>_compensation` (EUR) for feeding Zählpunkte. Select it as compensation statistic of the return to grid.
+
+The statistics start with the next import after the price is set. Already imported hours are not recalculated, and a changed price applies to newly imported hours only.
+Leave a field empty to not import the statistic.
+
 ## Copyright
 
 This integration uses the API of https://www.wienernetze.at/smartmeter

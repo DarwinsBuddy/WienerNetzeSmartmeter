@@ -3,7 +3,9 @@ WienerNetze Smartmeter sensor platform
 """
 import collections.abc
 from datetime import timedelta
-from typing import Optional
+from decimal import Decimal
+from types import MappingProxyType
+from typing import Any, Optional
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -20,7 +22,7 @@ from homeassistant.helpers.typing import (
     ConfigType,
     DiscoveryInfoType,
 )
-from .const import CONF_ZAEHLPUNKTE, DOMAIN
+from .const import CONF_FEED_IN_PRICE_PER_KWH, CONF_PRICE_PER_KWH, CONF_ZAEHLPUNKTE, DOMAIN
 from .wnsm_sensor import WNSMSensor
 # Time between updating data from Wiener Netze
 SCAN_INTERVAL = timedelta(minutes=60 * 6)
@@ -40,11 +42,19 @@ async def async_setup_entry(
 ):
     """Setup sensors from a config entry created in the integrations UI."""
     config = hass.data[DOMAIN][config_entry.entry_id]
+    price_per_kwh = _price(config_entry.options, CONF_PRICE_PER_KWH)
+    feed_in_price_per_kwh = _price(config_entry.options, CONF_FEED_IN_PRICE_PER_KWH)
     wnsm_sensors = [
-        WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"])
+        WNSMSensor(config[CONF_USERNAME], config[CONF_PASSWORD], zp["zaehlpunktnummer"],
+                   price_per_kwh=price_per_kwh, feed_in_price_per_kwh=feed_in_price_per_kwh)
         for zp in config[CONF_ZAEHLPUNKTE]
     ]
     async_add_entities(wnsm_sensors, update_before_add=True)
+
+
+def _price(options: MappingProxyType[str, Any], key: str) -> Optional[Decimal]:
+    value = options.get(key)
+    return Decimal(str(value)) if value is not None else None
 
 
 async def async_setup_platform(

@@ -19,9 +19,16 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_conversion import EnergyConverter
 
 from .AsyncSmartmeter import AsyncSmartmeter
-from .api.constants import ValueType
+from .api.constants import AnlagenType, ValueType
 from .api.errors import SmartmeterError
 from .const import DOMAIN
+
+MONETARY_UNIT = "EUR"
+# Statistic suffix and name per Zaehlpunkt type, matching stat_cost/stat_compensation of the energy dashboard
+MONETARY_STATISTICS = {
+    AnlagenType.CONSUMING: ("cost", "Cost"),
+    AnlagenType.FEEDING: ("compensation", "Compensation"),
+}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,13 +71,24 @@ def _bucket(bewegungsdaten: dict, start: datetime) -> dict:
 
 class Importer:
 
-    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str, granularity: ValueType = ValueType.QUARTER_HOUR):
+    def __init__(self, hass: HomeAssistant, async_smartmeter: AsyncSmartmeter, zaehlpunkt: str, unit_of_measurement: str,
+                 granularity: ValueType = ValueType.QUARTER_HOUR, price_per_kwh: Optional[Decimal] = None,
+                 feed_in_price_per_kwh: Optional[Decimal] = None):
         self.id = f'{DOMAIN}:{zaehlpunkt.lower()}'
         self.zaehlpunkt = zaehlpunkt
         self.granularity = granularity
         self.unit_of_measurement = unit_of_measurement
         self.hass = hass
         self.async_smartmeter = async_smartmeter
+        self.prices: dict[AnlagenType, Optional[Decimal]] = {
+            AnlagenType.CONSUMING: price_per_kwh,
+            AnlagenType.FEEDING: feed_in_price_per_kwh,
+        }
+        # Set by _prepare_monetary_statistic when a price applies to this Zaehlpunkt
+        self.price: Optional[Decimal] = None
+        self.monetary_id: Optional[str] = None
+        self.monetary_name: Optional[str] = None
+        self.total_money = Decimal(0)
 
     def is_last_inserted_stat_valid(self, last_inserted_stat):
         return len(last_inserted_stat) == 1 and len(last_inserted_stat[self.id]) == 1 and \
@@ -132,6 +150,8 @@ class Importer:
                 _LOGGER.debug("Smartmeter %s is not active" % zaehlpunkt)
                 return
 
+            await self._prepare_monetary_statistic(zaehlpunkt)
+
             if not self.is_last_inserted_stat_valid(last_inserted_stat):
                 # No previous data - start from scratch
                 _LOGGER.warning("Starting import of historical data. This might take some time.")
@@ -179,6 +199,34 @@ class Importer:
             unit_class=EnergyConverter.UNIT_CLASS,
             has_sum=True,
         )
+
+    def get_monetary_statistics_metadata(self):
+        return StatisticMetaData(
+            source=DOMAIN,
+            statistic_id=self.monetary_id,
+            name=f"{self.zaehlpunkt} {self.monetary_name}",
+            unit_of_measurement=MONETARY_UNIT,
+            mean_type=StatisticMeanType.NONE,
+            unit_class=None,
+            has_sum=True,
+        )
+
+    async def _prepare_monetary_statistic(self, zaehlpunkt: dict[str, str]) -> None:
+        """Select price and statistic for the Zaehlpunkt type and load the last monetary sum."""
+        if all(price is None for price in self.prices.values()):
+            return
+        anlagen_type = AnlagenType.from_str(zaehlpunkt["type"])
+        self.price = self.prices[anlagen_type]
+        if self.price is None:
+            return
+        suffix, self.monetary_name = MONETARY_STATISTICS[anlagen_type]
+        self.monetary_id = f"{self.id}_{suffix}"
+        last_monetary_stat = await get_instance(self.hass).async_add_executor_job(
+            get_last_statistics, self.hass, 1, self.monetary_id, True, {"sum"},
+        )
+        _LOGGER.debug("Last inserted monetary stat: %s", last_monetary_stat)
+        if len(last_monetary_stat.get(self.monetary_id, [])) == 1:
+            self.total_money = Decimal(last_monetary_stat[self.monetary_id][0]["sum"])
 
     async def _initial_import_statistics(self):
         # Only the initial backfill can span a granularity opt-in, so only it
@@ -259,4 +307,14 @@ class Importer:
             statistics.append(StatisticData(start=ts, sum=total_usage, state=float(usage)))
         _LOGGER.debug(f"Importing statistics from {statistics[0]} to {statistics[-1]}")
         async_add_external_statistics(self.hass, metadata, statistics)
+        if self.price is not None:
+            self._import_monetary_statistics(dates)
         return total_usage
+
+    def _import_monetary_statistics(self, dates: dict[datetime, Decimal]) -> None:
+        statistics = []
+        for ts, usage in sorted(dates.items(), key=itemgetter(0)):
+            amount = usage * self.price
+            self.total_money += amount
+            statistics.append(StatisticData(start=ts, sum=self.total_money, state=float(amount)))
+        async_add_external_statistics(self.hass, self.get_monetary_statistics_metadata(), statistics)
