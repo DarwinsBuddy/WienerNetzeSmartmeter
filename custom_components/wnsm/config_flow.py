@@ -8,9 +8,17 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
+from homeassistant.core import callback
+from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
 
 from .api import Smartmeter
-from .const import ATTRS_ZAEHLPUNKTE_CALL, DOMAIN, CONF_ZAEHLPUNKTE
+from .const import (
+    ATTRS_ZAEHLPUNKTE_CALL,
+    CONF_FEED_IN_PRICE_PER_KWH,
+    CONF_PRICE_PER_KWH,
+    CONF_ZAEHLPUNKTE,
+    DOMAIN,
+)
 from .utils import translate_dict
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,11 +27,20 @@ AUTH_SCHEMA = vol.Schema(
     {vol.Required(CONF_USERNAME): cv.string, vol.Required(CONF_PASSWORD): cv.string}
 )
 
+PRICE_SELECTOR = NumberSelector(
+    NumberSelectorConfig(min=0, step="any", unit_of_measurement="EUR/kWh", mode=NumberSelectorMode.BOX)
+)
+
 
 class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Wiener Netze Smartmeter config flow"""
 
     data: Optional[dict[str, Any]]
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
+        return WienerNetzeSmartMeterOptionsFlow()
 
     async def validate_auth(self, username: str, password: str) -> list[dict]:
         """
@@ -69,3 +86,24 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
         return self.async_show_form(
             step_id="user", data_schema=AUTH_SCHEMA, errors=errors
         )
+
+
+class WienerNetzeSmartMeterOptionsFlow(config_entries.OptionsFlow):
+    """Prices for the optional cost and compensation statistics, an empty field disables the statistic"""
+
+    async def async_step_init(self, user_input: Optional[dict[str, Any]] = None) -> config_entries.ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        options = self.config_entry.options
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_PRICE_PER_KWH, description={"suggested_value": options.get(CONF_PRICE_PER_KWH)}
+                ): PRICE_SELECTOR,
+                vol.Optional(
+                    CONF_FEED_IN_PRICE_PER_KWH, description={"suggested_value": options.get(CONF_FEED_IN_PRICE_PER_KWH)}
+                ): PRICE_SELECTOR,
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema)

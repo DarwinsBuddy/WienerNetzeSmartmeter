@@ -12,7 +12,23 @@
         "data": {
           "username": "Username",
           "password": "Password"
-        }        
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Cost and compensation statistics",
+        "description": "Leave a field empty to not import the statistic.",
+        "data": {
+          "price_per_kwh": "Price per kWh for consumption",
+          "feed_in_price_per_kwh": "Compensation per kWh for feed-in"
+        },
+        "data_description": {
+          "price_per_kwh": "Imports `<statistic_id>_cost` for consuming Zählpunkte.",
+          "feed_in_price_per_kwh": "Imports `<statistic_id>_compensation` for feeding Zählpunkte."
+        }
       }
     }
   }
