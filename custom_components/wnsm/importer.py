@@ -1,4 +1,5 @@
 import logging
+from bisect import bisect_left
 from collections import defaultdict
 from datetime import timedelta, timezone, datetime
 from decimal import Decimal
@@ -26,12 +27,25 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 UNIT_FACTORS = {"WH": 1e-3, "KWH": 1.0}
+QUARTER_HOUR = timedelta(minutes=15)
 
 
 def _unit_factor(unit: Optional[str]) -> float:
     if unit not in UNIT_FACTORS:
         raise NotImplementedError(f'Unit "{unit}" is not yet implemented. Please report!')
     return UNIT_FACTORS[unit]
+
+
+def _until(value: dict) -> Optional[datetime]:
+    return dt_util.parse_datetime(value['zeitpunktBis']) if value.get('zeitpunktBis') else None
+
+
+def _bucket_hour(value: dict, ts: datetime) -> datetime:
+    """Hour that contains the end of the value's interval."""
+    until = _until(value)
+    if until is not None:
+        ts = until - timedelta(milliseconds=1)
+    return ts.replace(minute=0, second=0, microsecond=0)
 
 
 def _bucket_by_hour(values: list, factor: float, start: datetime) -> dict:
@@ -51,7 +65,7 @@ def _bucket_by_hour(values: list, factor: float, start: datetime) -> dict:
         reading = Decimal(value['wert'] * factor)
         if ts.minute % 15 != 0 or ts.second != 0 or ts.microsecond != 0:
             _LOGGER.warning(f"Unexpected time detected in historic data: {value}")
-        dates[ts.replace(minute=0)] += reading
+        dates[_bucket_hour(value, ts)] += reading
         if value['geschaetzt']:
             _LOGGER.debug(f"Not seen that before: Estimated Value found for {ts}: {reading}")
     return dict(dates)
@@ -60,6 +74,42 @@ def _bucket_by_hour(values: list, factor: float, start: datetime) -> dict:
 def _bucket(bewegungsdaten: dict, start: datetime) -> dict:
     factor = _unit_factor(bewegungsdaten['unitOfMeasurement'])
     return _bucket_by_hour(bewegungsdaten.get('values') or [], factor, start)
+
+
+def _contains_start(values: list, start: datetime) -> bool:
+    """Whether a value's interval starts before and ends after start."""
+    for value in values:
+        until = _until(value)
+        if until is not None and dt_util.parse_datetime(value['zeitpunktVon']) < start < until:
+            return True
+    return False
+
+
+def _merge_daily_floor(daily: dict, quarter_hour: dict, start: datetime) -> dict:
+    """Per day: quarter-hour values if they cover the whole day, else the daily value."""
+    quarter_hour_values = sorted(
+        (v for v in quarter_hour.get('values') or [] if v['wert'] is not None),
+        key=lambda v: dt_util.parse_datetime(v['zeitpunktVon']),
+    )
+    quarter_hour_starts = [dt_util.parse_datetime(v['zeitpunktVon']) for v in quarter_hour_values]
+    replaced = set()
+    floor_values = []
+    for value in daily.get('values') or []:
+        if value['wert'] is None:
+            continue
+        day_start = dt_util.parse_datetime(value['zeitpunktVon'])
+        day_end = _until(value) or day_start + timedelta(days=1)
+        first = bisect_left(quarter_hour_starts, day_start)
+        last = bisect_left(quarter_hour_starts, day_end)
+        quarters_in_day = -(-(day_end - day_start) // QUARTER_HOUR)
+        if last - first < quarters_in_day:
+            replaced.update(range(first, last))
+            floor_values.append(value)
+
+    kept = [v for i, v in enumerate(quarter_hour_values) if i not in replaced]
+    dates = _bucket_by_hour(kept, _unit_factor(quarter_hour['unitOfMeasurement']), start)
+    dates.update(_bucket_by_hour(floor_values, _unit_factor(daily['unitOfMeasurement']), start))
+    return dates
 
 
 class Importer:
@@ -197,35 +247,39 @@ class Importer:
         # WienerNetze often leaves the V002 quarter-hour feed empty (einheit: null)
         # even when the meter is opted into 15-min values; daily (V001) still works.
         if self.granularity != ValueType.DAY and data.get('unitOfMeasurement') is None:
+            daily = await self._fetch(start, end, ValueType.DAY)
+            # - a daily value containing start would overlap already imported hours
+            if _contains_start(daily.get('values') or [], start):
+                _LOGGER.info("No %s data for %s from %s yet; waiting for it instead of falling back to daily",
+                             self.granularity.value, self.zaehlpunkt, start)
+                return {}
             _LOGGER.info("No %s data for %s; falling back to daily granularity",
                          self.granularity.value, self.zaehlpunkt)
-            return await self._fetch(start, end, ValueType.DAY)
+            return daily
         return data
 
     async def _collect_with_daily_floor(self, start: datetime, end: datetime) -> dict:
-        """Fetch daily as a floor and layer quarter-hour on top, unconditionally.
+        """Fetch daily and quarter-hour values and merge them per day.
 
-        WienerNetze may report a valid quarter-hour response that silently omits
-        everything before the real opt-in date, so we can't tell from the
-        quarter-hour fetch alone whether the daily floor is needed - always fetch
-        both and let quarter-hour win wherever it actually reports a value.
+        - WienerNetze may omit quarter-hour values before the opt-in date without an error
         """
         daily = await self._fetch(start, end, ValueType.DAY)
         if daily.get('unitOfMeasurement') is None:
             _LOGGER.warning("Unit of measurement is None! Aborting import...")
             return {}
-        dates = _bucket(daily, start)
 
         quarter_hour = await self._fetch(start, end, ValueType.QUARTER_HOUR)
         if quarter_hour.get('unitOfMeasurement') is None:
-            return dates
-        return {**dates, **_bucket(quarter_hour, start)}
+            return _bucket(daily, start)
+        return _merge_daily_floor(daily, quarter_hour, start)
 
     async def _collect_dates(self, start: datetime, end: datetime, recover_quarter_hour: bool) -> dict:
         if recover_quarter_hour and self.granularity == ValueType.QUARTER_HOUR:
             return await self._collect_with_daily_floor(start, end)
 
         bewegungsdaten = await self._get_bewegungsdaten(start, end)
+        if not bewegungsdaten:
+            return {}
         _LOGGER.debug(f"Mapped historical data: {bewegungsdaten}")
         if bewegungsdaten['unitOfMeasurement'] is None:
             _LOGGER.warning("Unit of measurement is None! Aborting import...")
