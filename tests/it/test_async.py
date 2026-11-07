@@ -1,4 +1,5 @@
 """AsyncSmartmeter tests"""
+import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -77,6 +78,34 @@ async def test_has_energiegemeinschaft_never_raises(error):
     sm.zaehlwerke.side_effect = error
 
     assert not await AsyncSmartmeter(FakeHass(), sm).has_energiegemeinschaft("AT001")
+
+
+@pytest.mark.asyncio
+async def test_has_energiegemeinschaft_logs_failure_as_warning(caplog):
+    sm = MagicMock()
+    sm.zaehlwerke.side_effect = ValueError("no json")
+
+    with caplog.at_level(logging.WARNING):
+        await AsyncSmartmeter(FakeHass(), sm).has_energiegemeinschaft("AT001")
+    assert "Could not determine Energiegemeinschaft participation for AT001: no json" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("requests_mock")
+async def test_has_energiegemeinschaft_logs_detection_result(requests_mock: Mocker, caplog):
+    with caplog.at_level(logging.DEBUG):
+        await detect(requests_mock, [{"status": "A", "dateFrom": "2020-01-01", "dateTo": "9999-12-31"}])
+    assert "Active Energiegemeinschaft participation" in caplog.text
+    assert "since 2020-01-01" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("requests_mock")
+async def test_has_energiegemeinschaft_logs_missing_participation(requests_mock: Mocker, caplog):
+    with caplog.at_level(logging.DEBUG):
+        await detect(requests_mock, [{"status": "B", "dateFrom": "2020-01-01", "dateTo": "9999-12-31"}])
+    assert "No active Energiegemeinschaft participation" in caplog.text
+    assert "'status': 'B'" in caplog.text
 
 
 @pytest.mark.asyncio

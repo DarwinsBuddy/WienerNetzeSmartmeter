@@ -176,10 +176,11 @@ class AsyncSmartmeter:
         try:
             zaehlwerke = await self.get_zaehlwerke(zaehlpunkt)
         except Exception as e:  # pylint: disable=broad-exception-caught  # detection must never break the regular update
-            _LOGGER.debug("Could not determine Energiegemeinschaft participation: %s", e)
+            _LOGGER.warning("Could not determine Energiegemeinschaft participation for %s: %s", zaehlpunkt, e)
             return False
         today = datetime.now().date()
-        for teilnahme in zaehlwerke.get("eagTeilnahmen", []) or []:
+        teilnahmen = zaehlwerke.get("eagTeilnahmen", []) or []
+        for teilnahme in teilnahmen:
             if teilnahme.get("status") != "A":
                 continue
             try:
@@ -188,7 +189,9 @@ class AsyncSmartmeter:
             except (KeyError, ValueError):
                 continue
             if date_from <= today <= date_to:
+                _LOGGER.debug("Active Energiegemeinschaft participation for %s since %s", zaehlpunkt, date_from)
                 return True
+        _LOGGER.debug("No active Energiegemeinschaft participation for %s, eagTeilnahmen: %s", zaehlpunkt, teilnahmen)
         return False
 
     async def get_consumptions(self) -> dict[str, str]:
