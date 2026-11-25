@@ -42,6 +42,22 @@ After successful configuration you can add sensors to your favourite dashboard, 
 
 ### Manual
 See [Example configuration files](https://github.com/DarwinsBuddy/WienerNetzeSmartmeter/blob/main/example/configuration.yaml)
+
+### Cost tracking (optional)
+The integration can calculate the energy cost of each Zählpunkt from an hourly electricity price sensor (e.g. a dynamic tariff sensor).
+
+1. Go to the WienerNetze Smartmeter integration and click **Configure**.
+2. Select an electricity price sensor. It must report the price in currency per kWh (e.g. `EUR/kWh` or `ct/kWh`).
+
+For each Zählpunkt, the integration then creates the statistic `wnsm:<zaehlpunkt>_cost`. In the energy dashboard, select it as the cost source ("Use an entity tracking the total costs").
+
+The cost of each hour is the hourly consumption multiplied by the mean price of the same hour.
+
+Requirements and limitations:
+- Your smart meter must deliver quarter-hour values. With daily values only, the whole consumption of the day is multiplied by the price of the first hour of the day, so the cost is wrong.
+- The price sensor must have long-term statistics (`state_class: measurement`). The cost is only calculated for hours where the price sensor has a recorded price.
+- Cost tracking is only available if you set up the integration in the UI. It is not available with the manual configuration in `configuration.yaml`.
+
 ## Copyright
 
 This integration uses the API of https://www.wienernetze.at/smartmeter
