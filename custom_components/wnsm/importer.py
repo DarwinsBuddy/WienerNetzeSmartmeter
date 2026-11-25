@@ -63,6 +63,31 @@ def _bucket(bewegungsdaten: dict, start: datetime) -> dict:
     return _bucket_by_hour(bewegungsdaten.get('values') or [], factor, start)
 
 
+def _to_utc_hour(ts: datetime | float | str | None) -> Optional[datetime]:
+    """Convert a statistics timestamp to the start of its hour; naive datetimes are treated as UTC."""
+    if isinstance(ts, (int, float)):
+        ts = dt_util.utc_from_timestamp(ts)
+    if isinstance(ts, str):
+        ts = dt_util.parse_datetime(ts)
+    if not isinstance(ts, datetime):
+        return None
+    ts = ts.replace(minute=0, second=0, microsecond=0)
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts
+
+
+def _values_by_hour(rows: list[dict], key: str) -> dict[datetime, float]:
+    """Map the hour of each statistics row to its `key` value; rows without value or start are skipped."""
+    result = {}
+    for row in rows:
+        value = row.get(key)
+        ts = _to_utc_hour(row.get("start"))
+        if value is not None and ts is not None:
+            result[ts] = value
+    return result
+
+
 class Importer:
 
     def __init__(
@@ -120,7 +145,7 @@ class Importer:
         if delta_t <= min_wait:
             _LOGGER.debug(
                 "Not querying the API, because last update is not older than 24 hours. Earliest update in %s" % (
-                        min_wait - delta_t))
+                    min_wait - delta_t))
             return None
         return start, _sum
 
@@ -196,25 +221,10 @@ class Importer:
             )
             return {}
 
-        result = {}
-        for entry in price_stats[self.price_entity_id]:
-            mean = entry.get("mean")
-            if mean is None:
-                continue
-            ts = entry.get("start")
-            if ts is None:
-                continue
-            # Normalise to UTC datetime with no sub-hour precision
-            if isinstance(ts, (int, float)):
-                ts = dt_util.utc_from_timestamp(ts)
-            if isinstance(ts, str):
-                ts = dt_util.parse_datetime(ts)
-            if not isinstance(ts, datetime):
-                continue
-            ts = ts.replace(minute=0, second=0, microsecond=0)
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
-            result[ts] = float(mean)
+        result = {
+            ts: float(mean)
+            for ts, mean in _values_by_hour(price_stats[self.price_entity_id], "mean").items()
+        }
 
         _LOGGER.debug(
             "Retrieved %d hourly price entries for %s", len(result), self.price_entity_id
@@ -259,37 +269,10 @@ class Importer:
                 _LOGGER.debug("Smartmeter %s is not active" % zaehlpunkt)
                 return
 
-            energy_throttled = False
-            if not self.is_last_inserted_stat_valid(last_inserted_stat):
-                # No previous energy data - start from scratch
-                _LOGGER.warning("Starting import of historical data. This might take some time.")
-                _sum = await self._initial_import_statistics()
-            else:
-                start_off_point = self.prepare_start_off_point(last_inserted_stat)
-                if start_off_point is None:
-                    energy_throttled = True
-                else:
-                    start, _sum = start_off_point
-                    _sum = await self._incremental_import_statistics(start, _sum)
-
-            # Determine cost starting point independently of energy starting point.
-            # The cost import is not throttled by the energy 24h check — when the
-            # price sensor is first configured there will be no cost stats yet and
-            # we need to do the full historical import regardless.
+            await self._import_energy(last_inserted_stat)
+            # cost start point is independent of the energy 24h check
             if self.price_entity_id:
-                if not self.is_last_inserted_cost_stat_valid(last_inserted_cost_stat):
-                    _LOGGER.info(
-                        "Starting full cost statistic import for %s using price sensor %s",
-                        self.zaehlpunkt, self.price_entity_id
-                    )
-                    await self._initial_import_cost_statistics()
-                else:
-                    cost_start_off_point = self.prepare_start_off_point(
-                        last_inserted_cost_stat, stat_id=self.cost_id
-                    )
-                    if cost_start_off_point is not None:
-                        cost_start, cost_sum = cost_start_off_point
-                        await self._incremental_import_cost_statistics(cost_start, cost_sum)
+                await self._import_cost(last_inserted_cost_stat)
 
             # XXX: Note that the state of this sensor must never be an integer value, such as 0!
             # If it is set to any number, home assistant will assume that a negative consumption
@@ -316,6 +299,29 @@ class Importer:
                 _LOGGER.warning("Error retrieving data from smart meter api - Error: %s; Response: %s", e, error_response)
             else:
                 _LOGGER.warning("Error retrieving data from smart meter api - Error: %s", e)
+
+    async def _import_energy(self, last_inserted_stat: dict) -> None:
+        if not self.is_last_inserted_stat_valid(last_inserted_stat):
+            _LOGGER.warning("Starting import of historical data. This might take some time.")
+            await self._initial_import_statistics()
+            return
+        start_off_point = self.prepare_start_off_point(last_inserted_stat)
+        if start_off_point is not None:
+            start, _sum = start_off_point
+            await self._incremental_import_statistics(start, _sum)
+
+    async def _import_cost(self, last_inserted_cost_stat: dict) -> None:
+        if not self.is_last_inserted_cost_stat_valid(last_inserted_cost_stat):
+            _LOGGER.info(
+                "Starting full cost statistic import for %s using price sensor %s",
+                self.zaehlpunkt, self.price_entity_id
+            )
+            await self._initial_import_cost_statistics()
+            return
+        cost_start_off_point = self.prepare_start_off_point(last_inserted_cost_stat, stat_id=self.cost_id)
+        if cost_start_off_point is not None:
+            cost_start, cost_sum = cost_start_off_point
+            await self._incremental_import_cost_statistics(cost_start, cost_sum)
 
     def is_last_inserted_cost_stat_valid(self, last_inserted_cost_stat):
         """Check whether the cost statistic has valid prior data."""
@@ -473,42 +479,43 @@ class Importer:
             _LOGGER.debug("No energy statistics found for %s in range %s - %s", self.id, start, end)
             return total_cost
 
-        # Build a timestamp -> hourly_usage lookup from energy stats
-        energy_by_hour = {}
-        for entry in energy_stats[self.id]:
-            state_val = entry.get("state")
-            if state_val is None:
-                continue
-            ts = entry.get("start")
-            if ts is None:
-                continue
-            if isinstance(ts, (int, float)):
-                ts = dt_util.utc_from_timestamp(ts)
-            if isinstance(ts, str):
-                ts = dt_util.parse_datetime(ts)
-            if not isinstance(ts, datetime):
-                continue
-            ts = ts.replace(minute=0, second=0, microsecond=0)
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
-            energy_by_hour[ts] = Decimal(str(state_val))
-
+        energy_by_hour = {
+            ts: Decimal(str(state))
+            for ts, state in _values_by_hour(energy_stats[self.id], "state").items()
+        }
         if not energy_by_hour:
             _LOGGER.debug("No usable energy data found for cost calculation in range %s - %s", start, end)
             return total_cost
 
-        # Compute cost for each hour where both energy and price are available
-        cost_statistics = []
-        cost_metadata = self.get_cost_statistics_metadata()
-        skipped = 0
+        cost_statistics, total_cost = self._build_cost_statistics(energy_by_hour, prices, total_cost)
+        if cost_statistics:
+            _LOGGER.debug(
+                "Importing %d cost statistic entries from %s to %s",
+                len(cost_statistics),
+                cost_statistics[0],
+                cost_statistics[-1],
+            )
+            async_add_external_statistics(self.hass, self.get_cost_statistics_metadata(), cost_statistics)
+        else:
+            _LOGGER.debug("No overlapping energy+price data found, no cost statistics written")
 
+        return total_cost
+
+    def _build_cost_statistics(
+        self,
+        energy_by_hour: dict[datetime, Decimal],
+        prices: dict[datetime, float],
+        total_cost: Decimal,
+    ) -> tuple[list[StatisticData], Decimal]:
+        """Multiply the usage of each hour by the price of the same hour; hours without price are skipped."""
+        cost_statistics = []
+        skipped = 0
         for ts in sorted(energy_by_hour.keys()):
-            usage_kwh = energy_by_hour[ts]
             price = prices.get(ts)
             if price is None:
                 skipped += 1
                 continue
-            hourly_cost = usage_kwh * Decimal(str(price))
+            hourly_cost = energy_by_hour[ts] * Decimal(str(price))
             total_cost += hourly_cost
             cost_statistics.append(
                 StatisticData(start=ts, sum=total_cost, state=float(hourly_cost))
@@ -519,16 +526,4 @@ class Importer:
                 "Skipped %d hours without matching price data for %s",
                 skipped, self.price_entity_id
             )
-
-        if cost_statistics:
-            _LOGGER.debug(
-                "Importing %d cost statistic entries from %s to %s",
-                len(cost_statistics),
-                cost_statistics[0],
-                cost_statistics[-1],
-            )
-            async_add_external_statistics(self.hass, cost_metadata, cost_statistics)
-        else:
-            _LOGGER.debug("No overlapping energy+price data found, no cost statistics written")
-
-        return total_cost
+        return cost_statistics, total_cost

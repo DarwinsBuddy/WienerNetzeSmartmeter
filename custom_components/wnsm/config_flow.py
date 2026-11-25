@@ -41,13 +41,12 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
         smartmeter = Smartmeter(username, password)
         await self.hass.async_add_executor_job(smartmeter.login)
         contracts = await self.hass.async_add_executor_job(smartmeter.zaehlpunkte)
-        zaehlpunkte=[]
+        zaehlpunkte = []
         if contracts is not None and isinstance(contracts, list) and len(contracts) > 0:
             for contract in contracts:
                 if "zaehlpunkte" in contract:
                     zaehlpunkte.extend(contract["zaehlpunkte"])
         return zaehlpunkte
-
 
     async def async_step_user(self, user_input: Optional[dict[str, Any]] = None):
         """Invoked when a user initiates a flow via the user interface."""
@@ -67,7 +66,7 @@ class WienerNetzeSmartMeterCustomConfigFlow(config_entries.ConfigFlow, domain=DO
                 self.data = user_input
                 self.data[CONF_ZAEHLPUNKTE] = [
                     translate_dict(zp, ATTRS_ZAEHLPUNKTE_CALL) for zp in zps
-                    if zp["isActive"] # only create active zaehlpunkte, as inactive ones can appear in old contracts
+                    if zp["isActive"]  # only create active zaehlpunkte, as inactive ones can appear in old contracts
                 ]
                 # User is done authenticating, create entry
                 return self.async_create_entry(
