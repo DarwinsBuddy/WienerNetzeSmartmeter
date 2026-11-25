@@ -15,5 +15,16 @@
         }        
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure Energy Cost Tracking",
+        "description": "Optionally select an hourly electricity price sensor to calculate energy costs. The sensor should report prices in currency per kWh (e.g. EUR/kWh). When configured, a cost statistic will be created for each metering point.",
+        "data": {
+          "price_entity": "Electricity price sensor"
+        }
+      }
+    }
   }
 }

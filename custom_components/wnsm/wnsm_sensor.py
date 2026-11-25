@@ -30,11 +30,12 @@ class WNSMSensor(SensorEntity):
     def _icon(self) -> str:
         return "mdi:flash"
 
-    def __init__(self, username: str, password: str, zaehlpunkt: str) -> None:
+    def __init__(self, username: str, password: str, zaehlpunkt: str, price_entity_id: str | None = None) -> None:
         super().__init__()
         self.username = username
         self.password = password
         self.zaehlpunkt = zaehlpunkt
+        self.price_entity_id = price_entity_id
 
         self._attr_native_value: int | float | None = 0
         self._attr_extra_state_attributes = {}
@@ -96,7 +97,7 @@ class WNSMSensor(SensorEntity):
                 for reading_date in reading_dates:
                     meter_reading = await async_smartmeter.get_meter_reading_from_historic_data(self.zaehlpunkt, reading_date, datetime.now())
                     self._attr_native_value = meter_reading
-                importer = Importer(self.hass, async_smartmeter, self.zaehlpunkt, self.unit_of_measurement, self.granularity())
+                importer = Importer(self.hass, async_smartmeter, self.zaehlpunkt, self.unit_of_measurement, self.granularity(), self.price_entity_id)
                 await importer.async_import()
             self._available = True
             self._updatets = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
