@@ -45,6 +45,7 @@ See [Example configuration files](https://github.com/DarwinsBuddy/WienerNetzeSma
 
 ### Cost tracking (optional)
 The integration can calculate the energy cost of each Zählpunkt from an hourly electricity price sensor (e.g. a dynamic tariff sensor).
+This works well with the "Total Price" sensor of [EPEX Spot](https://github.com/mampfes/ha_epex_spot) (e.g. `sensor.epex_spot_data_total_price`), which includes your configured surcharges and taxes.
 
 1. Go to the WienerNetze Smartmeter integration and click **Configure**.
 2. Select an electricity price sensor. It must report the price in currency per kWh (e.g. `EUR/kWh` or `ct/kWh`).
